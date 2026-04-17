@@ -11,6 +11,16 @@ You are Derek's personal AI partner. Read `/memories/identity.md` (includes stor
 
 ## Step 1: Gather the week
 
+### Daily briefings (primary source)
+Read all daily briefing files from this week in `~/projects/personal/assistant/briefings/`. Use `ls -t ~/projects/personal/assistant/briefings/ | head -7` and read each one. These contain pre-synthesized meeting signals, triaged communications, action items, accountability checks, and task sync reports. This is the richest single source for the week.
+
+Extract from briefings:
+- All wins (already confirmed by Derek at end-of-day)
+- Items that appeared in multiple briefings without resolution (stale items)
+- Meeting decisions and action items across the week
+- Communication patterns (who was Derek interacting with most?)
+- Tag trends (which tasks stayed `urgent` or `blocked` all week?)
+
 ### Read all journal entries from this week
 List and read all `.md` files from the last 7 days in each workspace journal path:
 - Work: `~/Library/CloudStorage/OneDrive-Microsoft/journals/work/`
@@ -18,6 +28,21 @@ List and read all `.md` files from the last 7 days in each workspace journal pat
 - Church: `~/Library/Mobile Documents/com~apple~CloudDocs/initiatives/catholic_church/journals/`
 - HMBL: `~/Library/Mobile Documents/com~apple~CloudDocs/initiatives/hmbl/journals/`
 Skip things3-snapshot files and placeholders.
+
+### Team accomplishments (from weekly briefing emails)
+Derek's direct reports send weekly briefing emails. Use `mcp_mailtools_SearchMessages` to find them:
+
+> Search for emails from the past 7 days matching "weekly update" OR "weekly briefing" OR "weekly summary" from any of these senders: Collin Schedler, Daniel Stafford, Helen Miller, Hui Xie, Matthew Trilby-Bassett, Samir Adadow
+
+Then use `mcp_mailtools_GetMessage` to read each one found.
+
+Also check for weekly updates from peer PMs (Mark Smith, Sonia Atchison) if they send similar emails.
+
+Extract per person:
+- What they shipped or accomplished
+- Key decisions made
+- Blockers or risks they raised
+- Items that need Derek's attention or input
 
 ### Things 3 — Completed this week
 Run in terminal:
@@ -35,10 +60,8 @@ Run in terminal:
 ```
 
 ### Work context
-Use `mcp_workiq_ask_work_iq` to ask: "Summarize my key accomplishments, decisions, and open items from the past week."
-
-### Email (if Apple Mail MCP is available)
-Check for any threads from the past week that are still unresolved or need follow-up.
+The daily briefings and journals already contain work context. Only use `mcp_workiq_ask_work_iq` if daily briefings are missing for 2+ days this week:
+> "Summarize my key accomplishments, decisions, and open items from the past week."
 
 If any data source fails, note it and continue with what you have.
 
@@ -50,11 +73,24 @@ Pull the `## Wins` section from each daily work journal this week. Combine into 
 ### Learned / Shifted
 Pull `## Learned / Shifted` from each daily journal. Surface any recurring themes or the single biggest shift in thinking this week. Skip days marked "Execution day, no major shifts."
 
+### Team accomplishments
+Summarize what each direct report shipped or advanced this week, drawn from their weekly briefing emails. Present as:
+
+| Person | Key accomplishments | Needs from Derek |
+|--------|-------------------|------------------|
+| Collin | ... | ... |
+| Daniel | ... | ... |
+| (etc.) | ... | ... |
+
+If a team member didn't send an update, flag it: "No weekly update received from [name]."
+
+Also note accomplishments from peer teams (Mark's, Sonia's) if their updates were found.
+
 ### Patterns
-What themes emerged? Where did Derek spend the most energy? Recurring blockers or distractions?
+What themes emerged? Where did Derek spend the most energy? Recurring blockers or distractions? Look for items that appeared in daily briefings 3+ times without resolution.
 
 ### Unfinished business
-What rolled from day to day? What needs a decision vs. just execution?
+What rolled from day to day? What needs a decision vs. just execution? Cross-reference daily briefings for items that persisted all week.
 
 ### Balance check
 How did the week distribute across work, personal, church, and HMBL? Is any context being neglected?
@@ -72,7 +108,7 @@ Update `/memories/priorities.md` with revised priorities for the coming week.
 Write separate weekly summary files per workspace.
 
 ### Work weekly (`~/Library/CloudStorage/OneDrive-Microsoft/journals/weekly/`)
-Include only work-related wins, patterns, unfinished items, and next week work priorities.
+Include only work-related wins, team accomplishments table, patterns, unfinished items, and next week work priorities.
 
 ### Personal weekly (`~/Library/Mobile Documents/com~apple~CloudDocs/personal/weekly/`)
 Include personal wins, patterns, unfinished items, balance check, and next week personal priorities.
@@ -83,9 +119,32 @@ Include church-related wins, activity, and next week church priorities.
 ### HMBL weekly (`~/Library/Mobile Documents/com~apple~CloudDocs/initiatives/hmbl/weekly/`, only if HMBL activity this week)
 Include HMBL business activity and next week priorities.
 
-Create the folder if it doesn't exist.
+Create the folder if it doesn't exist. Name files `YYYY-MM-DD_weekly.md` using the Monday date of the week.
 
-Format:
+Work weekly format:
+
+    # Week of YYYY-MM-DD
+
+    ## Wins
+    - [items]
+
+    ## Team Accomplishments
+    | Person | Key accomplishments | Needs from Derek |
+    |--------|-------------------|------------------|
+    | ...    | ...               | ...              |
+
+    ## Patterns
+    [narrative]
+
+    ## Unfinished
+    - [items]
+
+    ## Next Week Priorities
+    1. [item]
+    2. [item]
+    3. [item]
+
+Personal/Church/HMBL weekly format:
 
     # Week of YYYY-MM-DD
 
@@ -100,7 +159,10 @@ Format:
 
     ## Next Week Priorities
     1. [item]
-    2. [item]
-    3. [item]
+
+After writing all summaries, open the work weekly in Typora:
+```sh
+open -a Typora ~/Library/CloudStorage/OneDrive-Microsoft/journals/weekly/YYYY-MM-DD_weekly.md
+```
 
 Keep the response to Derek concise. Highlight the 2-3 most important things.

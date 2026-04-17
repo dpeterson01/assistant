@@ -22,6 +22,13 @@ Extract from recent briefings:
 - Prior meeting context for today's attendees (no need to re-query WorkIQ for this)
 - Carry-forward action items and their trajectory (improving, stuck, new)
 
+### Last weekly review (Monday mornings, or if no briefings exist from prior week)
+If today is Monday (or the most recent daily briefing is 3+ days old), also read the most recent weekly review:
+- Work: `ls -t ~/Library/CloudStorage/OneDrive-Microsoft/journals/weekly/ | head -1`
+- Personal: `ls -t ~/Library/Mobile\ Documents/com~apple~CloudDocs/personal/weekly/ | head -1`
+
+These contain the prior week's wins, team accomplishments, patterns, unfinished items, and priorities for this week. Use them to anchor today's focus.
+
 ### Yesterday's close-out
 Read `~/.local/share/daily-consolidation/last-session.txt` to get the last end-of-day date.
 Read that date's journals:
