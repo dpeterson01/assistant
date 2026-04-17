@@ -258,3 +258,8 @@ The file should contain:
 - A `## Tasks Synced` section with the Step 3 report
 
 This archive enables cross-day pattern recognition (e.g., items appearing in multiple briefings without resolution) and provides continuity for future morning briefings.
+
+After saving the file, open it in Typora:
+```sh
+open -a Typora ~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md
+```
