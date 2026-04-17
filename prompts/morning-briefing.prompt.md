@@ -182,15 +182,20 @@ Search first (`~/.local/bin/things3/search.sh "keyword"`) for each candidate. Sk
 
 ### Add missing tasks
 ```sh
-~/.local/bin/things3/add.sh "Task title" --when "YYYY-MM-DD" --area "AreaName" --notes "Source: [email/Teams/iMessage] from [person]. Context: [1 sentence]." --tags "action-item"
+~/.local/bin/things3/add.sh "Task title" --when "YYYY-MM-DD" --notes "Source: [email/Teams/iMessage] from [person]. Context: [1 sentence]." --tags "action-item"
 ```
-- Always include `--area` with one of: Work, Personal, HMBL, Church
-  - **Work**: Microsoft role tasks (ADO, specs, meetings, reviews, initiatives, certifications, cross-team)
-  - **Personal**: Family, household, finance, insurance, vehicles, admin
-  - **HMBL**: HMBL Marketing clients, invoicing, Freshbooks, Wix/GoDaddy
-  - **Church**: Parish, Father Francisco, banners, AV, M365 nonprofit, Diocese
+Then immediately move to the correct project:
+```sh
+~/.local/bin/things3/move.sh --search "Task title" "Project Name"
+```
+
+Every task must live in a project. See the Things 3 skill (`/things3`) for full project routing. Quick reference:
+- **Work**: Agent Skills, Learn Platform Operations, Operational, People & Growth, Process improvements
+- **Personal**: Family & Admin, Household Projects, Insurance, Vehicles
+- **HMBL**: Wind-Down
+- **Church**: Track 1-4 (see skill for full names)
+
 - Set `--when` to the deadline if known, otherwise today
-- Use `--project "name"` if there's a clear sub-project match (see `~/.local/bin/things3/projects.sh`)
 - For HIGH items with tight deadlines, add `--tags "action-item,urgent"`
 
 ### Complete done tasks
@@ -199,8 +204,19 @@ If yesterday's journals or overnight data show something was completed that's st
 ~/.local/bin/things3/complete.sh --search "task keyword"
 ```
 
+### Reassess tags
+After adding/completing tasks, reassess tags on all Today tasks:
+
+1. **`urgent`**: Apply to tasks due today, overdue, or HIGH-triage items with same-day deadlines. Remove from tasks no longer time-sensitive.
+2. **`action-item`**: Apply to all tasks that exist in `/memories/action-items.md`. Remove if the item was completed or removed from action-items.
+3. **`blocked`**: Apply to tasks where Derek is waiting on someone else (cross-reference `/memories/waiting-on-others.md`). Remove when the blocker resolves.
+
+Use `~/.local/bin/things3/update.sh <id> --tags "tag1,tag2"` to set tags. To find task IDs: `~/.local/bin/things3/search.sh "keyword"`.
+
+Remove stale tags from completed or resolved items. Tags should reflect the current state, not yesterday's.
+
 ### Report
-Present: "Added X tasks, completed Y tasks" with the list. For each added task, show the source (e.g., "from email: Tanvi re: Epic Change Report").
+Present: "Added X tasks, completed Y tasks, updated tags on Z tasks" with the list. For each added task, show the source (e.g., "from email: Tanvi re: Epic Change Report").
 
 ## Step 4: Surface conflicts or suggestions
 
@@ -231,3 +247,14 @@ Present: "Added X tasks, completed Y tasks" with the list. For each added task, 
 - Flag stale items (5+ business days, never nudged) by updating Status to "stale"
 
 Keep the whole briefing under 50 lines. Lead with what matters most.
+
+## Step 6: Save the briefing
+
+Save the full briefing output to `~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md` where YYYY-MM-DD is today's date.
+
+The file should contain:
+- A YAML frontmatter block with `date`, `meetings_count`, `action_items_count`, `high_priority_count`
+- The complete briefing as presented to Derek (Steps 2-4 output)
+- A `## Tasks Synced` section with the Step 3 report
+
+This archive enables cross-day pattern recognition (e.g., items appearing in multiple briefings without resolution) and provides continuity for future morning briefings.

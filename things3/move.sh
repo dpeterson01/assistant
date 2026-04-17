@@ -53,7 +53,6 @@ echo "Moving \"$TASK_NAME\" → $PROJECT_NAME"
 osascript -e "
 tell application \"Things3\"
   set t to to do id \"$TASK_ID\"
-  set p to project \"$PROJECT_NAME\"
-  move t to p
+  set project of t to project \"$PROJECT_NAME\"
 end tell
 "
