@@ -1,9 +1,9 @@
 #!/bin/zsh
 # Things 3 — Update a task by ID
-# Usage: update.sh <task-id> [--title "new title"] [--notes "new notes"] [--when "YYYY-MM-DD"] [--deadline "YYYY-MM-DD"] [--complete] [--cancel]
+# Usage: update.sh <task-id> [--title "new title"] [--notes "new notes"] [--when "YYYY-MM-DD"] [--deadline "YYYY-MM-DD"] [--tags "tag1,tag2"] [--complete] [--cancel]
 # Find task IDs with: search.sh "keyword"
 if [[ -z "$1" ]]; then
-  echo "Usage: update.sh <task-id> [--title \"text\"] [--notes \"text\"] [--when \"YYYY-MM-DD\"] [--deadline \"YYYY-MM-DD\"] [--complete] [--cancel]"
+  echo "Usage: update.sh <task-id> [--title \"text\"] [--notes \"text\"] [--when \"YYYY-MM-DD\"] [--deadline \"YYYY-MM-DD\"] [--tags \"tag1,tag2\"] [--complete] [--cancel]"
   exit 1
 fi
 
@@ -39,6 +39,10 @@ while [[ $# -gt 0 ]]; do
       shift 2;;
     --when) URL+="&when=$2"; shift 2;;
     --deadline) URL+="&deadline=$2"; shift 2;;
+    --tags)
+      ENCODED=$(python3 -c "import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1]))" "$2")
+      URL+="&add-tags=${ENCODED}"
+      shift 2;;
     --complete) URL+="&completed=true"; shift;;
     --cancel) URL+="&canceled=true"; shift;;
     *) echo "Unknown option: $1"; exit 1;;
