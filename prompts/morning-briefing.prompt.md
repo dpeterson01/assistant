@@ -9,9 +9,18 @@ argument-hint: "Optional: specific context to focus on (work, personal, church)"
 
 You are Derek's AI partner. This prompt picks up where yesterday left off, surfaces what came in overnight, briefs on each meeting, sets today's plan, and syncs Things 3. Move fast.
 
-Read `/memories/identity.md`, `/memories/priorities.md`, `/memories/action-items.md`, and `/memories/waiting-on-others.md` first.
+Read `/memories/identity.md`, `/memories/priorities.md`, `/memories/action-items.md`, and `/memories/waiting-on-others.md` first. Hold these in context for the entire briefing. Do not re-read them in later steps.
 
 ## Step 1: Reload context (do all in parallel where possible)
+
+### Recent briefings (primary context source)
+Read the last 3-5 daily briefings from `~/projects/personal/assistant/briefings/` (most recent files by date). These contain synthesized meeting signals, open threads, action items, and carry-forward items from prior days. Use `ls -t ~/projects/personal/assistant/briefings/ | head -5` to find them.
+
+Extract from recent briefings:
+- Recurring meeting patterns and open follow-ups
+- Items that have appeared in multiple briefings without resolution (flag these as stale)
+- Prior meeting context for today's attendees (no need to re-query WorkIQ for this)
+- Carry-forward action items and their trajectory (improving, stuck, new)
 
 ### Yesterday's close-out
 Read `~/.local/share/daily-consolidation/last-session.txt` to get the last end-of-day date.
@@ -33,8 +42,8 @@ Run both in terminal:
 - `~/.local/bin/things3/today.sh` (today's task list)
 - `~/.local/bin/things3/upcoming.sh` (next 7 days)
 
-### Overnight activity and today's meetings
-Use `mcp_workiq_ask_work_iq`:
+### Overnight activity and today's meetings (single WorkIQ call)
+Make ONE call to `mcp_workiq_ask_work_iq`. This is the only WorkIQ call in the entire briefing. Do not make per-meeting follow-up calls.
 
 > Give me everything I need to start my day for YYYY-MM-DD.
 >
@@ -52,27 +61,15 @@ Use `mcp_workiq_ask_work_iq`:
 > Format emails as: **Subject** | From: [name] | Summary: [1 sentence]
 > Format Teams as: **Chat/Channel** | From: [name] | Summary: [1 sentence]
 
-### Meeting briefings (per-meeting deep context)
-After getting the meeting list, build a briefing for each meeting. For every meeting today, use `mcp_workiq_ask_work_iq` to gather signals. You may batch 2-3 meetings per query if attendees overlap, but cover every meeting.
+### Build meeting briefings (from briefing archive + overnight data)
+For each meeting today, assemble a briefing by combining:
 
-For each meeting, query:
+1. **Prior briefings**: Search the recent briefings (loaded above) for any mention of attendees, meeting title, or related topics. Extract prior signals, open follow-ups, and unresolved items.
+2. **Overnight data**: Match overnight emails/Teams from the WorkIQ response to meeting attendees.
+3. **Memory files** (already loaded): Cross-reference action-items.md (does Derek owe an attendee?) and waiting-on-others.md (does an attendee owe Derek?).
+4. **Yesterday's journal**: Open threads involving these people.
 
-> I have a meeting: **[Meeting Title]** at [time] with [attendee names].
->
-> Search the last 14 days for anything relevant to this meeting:
-> 1. **Emails** to/from/cc any attendee, or about topics likely on the agenda
-> 2. **Teams messages** (1:1 or group chats) with any attendee
-> 3. **Teams channel posts** in channels these attendees are active in
-> 4. **Prior instances of this meeting**: If this is a recurring meeting (1:1, standup, sync, review, office hours), find the most recent 1-2 prior occurrences. Surface any follow-up items, action items, or decisions from those prior meetings that are still open or relevant.
-> 5. **Documents or links shared** by any attendee in the past 14 days
->
-> For each signal found, provide: source type (email/Teams/doc/prior-meeting), who, when, and a 1-sentence summary of what was said or shared.
-> For prior meeting follow-ups specifically, note whether the item appears resolved or still open.
-
-Then cross-reference each meeting's signals against:
-- `/memories/action-items.md`: Does Derek owe anything to an attendee?
-- `/memories/waiting-on-others.md`: Does an attendee owe Derek something?
-- Yesterday's journal `Open Threads`: Any unresolved items involving these people?
+Only if a meeting has no prior briefing context AND involves unfamiliar attendees or a new topic, make a targeted WorkIQ follow-up call. This should be rare.
 
 Assemble each meeting briefing with this structure:
 ```
@@ -80,18 +77,17 @@ Assemble each meeting briefing with this structure:
 **Attendees**: [names, roles if known]
 **Agenda**: [from invite, or inferred from signals, or "None provided"]
 **Signals**:
-- [source type] [who] [when]: [1-sentence summary]
-- [source type] [who] [when]: [1-sentence summary]
+- [source] [who] [when]: [1-sentence summary]
 **Open items with attendees**:
-- [item from action-items/waiting-on-others, or "None"]
+- [item from action-items/waiting-on-others/prior briefings, or "None"]
 **Suggested talking points**:
-- [1-2 specific things Derek should raise, ask about, or follow up on based on signals and open items]
-**Prep**: [specific action needed before this meeting, or "None"]
+- [1-2 specific things Derek should raise based on signals and open items]
+**Prep**: [specific action needed, or "None"]
 ```
 
-For recurring standups or office hours with no signals, keep the briefing minimal: attendees, "Recurring standup, no specific prep needed."
+For recurring standups or office hours with no signals, compress to one line: "**Title** (time) - Recurring, no specific prep."
 
-### iMessages (overnight and recent unread)
+### iMessages (run in parallel with WorkIQ call)
 Use `mcp_imcp_messages_fetch` to check for messages since 5pm yesterday. Also check today's personal journal if the overnight script captured iMessages there.
 
 ### Triage all inbound communications
