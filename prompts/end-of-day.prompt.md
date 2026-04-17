@@ -53,6 +53,14 @@ Before writing journals, identify today's wins and prepare a targeted learning q
 6. Process improvements (new tooling, automation, workflow fixes)
 7. Tasks completed that moved initiatives forward
 
+For each win, capture three dimensions:
+- **Priority tag**: Which core priority does this serve? Use the priorities from `/memories/priorities.md` (e.g., Agent Skills, Learn Companion, Platform Operations, People & Growth, Process).
+- **Impact scope**: Individual, Team, Org, or Company. Be honest. Most daily wins are Individual or Team.
+- **So what**: One clause explaining why it matters beyond the task itself.
+
+Format: `- [Priority] Win statement. (Scope) So what.`
+Example: `- [Agent Skills] Shipped eval data to Heather for VP briefing. (Org) Positioned Learn's knowledge layer for executive investment decision.`
+
 Present the 3 wins to Derek for confirmation. He can swap, reword, or approve.
 
 **Prepare a Learned/Shifted question.** Scan today's meetings, emails, and Teams for signals that something changed:
@@ -76,7 +84,9 @@ Determine today's date. Write or update journals by context.
 # Work Journal: YYYY-MM-DD (Day of Week)
 
 ## Wins
-- [top 3 wins confirmed by Derek in Step 1b, written as concise impact statements]
+- [Priority] Win statement. (Scope) So what.
+- [Priority] Win statement. (Scope) So what.
+- [Priority] Win statement. (Scope) So what.
 
 ## Learned / Shifted
 [Derek's answer from Step 1b. If "just execution," write "Execution day, no major shifts." Otherwise capture the insight in 1-2 sentences.]

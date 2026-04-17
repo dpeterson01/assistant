@@ -165,4 +165,51 @@ After writing all summaries, open the work weekly in Typora:
 open -a Typora ~/Library/CloudStorage/OneDrive-Microsoft/journals/weekly/YYYY-MM-DD_weekly.md
 ```
 
+## Step 6: Update Connects draft
+
+Maintain a running Connects draft at `~/Library/CloudStorage/OneDrive-Microsoft/connects/current-half.md`. This file accumulates across weeks so that by Connects time, the evidence is already assembled.
+
+If the file doesn't exist, create it with this structure:
+
+```markdown
+# Connects Draft: H[1|2] FY[XX]
+
+Last updated: YYYY-MM-DD
+
+## Core Priorities
+[Copy from /memories/priorities.md at start of half. These anchor everything below.]
+
+## Impact Evidence
+
+### [Priority 1 Name]
+| Week | Win | Scope | So What |
+|------|-----|-------|---------|
+
+### [Priority 2 Name]
+| Week | Win | Scope | So What |
+|------|-----|-------|---------|
+
+(one section per core priority)
+
+### Leverage on Others
+| Week | What I did | Who benefited | Impact |
+|------|-----------|---------------|--------|
+
+### Growth & Learning
+| Week | Insight or shift | How it changed my approach |
+|------|-----------------|--------------------------|
+```
+
+Each week, append this week's data:
+
+1. **Impact Evidence**: Take each Org or Company-scoped win from this week's work journal wins and add it to the matching priority table. Team-scoped wins that represent patterns (3+ similar wins) get promoted too.
+
+2. **Leverage on Others**: Scan this week's team accomplishments table. For any item where Derek's actions directly enabled a report's outcome (unblocked them, gave feedback, made a decision they needed), add a row. Also check if Derek onboarded, coached, or mentored anyone this week.
+
+3. **Growth & Learning**: Pull the most significant "Learned/Shifted" entry from this week's journals. Skip weeks that were pure execution.
+
+Do not rewrite prior weeks' entries. Only append new rows and update the "Last updated" date.
+
+Present a one-line summary: "Connects draft updated: added X impact items, Y leverage items, Z learning items."
+
 Keep the response to Derek concise. Highlight the 2-3 most important things.
