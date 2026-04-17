@@ -11,16 +11,26 @@ You are Derek's AI partner. This prompt picks up where yesterday left off, surfa
 
 Read `/memories/identity.md`, `/memories/priorities.md`, `/memories/action-items.md`, and `/memories/waiting-on-others.md` first. Hold these in context for the entire briefing. Do not re-read them in later steps.
 
+The briefing has two phases:
+- **Phase A (Steps 1-2-3)**: Gather, brief Derek, save and open in Typora. Get Derek reading ASAP.
+- **Phase B (Steps 4-5-6)**: Maintenance. Sync Things 3, update memory files, surface conflicts. Runs while Derek reads.
+
+---
+
+# Phase A: Get the briefing to Derek fast
+
 ## Step 1: Reload context (do all in parallel where possible)
 
 ### Recent briefings (primary context source)
-Read the last 3-5 daily briefings from `~/projects/personal/assistant/briefings/` (most recent files by date). These contain synthesized meeting signals, open threads, action items, and carry-forward items from prior days. Use `ls -t ~/projects/personal/assistant/briefings/ | head -5` to find them.
+Check if any briefings exist: `ls ~/projects/personal/assistant/briefings/ 2>/dev/null | head -1`
 
-Extract from recent briefings:
+**If briefings exist**: Read the last 3-5 daily briefings (most recent by date). Use `ls -t ~/projects/personal/assistant/briefings/ | head -5`. Extract:
 - Recurring meeting patterns and open follow-ups
 - Items that have appeared in multiple briefings without resolution (flag these as stale)
-- Prior meeting context for today's attendees (no need to re-query WorkIQ for this)
-- Carry-forward action items and their trajectory (improving, stuck, new)
+- Prior meeting context for today's attendees
+- Carry-forward action items and their trajectory
+
+**If no briefings exist**: Skip this section entirely. Prior context will come from journals and memory files only.
 
 ### Last weekly review (Monday mornings, or if no briefings exist from prior week)
 If today is Monday (or the most recent daily briefing is 3+ days old), also read the most recent weekly review:
@@ -94,11 +104,11 @@ Assemble each meeting briefing with this structure:
 
 For recurring standups or office hours with no signals, compress to one line: "**Title** (time) - Recurring, no specific prep."
 
-### iMessages (run in parallel with WorkIQ call)
-Use `mcp_imcp_messages_fetch` to check for messages since 5pm yesterday. Also check today's personal journal if the overnight script captured iMessages there.
+### iMessages (weekends and personal context only)
+On weekdays, skip the iMessage fetch. Today's personal journal already has overnight iMessages if the generate script ran. Only use `mcp_imcp_messages_fetch` on weekends or if explicitly asked.
 
 ### Triage all inbound communications
-After collecting emails, Teams, and iMessages, classify every item using these rules:
+After collecting emails and Teams, classify every item using these rules:
 
 **🔴 HIGH (surface first, add to Things 3)**
 - From Heather, Curtis, or direct reports with a direct ask or decision needed
@@ -122,11 +132,6 @@ After collecting emails, Teams, and iMessages, classify every item using these r
 
 **Action item extraction**: For every HIGH or MEDIUM item, determine: does this require Derek to DO something? If yes, it becomes a task. Extract: what to do, who it's owed to, source, and deadline (explicit or inferred).
 
-### Current priorities and action items
-Read `/memories/priorities.md`, `/memories/action-items.md`, and `/memories/waiting-on-others.md`.
-
-If any source fails, note it and continue.
-
 ## Step 2: Brief Derek
 
 Present a tight morning briefing. No fluff.
@@ -136,7 +141,7 @@ Present a tight morning briefing. No fluff.
 - Items in action-items.md that are overdue or due today
 
 ### What came in overnight (triaged)
-Present communications grouped by importance tier. For each item show the tier emoji, source (email/Teams/iMessage), sender, age if older than overnight, and 1-sentence summary.
+Present communications grouped by importance tier. For each item show the tier emoji, source (email/Teams), sender, age if older than overnight, and 1-sentence summary.
 
 **🔴 HIGH** items first (these need action, briefly state what Derek needs to do)
 **🟡 MEDIUM** items next
@@ -169,25 +174,51 @@ For low-signal recurring meetings (standups, office hours), compress to one line
 - Deadlines approaching
 - Things 3 Upcoming items worth noting
 
-## Step 3: Sync Things 3
+Keep the briefing under 50 lines. Lead with what matters most.
+
+## Step 3: Save and open briefing
+
+Save the full briefing output to `~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md` where YYYY-MM-DD is today's date.
+
+The file should contain:
+- A YAML frontmatter block with `date`, `meetings_count`, `action_items_count`, `high_priority_count`
+- The complete briefing as presented to Derek (Step 2 output)
+
+Open it in Typora immediately so Derek can start reading:
+```sh
+open -a Typora ~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md
+```
+
+Then continue to Phase B while Derek reads.
+
+---
+
+# Phase B: Maintenance (runs while Derek reads the briefing)
+
+## Step 4: Sync Things 3
 
 Every action item identified during triage becomes a Things 3 task. No exceptions for HIGH items. MEDIUM items become tasks if they have a clear "do" action.
 
 ### Sources that generate tasks
-1. 🔴 HIGH communications (email, Teams, iMessage) with an action for Derek
+1. 🔴 HIGH communications (email, Teams) with an action for Derek
 2. 🟡 MEDIUM communications with a clear, specific ask
 3. Carry-forward items from yesterday's journal not yet in Things 3
 4. Meeting prep tasks (from Step 2 meeting briefs)
 5. New items added to `action-items.md`
 
-### Before adding, always deduplicate
-Search first (`~/.local/bin/things3/search.sh "keyword"`) for each candidate. Skip if a matching task exists.
-
-### Add missing tasks
+### Batch deduplication
+Before adding tasks, run a single search for all candidate keywords at once to minimize shell calls:
 ```sh
-~/.local/bin/things3/add.sh "Task title" --when "YYYY-MM-DD" --notes "Source: [email/Teams/iMessage] from [person]. Context: [1 sentence]." --tags "action-item"
+~/.local/bin/things3/search.sh "keyword1\|keyword2\|keyword3"
 ```
-Then immediately move to the correct project:
+Skip any candidate that already has a matching task.
+
+### Add missing tasks (batch when possible)
+For each task to add:
+```sh
+~/.local/bin/things3/add.sh "Task title" --when "YYYY-MM-DD" --notes "Source: [email/Teams] from [person]. Context: [1 sentence]." --tags "action-item"
+```
+Then move to the correct project:
 ```sh
 ~/.local/bin/things3/move.sh --search "Task title" "Project Name"
 ```
@@ -207,8 +238,8 @@ If yesterday's journals or overnight data show something was completed that's st
 ~/.local/bin/things3/complete.sh --search "task keyword"
 ```
 
-### Reassess tags
-After adding/completing tasks, reassess tags on all Today tasks:
+### Reassess tags (batch)
+After adding/completing tasks, reassess tags on all Today tasks in a single pass:
 
 1. **`urgent`**: Apply to tasks due today, overdue, or HIGH-triage items with same-day deadlines. Remove from tasks no longer time-sensitive.
 2. **`action-item`**: Apply to all tasks that exist in `/memories/action-items.md`. Remove if the item was completed or removed from action-items.
@@ -219,14 +250,7 @@ Use `~/.local/bin/things3/update.sh <id> --tags "tag1,tag2"` to set tags. To fin
 Remove stale tags from completed or resolved items. Tags should reflect the current state, not yesterday's.
 
 ### Report
-Present: "Added X tasks, completed Y tasks, updated tags on Z tasks" with the list. For each added task, show the source (e.g., "from email: Tanvi re: Epic Change Report").
-
-## Step 4: Surface conflicts or suggestions
-
-- Flag any scheduling conflicts or overloaded days
-- Note if a priority from yesterday hasn't moved in several days
-- Suggest 1-2 things to tackle, defer, or delegate
-- If a meeting today involves someone who owes you something, suggest raising it
+Present: "Added X tasks, completed Y tasks, updated tags on Z tasks" with the list.
 
 ## Step 5: Update files
 
@@ -249,20 +273,11 @@ Present: "Added X tasks, completed Y tasks, updated tags on Z tasks" with the li
 - Flag overdue items by updating Status to "overdue"
 - Flag stale items (5+ business days, never nudged) by updating Status to "stale"
 
-Keep the whole briefing under 50 lines. Lead with what matters most.
+## Step 6: Surface conflicts or suggestions
 
-## Step 6: Save the briefing
+- Flag any scheduling conflicts or overloaded days
+- Note if a priority from yesterday hasn't moved in several days
+- Suggest 1-2 things to tackle, defer, or delegate
+- If a meeting today involves someone who owes you something, suggest raising it
 
-Save the full briefing output to `~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md` where YYYY-MM-DD is today's date.
-
-The file should contain:
-- A YAML frontmatter block with `date`, `meetings_count`, `action_items_count`, `high_priority_count`
-- The complete briefing as presented to Derek (Steps 2-4 output)
-- A `## Tasks Synced` section with the Step 3 report
-
-This archive enables cross-day pattern recognition (e.g., items appearing in multiple briefings without resolution) and provides continuity for future morning briefings.
-
-After saving the file, open it in Typora:
-```sh
-open -a Typora ~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md
-```
+Append the Phase B report (task sync + conflicts) to the briefing file already saved.
