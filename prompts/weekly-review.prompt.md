@@ -169,47 +169,29 @@ open -a Typora ~/Library/CloudStorage/OneDrive-Microsoft/journals/weekly/YYYY-MM
 
 Maintain a running Connects draft at `~/Library/CloudStorage/OneDrive-Microsoft/connects/current-half.md`. This file accumulates across weeks so that by Connects time, the evidence is already assembled.
 
-If the file doesn't exist, create it with this structure:
+The draft has three major sections matching Connects evaluation dimensions:
+1. **Core Priorities** (individual delivery against agreed priorities)
+2. **Manager Excellence** (developing people, team performance, inclusive culture)
+3. **Culture & Values** (AI adoption, D&I, One Microsoft, growth mindset)
 
-```markdown
-# Connects Draft: H[1|2] FY[XX]
+Each week, append this week's data by pulling from the daily work journals' `## Connects Signals` sections and `## Wins`:
 
-Last updated: YYYY-MM-DD
+### Core Priorities
+Take each Org or Company-scoped win from this week and add it to the matching priority table. Team-scoped wins that represent patterns (3+ similar wins across the half) get promoted too.
 
-## Core Priorities
-[Copy from /memories/priorities.md at start of half. These anchor everything below.]
+### Manager Excellence
+- **Developing People**: Any coaching, feedback, career conversations, skill development, or onboarding you did for direct reports this week.
+- **Team Performance & Clarity**: Direction-setting, unblocking, accountability improvements, execution improvements.
+- **Inclusive Team Culture**: Moments where you built belonging, ensured equitable participation, or amplified diverse perspectives within your team.
 
-## Impact Evidence
-
-### [Priority 1 Name]
-| Week | Win | Scope | So What |
-|------|-----|-------|---------|
-
-### [Priority 2 Name]
-| Week | Win | Scope | So What |
-|------|-----|-------|---------|
-
-(one section per core priority)
-
-### Leverage on Others
-| Week | What I did | Who benefited | Impact |
-|------|-----------|---------------|--------|
-
-### Growth & Learning
-| Week | Insight or shift | How it changed my approach |
-|------|-----------------|--------------------------|
-```
-
-Each week, append this week's data:
-
-1. **Impact Evidence**: Take each Org or Company-scoped win from this week's work journal wins and add it to the matching priority table. Team-scoped wins that represent patterns (3+ similar wins) get promoted too.
-
-2. **Leverage on Others**: Scan this week's team accomplishments table. For any item where Derek's actions directly enabled a report's outcome (unblocked them, gave feedback, made a decision they needed), add a row. Also check if Derek onboarded, coached, or mentored anyone this week.
-
-3. **Growth & Learning**: Pull the most significant "Learned/Shifted" entry from this week's journals. Skip weeks that were pure execution.
+### Culture & Values
+- **AI Adoption**: Pull from "AI Adoption" Connects signals. How you used or championed Copilot, MCP, agents, or other AI tools.
+- **D&I (beyond team)**: ERG participation, hiring practices, mentoring outside team, accessibility advocacy.
+- **One Microsoft**: Cross-org collaboration signals from the week (DevDiv, Global Skilling, partner teams).
+- **Growth Mindset**: Pull the most significant "Learned/Shifted" entry from this week's journals. Skip weeks that were pure execution.
 
 Do not rewrite prior weeks' entries. Only append new rows and update the "Last updated" date.
 
-Present a one-line summary: "Connects draft updated: added X impact items, Y leverage items, Z learning items."
+Present a one-line summary: "Connects draft updated: X core priority items, Y manager items, Z culture items."
 
 Keep the response to Derek concise. Highlight the 2-3 most important things.

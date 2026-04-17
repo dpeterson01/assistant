@@ -74,11 +74,22 @@ Ask Derek one specific question based on what you found. Example: "The QBR showe
 
 Capture Derek's answer (even if it's "nope, just execution").
 
+**Scan for Connects signals.** Beyond the top 3 wins, quickly scan today's activity for anything that maps to Connects dimensions. These don't need to be wins; they just need to be captured before the details fade. Check for:
+
+- **Manager Excellence**: Did you coach, give feedback, unblock, or develop a direct report? Have a career conversation? Set direction or improve team clarity?
+- **D&I**: Did you amplify a diverse perspective, ensure equitable participation in a meeting, advocate for accessibility, or contribute to an ERG?
+- **AI Adoption**: Did you use Copilot, MCP tools, or agent workflows to get something done faster? Did you help a team member adopt AI tools?
+- **One Microsoft**: Did you partner cross-org (DevDiv, Global Skilling, etc.) in a way that reduced silos or shared knowledge?
+
+If any signals exist, note them briefly. Not every day will have them. Don't force it.
+
 ## Step 2: Write journals
 
 Determine today's date. Write or update journals by context.
 
 ### Work journal (`~/Library/CloudStorage/OneDrive-Microsoft/journals/work/YYYY-MM-DD.md`)
+
+**DATA BOUNDARY**: Never include iMessage content, personal email, or non-Microsoft data in the work journal. iMessage and personal communications belong exclusively in the personal journal. If an iMessage relates to work (e.g., a colleague texting about a deadline), capture only the work-relevant fact without attributing it to iMessage.
 
 ```markdown
 # Work Journal: YYYY-MM-DD (Day of Week)
@@ -99,6 +110,17 @@ Determine today's date. Write or update journals by context.
 
 ## Open Threads
 [unfinished Today items + action items assigned to me from meetings + any follow-ups from email/Teams]
+
+## Connects Signals
+[Only include sections where something actually happened today. Omit empty sections.]
+### Manager Excellence
+[coaching, feedback, unblocking, career conversations, direction-setting — or omit if none]
+### D&I
+[diverse perspectives amplified, equitable participation, accessibility, ERG — or omit if none]
+### AI Adoption
+[Copilot usage, MCP tools, agent workflows, helping team adopt AI — or omit if none]
+### One Microsoft
+[cross-org collaboration, knowledge sharing, silo reduction — or omit if none]
 
 ## Communications Summary
 ### Email Activity
