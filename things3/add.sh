@@ -10,8 +10,9 @@
 #   --tags "tag1,tag2"       Comma-separated tags
 #   --checklist "a,b,c"      Comma-separated checklist items
 #   --heading "name"         Heading within project
+#   --task-id "AI-..."       Stable tracking ID (appends to notes)
 if [[ -z "$1" ]]; then
-  echo "Usage: add.sh \"title\" [--notes \"text\"] [--when \"YYYY-MM-DD\"] [--deadline \"YYYY-MM-DD\"] [--project \"name\"] [--area \"name\"] [--tags \"tag1,tag2\"] [--checklist \"item1,item2\"] [--heading \"name\"]"
+  echo "Usage: add.sh \"title\" [--notes \"text\"] [--when \"YYYY-MM-DD\"] [--deadline \"YYYY-MM-DD\"] [--project \"name\"] [--area \"name\"] [--tags \"tag1,tag2\"] [--checklist \"item1,item2\"] [--heading \"name\"] [--task-id \"AI-...\"]"
   exit 1
 fi
 
@@ -34,10 +35,12 @@ urlencode() {
 
 URL="things:///add?auth-token=${AUTH_TOKEN}&title=$(urlencode "$TITLE")"
 AREA_NAME=""
+NOTES_TEXT=""
+TASK_STABLE_ID=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --notes) URL+="&notes=$(urlencode "$2")"; shift 2;;
+    --notes) NOTES_TEXT="$2"; shift 2;;
     --when) URL+="&when=$2"; shift 2;;
     --deadline) URL+="&deadline=$2"; shift 2;;
     --project) URL+="&list=$(urlencode "$2")"; shift 2;;
@@ -48,9 +51,21 @@ while [[ $# -gt 0 ]]; do
       URL+="&checklist-items=$(urlencode "$ITEMS")"
       shift 2;;
     --heading) URL+="&heading=$(urlencode "$2")"; shift 2;;
+    --task-id) TASK_STABLE_ID="$2"; shift 2;;
     *) echo "Unknown option: $1"; exit 1;;
   esac
 done
+
+if [[ -n "$TASK_STABLE_ID" ]]; then
+  if [[ -n "$NOTES_TEXT" ]]; then
+    NOTES_TEXT+=$'\n\n'
+  fi
+  NOTES_TEXT+="Task ID: ${TASK_STABLE_ID}"
+fi
+
+if [[ -n "$NOTES_TEXT" ]]; then
+  URL+="&notes=$(urlencode "$NOTES_TEXT")"
+fi
 
 echo "Adding: $TITLE"
 open -g "$URL"

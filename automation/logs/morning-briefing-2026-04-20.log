@@ -1,0 +1,6 @@
+=== Morning Briefing: 2026-04-20 06:39:00 ===
+Starting Copilot CLI morning-briefing agent...
+Weekday: iMCP skipped (hangs risk)
+/Users/derekpeterson/projects/personal/assistant/automation/scripts/morning-briefing.sh:79: command not found: timeout
+/Users/derekpeterson/projects/personal/assistant/automation/scripts/morning-briefing.sh:79: command not found: timeout
+=== Finished: 06:39:00 ===

@@ -1,2 +1,5 @@
 .DS_Store
 *.bak
+automation/logs/
+automation/__pycache__/
+automation/.checkpoints/

@@ -9,7 +9,31 @@ argument-hint: "Optional: anything specific you want to capture or reflect on"
 
 You are Derek's AI partner. This prompt captures the day, writes journals, syncs Things 3, and maintains accountability tracking. Move fast. Gather data in parallel where possible, write journals, sync tasks, update tracking, done.
 
+## Execution Rules
+
+**Resilience**: Every step and tool call has a soft budget. If a tool call fails or returns an error, retry ONCE. If it fails again, log what failed ("⚠️ [tool/step] failed: [reason]"), skip it, and continue. Never retry the same failing call more than once. Never block the entire routine on a single data source. Report all skipped items at the end so Derek knows what's missing.
+
+**Parallelism**: Gather independent data sources simultaneously. Specifically:
+- Things 3 shell commands, WorkIQ calls, journal file reads, and personal email/iMessage fetches are ALL independent. Fire them in a single parallel batch, not sequentially.
+- Only sequence calls that depend on prior results (e.g., reading a specific email found in a search).
+- When writing journals, syncing Things 3, and updating memory files, those are also independent of each other.
+
+**Terminal timeouts**: Always set an explicit timeout on every terminal command. Use 10000ms (10s) for quick commands (Things 3 scripts, ls, file reads). Use 30000ms (30s) for longer operations (email_cleanup.py, batch scripts). Never use timeout=0 (infinite).
+
+**Progress**: If a step is taking multiple tool calls without progress, skip it with a note and move on.
+
 Read `/memories/identity.md`, `/memories/priorities.md`, `/memories/action-items.md`, and `/memories/waiting-on-others.md` first (they have paths, context, and open items).
+
+## Step 0: Process briefing checkboxes (if today's briefing exists)
+
+Before gathering, check if there's a briefing file for today:
+- Look for `~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md` where YYYY-MM-DD is today's date.
+- If found, run: `python3 ~/projects/personal/assistant/automation/checkpoint-helper.py compare "$BRIEFING_FILE"` to detect any remaining newly-checked items.
+- For each newly-checked item, attempt to complete it in Things 3 using Task ID (if present) or keyword match.
+- Then run: `python3 ~/projects/personal/assistant/automation/checkpoint-helper.py save-state "$BRIEFING_FILE"` to mark checkpoint as processed.
+- Include a note: "Processed briefing checkpoints: X items completed" in the final reflection.
+
+If no briefing exists or the checkpoint helper fails, continue to Step 1 anyway.
 
 ## Step 1: Gather (do all of these, in parallel where possible)
 
@@ -24,6 +48,8 @@ Read `/memories/identity.md`, `/memories/priorities.md`, `/memories/action-items
 > Format:
 > ### Meetings
 > - **Name** (time, duration) | Attendees: [names] | Summary: [1-2 sentences] | Decisions: [brief or None] | Action items: [brief or None] | Recording: Yes/No/Unknown | Transcript: Yes/No/Unknown
+> - If a meeting had a recording or transcript, include the **Copilot meeting recap** or **intelligent recap summary** if available. Capture: key topics discussed, action items assigned (with owners), decisions made, and any follow-ups mentioned.
+> - If no Copilot recap is available but a transcript exists, summarize the key points from the transcript.
 >
 > ### Email
 > - **Subject** | From: [name] → To: [names] | Summary: [1 sentence]
@@ -32,7 +58,7 @@ Read `/memories/identity.md`, `/memories/priorities.md`, `/memories/action-items
 > ### Teams
 > - **Chat/Channel** | Participants: [names] | Summary: [1 sentence]
 >
-> Be comprehensive.
+> Be comprehensive. For meetings with transcripts/recordings, I specifically need the Copilot summary or recap content, not just a flag that they exist.
 
 **Today's existing journals** — Read any journal files that already exist for today (personal journal may have iMessage/email data from the generate script). Merge, don't overwrite.
 
@@ -104,6 +130,7 @@ Determine today's date. Write or update journals by context.
 
 ## Meetings
 [from WorkIQ: each meeting with attendees, summary, decisions, action items, recording/transcript info]
+[For meetings with Copilot recaps or transcripts, include the key topics, decisions, action items with owners, and follow-ups from the recap]
 
 ## What I Did
 [completed work tasks from Things 3 + any accomplishments from WorkIQ/user input]
@@ -171,6 +198,44 @@ Review all meetings, emails, and Teams conversations from today. For each, ident
 
 Cross-reference against `/memories/action-items.md` and `/memories/waiting-on-others.md` to avoid duplicates.
 
+## Step 3b: Contacts enrichment
+
+Scan today's meetings, emails, and Teams conversations for personal details about people Derek interacted with. Look for:
+
+- **Birthdays** mentioned in conversation ("happy birthday", "my birthday is...", "turning X")
+- **Family mentions** (spouse/partner names, kids, parents mentioned in small talk)
+- **Life events** (anniversaries, new roles, relocations)
+
+For each discovery:
+1. Look up the contact: `~/.local/bin/contacts/show.sh "Name"`
+2. If the info is new (not already in the contact), enrich it:
+   - Birthday: `~/.local/bin/contacts/enrich.sh "Name" --birthday "YYYY-MM-DD"`
+   - Spouse: `~/.local/bin/contacts/enrich.sh "Name" --spouse "Spouse Name"`
+   - Other relations: `~/.local/bin/contacts/enrich.sh "Name" --child "Name"` (or --parent, --sibling, --friend)
+3. Use `--dry-run` first if unsure, then confirm with Derek before writing
+
+Present any enrichments made: "Updated X contacts with new info" with details.
+
+Skip this step if no personal details were surfaced today. Don't force it.
+
+## Step 3c: Update work contacts directory
+
+Read `~/Library/CloudStorage/OneDrive-Microsoft/01_people/contacts/index.json` once to get the name-to-file mapping.
+
+For each person Derek had a meaningful interaction with today (meetings, email threads, 1:1s), look them up in the index (match on name, aliases, or email).
+
+**If the file exists**: Update it with any new context learned today (decisions made, topics discussed, personal details surfaced, role changes).
+
+**If no file exists** and this is someone Derek works with regularly (not a one-off interaction): Create a new file following the template in the directory's README.md. Include name, role, org, relationship type, and any context from today's interactions. Then add the new entry to `index.json` (include aliases if the person's filename doesn't exactly match their display name).
+
+**Backfill emails**: As you process today's emails and meeting invites, harvest Microsoft aliases (e.g., `curtlee@microsoft.com` from a calendar attendee or email header). For any contact in `index.json` that is missing an `"email"` field, add it. Also add the email to the contact's markdown file frontmatter. This builds up the index over time so future lookups can match on email.
+
+After updating files, run the sync script to push any enrichable data (birthdays, family) to iCloud contacts:
+```sh
+~/.local/bin/contacts/sync-to-icloud.sh --dry-run
+```
+Present the dry-run results. If there are updates to make, ask Derek to confirm, then run without `--dry-run`.
+
 ## Step 4: Sync Things 3
 
 **Complete finished tasks**: For tasks completed today (from Things 3 completed-today + work accomplished), mark them done:
@@ -182,10 +247,12 @@ Search first to confirm the match. Skip if already completed.
 **Add new tasks**: For each of my action items from Step 3 that doesn't already exist in Things 3:
 ```sh
 ~/.local/bin/things3/search.sh "keyword"  # check for duplicates first
-~/.local/bin/things3/add.sh "Task title" --when "YYYY-MM-DD" --notes "Source: meeting/email name. Owed to: person. Context: brief." --tags "action-item"
+TASK_ID=$(~/.local/bin/things3/new-id.sh)
+~/.local/bin/things3/add.sh "Task title" --when "YYYY-MM-DD" --notes "Source: meeting/email name. Owed to: person. Context: brief." --task-id "$TASK_ID" --tags "action-item"
 ```
 Use `--deadline` if there's a hard deadline. Use `--project` if it maps to an existing project.
 Use `--when "tomorrow"` for items that should surface tomorrow. Use a specific date for items with deadlines.
+Persist the same `Task ID` in `/memories/action-items.md` for deterministic completion later.
 
 **Reschedule stale tasks**: If Things 3 Today still has items that didn't get done and aren't urgent, reschedule:
 ```sh
@@ -201,9 +268,10 @@ After writing journals and syncing tasks, give Derek a spoken summary:
 **What happened**: 2-3 sentence narrative of the day.
 **Wins**: Restate the 3 wins from the journal (already confirmed, don't re-ask).
 **Stuck**: Anything blocked or unresolved.
+**Checkpoint processing**: Include count of items completed via briefing checkboxes (from Step 0) if any.
 **Tomorrow**: 2-3 suggested priorities based on open threads + calendar.
 
-## Step 6: Update tracking files
+## Step 7: Update tracking files
 
 **Update `/memories/priorities.md`:**
 - New action items from meetings
@@ -214,7 +282,7 @@ After writing journals and syncing tasks, give Derek a spoken summary:
 For tomorrow's meetings, query WorkIQ: "What meetings do I have scheduled for tomorrow (YYYY-MM-DD)? List each with time, title, and attendees."
 
 **Update `/memories/action-items.md`:**
-- Add all new "My Items" from Step 3 with format: `- [ ] Description | Owed to: Name | Source: meeting/date | Due: date | Things3: yes`
+- Add all new "My Items" from Step 3 with format: `- [ ] Description | Owed to: Name | Source: meeting/date | Due: date | Things3: yes | Task ID: AI-...`
 - Move completed items to the "Completed" section with date
 - Prune Completed entries older than 7 days
 - Mark overdue items with "(OVERDUE)"
@@ -226,11 +294,11 @@ For tomorrow's meetings, query WorkIQ: "What meetings do I have scheduled for to
 - Update Status to "overdue" for past-due items
 - Update Status to "stale" for items 5+ business days old with no nudge
 
-## Step 7: Session marker
+## Step 8: Session marker
 
 Write today's date to `~/.local/share/daily-consolidation/last-session.txt`.
 
-## Step 8: Done
+## Step 9: Done
 
 Tell Derek what you captured. Keep it to 5-10 lines. Include:
 - Journal summary

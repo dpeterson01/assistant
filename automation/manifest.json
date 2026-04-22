@@ -1,0 +1,79 @@
+{
+  "version": 1,
+  "description": "Atlas automation manifest. Central config for all scheduled tasks.",
+  "tasks": [
+    {
+      "id": "morning-briefing",
+      "name": "Morning Briefing",
+      "description": "Automated daily briefing via Copilot CLI",
+      "type": "automated",
+      "schedule": "M-F 6:30 AM",
+      "agent": "morning-briefing",
+      "script": "scripts/morning-briefing.sh",
+      "plist": "com.atlas.morning-briefing",
+      "enabled": true,
+      "last_run": null,
+      "last_status": null
+    },
+    {
+      "id": "end-of-day-reminder",
+      "name": "End of Day Reminder",
+      "description": "Notification to run end-of-day interactively",
+      "type": "reminder",
+      "schedule": "M-F 5:15 PM",
+      "agent": "end-of-day",
+      "script": "scripts/end-of-day-reminder.sh",
+      "plist": "com.atlas.end-of-day-reminder",
+      "enabled": true,
+      "last_run": null,
+      "last_status": null
+    },
+    {
+      "id": "end-of-day-auto",
+      "name": "End of Day Auto",
+      "description": "Automated EOD agent at 8 PM if not already run today. Skips if work journal exists.",
+      "type": "automated",
+      "schedule": "M-F 8:00 PM",
+      "agent": "end-of-day",
+      "script": "scripts/end-of-day-auto.sh",
+      "plist": "com.atlas.end-of-day-auto",
+      "enabled": true,
+      "last_run": null,
+      "last_status": null
+    },
+    {
+      "id": "midday-triage",
+      "name": "Midday Sync",
+      "description": "Automated midday completion reconciliation",
+      "type": "automated",
+      "schedule": "M-F 12:00 PM",
+      "agent": "midday-sync",
+      "script": "scripts/midday-triage.sh",
+      "plist": "com.atlas.midday-triage",
+      "enabled": true,
+      "last_run": "2026-04-22T00:04:11Z",
+      "last_status": "failed"
+    },
+    {
+      "id": "weekly-review",
+      "name": "Weekly Review Reminder",
+      "description": "Notification to run weekly review interactively",
+      "type": "reminder",
+      "schedule": "Sun 9:00 AM",
+      "agent": "weekly-review",
+      "script": "scripts/weekly-review.sh",
+      "plist": "com.atlas.weekly-review",
+      "enabled": true,
+      "last_run": null,
+      "last_status": null
+    }
+  ],
+  "wake_schedule": {
+    "enabled": true,
+    "morning": { "time": "06:25", "days": "MTWRF", "command": "sudo pmset repeat wakeorpoweron MTWRF 06:25:00" },
+    "evening": { "time": "19:55", "days": "MTWRF", "daemon": "/Library/LaunchDaemons/com.atlas.evening-wake-scheduler.plist" },
+    "note": "Run once to activate both: sudo zsh assistant/automation/scripts/setup-wake-schedule.sh",
+    "verify": "pmset -g sched",
+    "caveat": "Only reliable on AC power. On battery macOS may skip the wake."
+  }
+}

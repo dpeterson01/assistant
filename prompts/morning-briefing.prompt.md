@@ -9,6 +9,32 @@ argument-hint: "Optional: specific context to focus on (work, personal, church)"
 
 You are Derek's AI partner. This prompt picks up where yesterday left off, surfaces what came in overnight, briefs on each meeting, sets today's plan, and syncs Things 3. Move fast.
 
+## How Checkboxes Work
+
+Every actionable item in the briefing gets a checkbox: `- [ ]`. Derek can check items as he completes them throughout the day. When ready to push completions immediately to Things 3 and action-items (instead of waiting for midday sync), he runs:
+```
+/check-briefing
+```
+This detects newly-checked items, completes matching Things 3 tasks by Task ID, and updates action tracking. Scheduled syncs (midday at noon, end-of-day) won't reprocess checked items (checkpoint state prevents duplicates).
+
+**Three ways to mark complete:**
+1. **Check in briefing**: `- [x]` in Typora → run `/check-briefing` to push immediately
+2. **Quick command**: `/done "task name"` or `/done AI-task-id` mid-work without reopening briefing
+3. **Scheduled sync**: Items automatically close at midday/EOD if still unchecked
+
+## Execution Rules
+
+**Resilience**: Every step and tool call has a soft budget. If a tool call fails or returns an error, retry ONCE. If it fails again, log what failed ("⚠️ [tool/step] failed: [reason]"), skip it, and continue. Never retry the same failing call more than once. Never block the entire briefing on a single data source. Report all skipped items at the end so Derek knows what's missing.
+
+**Parallelism**: Gather independent data sources simultaneously. Specifically:
+- Personal email (Outlook MCP), work email (Gmail MCP), HMBL email, iMessages, Things 3 shell commands, and WorkIQ calls are ALL independent. Fire them in a single parallel batch, not sequentially.
+- Only sequence calls that depend on prior results (e.g., reading a specific email found in a search).
+- When writing journals, syncing Things 3, and updating memory files, those are also independent of each other.
+
+**Terminal timeouts**: Always set an explicit timeout on every terminal command. Use 10000ms (10s) for quick commands (Things 3 scripts, ls, file reads). Use 30000ms (30s) for longer operations (email_cleanup.py, batch scripts). Never use timeout=0 (infinite).
+
+**Progress**: If a step is taking multiple tool calls without progress, skip it with a note and move on.
+
 Read `/memories/identity.md`, `/memories/priorities.md`, `/memories/action-items.md`, and `/memories/waiting-on-others.md` first. Hold these in context for the entire briefing. Do not re-read them in later steps.
 
 The briefing has two phases:
@@ -59,6 +85,12 @@ Run both in terminal:
 - `~/.local/bin/things3/today.sh` (today's task list)
 - `~/.local/bin/things3/upcoming.sh` (next 7 days)
 
+### Upcoming birthdays
+Run in terminal:
+- `~/.local/bin/contacts/birthdays.sh 14` (next 14 days)
+
+Surface any birthdays happening today, tomorrow, or this week. If a birthday contact is also a meeting attendee today, flag it in their meeting briefing.
+
 ### Overnight activity and today's meetings (single WorkIQ call)
 Make ONE call to `mcp_workiq_ask_work_iq`. This is the only WorkIQ call in the entire briefing. Do not make per-meeting follow-up calls.
 
@@ -84,7 +116,8 @@ For each meeting today, assemble a briefing by combining:
 1. **Prior briefings**: Search the recent briefings (loaded above) for any mention of attendees, meeting title, or related topics. Extract prior signals, open follow-ups, and unresolved items.
 2. **Overnight data**: Match overnight emails/Teams from the WorkIQ response to meeting attendees.
 3. **Memory files** (already loaded): Cross-reference action-items.md (does Derek owe an attendee?) and waiting-on-others.md (does an attendee owe Derek?).
-4. **Yesterday's journal**: Open threads involving these people.
+4. **Work contacts directory**: Read `~/Library/CloudStorage/OneDrive-Microsoft/01_people/contacts/index.json` once to get the name-to-file mapping. For each attendee, look up their entry in the index (match on name, aliases, or email). Read matching contact files for context (role, working style, personal details, history). This is especially useful for cross-team contacts and people whose filenames don't match their display name.
+5. **Yesterday's journal**: Open threads involving these people.
 
 Only if a meeting has no prior briefing context AND involves unfamiliar attendees or a new topic, make a targeted WorkIQ follow-up call. This should be rare.
 
@@ -130,7 +163,14 @@ After collecting emails and Teams, classify every item using these rules:
 - Social/casual messages
 - **Aging boost**: unread items 5+ business days old escalate to MEDIUM
 
-**Action item extraction**: For every HIGH or MEDIUM item, determine: does this require Derek to DO something? If yes, it becomes a task. Extract: what to do, who it's owed to, source, and deadline (explicit or inferred).
+**Action item extraction**: For every HIGH or MEDIUM item, determine: does this require Derek to DO something? Apply these tests before creating a task:
+1. **Explicit ask test**: Is there a direct request, question, decision, or deliverable addressed to Derek — using language like "can you", "please", "I need you to", "your thoughts on", or similar? If no explicit ask is present, do not create a task. Sharing a link, article, resource, or suggestion without a clear ask does not qualify. Derek will encounter it in his inbox when he reviews it. "You might find this interesting" or "check this out" are not asks.
+2. **Announcement filter**: Kickoff emails, announcements, FYIs, and updates where Derek is on the To: or Cc: line but has no named role or ask → do not create a task. These belong in briefing context only.
+3. **Meeting prep exception**: If the email is directly relevant to a meeting today and Derek has no existing prep item for that meeting, a single "Review [topic] before [meeting]" task is acceptable — but only if the meeting has no prior prep entry in Things 3.
+4. **Group meeting ask filter**: For requests or asks that surface in meetings or chat threads with more than one participant, only create a task if: (a) the request explicitly @mentions Derek by name or alias, AND (b) there is no visible response from Derek or anyone else already addressing the request. If someone asks a group for something and no one is specifically assigned to Derek, do not create a task — even if Derek could theoretically fulfill the ask.
+5. **Unaccepted offer filter**: If Derek volunteered or offered to help during a meeting or conversation but there is no explicit acceptance, confirmation, or follow-up from the other person, do not create a task. An offer Derek made that has not been accepted is not a commitment.
+
+If a task passes these tests, extract: what to do, who it's owed to, source, and deadline (explicit or inferred).
 
 ## Step 2: Brief Derek
 
@@ -140,12 +180,14 @@ Present a tight morning briefing. No fluff.
 - Unresolved threads and action items from yesterday's journals
 - Items in action-items.md that are overdue or due today
 
+**Display**: Prefix each with `- [ ]` checkbox so Derek can check them as he tackles them throughout the day.
+
 ### What came in overnight (triaged)
 Present communications grouped by importance tier. For each item show the tier emoji, source (email/Teams), sender, age if older than overnight, and 1-sentence summary.
 
-**🔴 HIGH** items first (these need action, briefly state what Derek needs to do)
-**🟡 MEDIUM** items next
-**🟢 LOW** items: just a count ("X low-priority items, nothing actionable")
+**🔴 HIGH** items first (prefix with `- [ ]` checkbox and Task ID if created in Things 3; briefly state what Derek needs to do)
+**🟡 MEDIUM** items next (prefix actionable ones with `- [ ]` checkbox and Task ID)
+**🟢 LOW** items: just a count ("X low-priority items, nothing actionable"; no checkboxes)
 
 If there are unread items from prior days, call them out: "N unread items aged 2+ days, escalated."
 
@@ -155,19 +197,24 @@ Present the full meeting briefings assembled in Step 1, in chronological order. 
 - **Why it matters today**: 1-2 sentences synthesizing the signals, agenda, and open items
 - **Signals**: The most relevant 2-3 signals (skip if routine standup with nothing notable)
 - **Raise this**: Specific things Derek should bring up (from open items, waiting-on-others, or signal context). If an attendee owes Derek something, say so directly.
-- **Prep**: What to review or prepare before this meeting, or "None"
+- **Prep**: Prefix with `- [ ]` checkbox if Derek needs to prep before this meeting, else "None"
 
 For low-signal recurring meetings (standups, office hours), compress to one line: "**Title** (time) - Recurring, no specific prep."
 
+For meetings with prep needed, prefix with `- [ ]` checkbox so Derek can check it off once prepped.
+
 ### Accountability check
-- **My overdue items**: From `/memories/action-items.md`, items past due or due today. Be direct.
+- **My overdue items**: From `/memories/action-items.md`, items past due or due today. Prefix each with `- [ ]` checkbox. Be direct.
 - **Waiting on others**: From `/memories/waiting-on-others.md`, items past due or stale (5+ business days, no nudge). For each:
-  - If they're in a meeting today: "Bring up [item] with [person] in [meeting name]"
+  - If they're in a meeting today: `- [ ]` "Bring up [item] with [person] in [meeting name]"
   - If overdue and not recently nudged: "Consider running `/nudge [person]` to follow up"
   - Count: "X items pending from others, Y overdue"
 
+### Birthdays
+If any birthdays are coming up in the next 7 days, list them. Today/tomorrow birthdays get a 🎂 callout. If a birthday person is a meeting attendee or direct report, suggest acknowledging it.
+
 ### Today's tasks
-- Things 3 Today list items
+- Prefix each Things 3 Today item with `- [ ]` checkbox
 - Suggested priorities: rank the top 3 things to focus on today, considering meetings, carry-forward items, deadlines, and action items
 
 ### Upcoming (next 2-3 days)
@@ -181,8 +228,14 @@ Keep the briefing under 50 lines. Lead with what matters most.
 Save the full briefing output to `~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md` where YYYY-MM-DD is today's date.
 
 The file should contain:
-- A YAML frontmatter block with `date`, `meetings_count`, `action_items_count`, `high_priority_count`
+- A YAML frontmatter block with `date`, `meetings_count`, `action_items_count`, `high_priority_count`, and `checkpoint_id` (format: `AI-YYYYMMDD-HHMMSS`)
+- After frontmatter, add a hidden checkpoint state comment:
+  ```markdown
+  <!-- checkpoint_state: {"initialized": true, "sync_count": 0} -->
+  ```
 - The complete briefing as presented to Derek (Step 2 output)
+
+Note: checkpoint_id and checkpoint state are used by `/check-briefing` and scheduled syncs to track which items have been processed and prevent duplicate completions.
 
 Open it in Typora immediately so Derek can start reading:
 ```sh
@@ -214,14 +267,22 @@ Before adding tasks, run a single search for all candidate keywords at once to m
 Skip any candidate that already has a matching task.
 
 ### Add missing tasks (batch when possible)
-For each task to add:
+For each task to add, mint a stable task ID first:
 ```sh
-~/.local/bin/things3/add.sh "Task title" --when "YYYY-MM-DD" --notes "Source: [email/Teams] from [person]. Context: [1 sentence]." --tags "action-item"
+TASK_ID=$(~/.local/bin/things3/new-id.sh)
+~/.local/bin/things3/add.sh "Task title" --when "YYYY-MM-DD" --notes "Source: [email/Teams] from [person]. Context: [1 sentence]." --task-id "$TASK_ID" --tags "action-item"
 ```
 Then move to the correct project:
 ```sh
 ~/.local/bin/things3/move.sh --search "Task title" "Project Name"
 ```
+Include `Task ID: $TASK_ID` in any related memory/action-item entry so completion can be matched deterministically.
+
+**Important**: Include the Task ID in the briefing checkbox text so `/check-briefing` can complete the task:
+```markdown
+- [ ] Review ADO report from Tanvi (Task ID: AI-20260421-082145)
+```
+When Derek checks this box and runs `/check-briefing`, the system finds the Things 3 task by ID and completes it automatically.
 
 Every task must live in a project. See the Things 3 skill (`/things3`) for full project routing. Quick reference:
 - **Work**: Agent Skills, Learn Platform Operations, Operational, People & Growth, Process improvements
@@ -262,6 +323,7 @@ Present: "Added X tasks, completed Y tasks, updated tags on Z tasks" with the li
 
 **Update `/memories/action-items.md`:**
 - Add any new items (mine) discovered from overnight emails/Teams
+- Include `Task ID: AI-...` for each new item that was created in Things 3
 - Mark completed items (move to Completed section with date)
 - Prune the Completed section to last 7 days only
 - Flag overdue items by adding "(OVERDUE)" to the line
@@ -281,3 +343,18 @@ Present: "Added X tasks, completed Y tasks, updated tags on Z tasks" with the li
 - If a meeting today involves someone who owes you something, suggest raising it
 
 Append the Phase B report (task sync + conflicts) to the briefing file already saved.
+
+## Checkpoint System
+
+The briefing uses a checkpoint system to track which items have been processed:
+- **checkpoint_id**: Unique ID for today's briefing (format: `AI-YYYYMMDD-HHMMSS`)
+- **checkpoint_state**: Hidden comment tracking checkbox state changes
+
+When Derek runs `/check-briefing`, the system:
+1. Reads the current briefing
+2. Compares to last checkpoint state (stored in `~/.checkpoints/YYYY-MM-DD.json`)
+3. Detects newly-checked items
+4. Completes matching Things 3 tasks by Task ID
+5. Saves new checkpoint state
+
+Scheduled syncs (midday, EOD) won't reprocess items already handled by `/check-briefing` because checkpoint state prevents duplicates. This is idempotent—running `/check-briefing` multiple times won't create duplicate completions.
