@@ -24,16 +24,26 @@ You are Derek's AI partner. This prompt captures the day, writes journals, syncs
 
 Read `/memories/identity.md`, `/memories/priorities.md`, `/memories/action-items.md`, and `/memories/waiting-on-others.md` first (they have paths, context, and open items).
 
-## Step 0: Process briefing checkboxes (if today's briefing exists)
+## Step 0: Reconcile today's dashboard state
 
-Before gathering, check if there's a briefing file for today:
-- Look for `~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md` where YYYY-MM-DD is today's date.
-- If found, run: `python3 ~/projects/personal/assistant/automation/checkpoint-helper.py compare "$BRIEFING_FILE"` to detect any remaining newly-checked items.
-- For each newly-checked item, attempt to complete it in Things 3 using Task ID (if present) or keyword match.
-- Then run: `python3 ~/projects/personal/assistant/automation/checkpoint-helper.py save-state "$BRIEFING_FILE"` to mark checkpoint as processed.
-- Include a note: "Processed briefing checkpoints: X items completed" in the final reflection.
+The dashboard JSON (`briefings/YYYY-MM-DD_daily_brief.json`) is the source of truth for today's items. The 15-min sync job (`briefing-sync.sh`) continuously propagates completions to Things 3 and action-items.md, so most items will already be synced by EOD. This step catches anything still pending.
 
-If no briefing exists or the checkpoint helper fails, continue to Step 1 anyway.
+**Primary path (dashboard API):**
+1. Query `GET http://localhost:3141/api/briefing` to fetch today's items.
+2. Check `GET http://localhost:3141/api/health` to confirm the dashboard is healthy.
+3. Identify items with `syncPending: true` (completed but not yet synced) and items completed today (by `source` field).
+4. Tally completions by source: `ui` (dashboard clicks), `agent:morning`, `agent:eod`, `sync` (briefing-sync job).
+5. Note any `syncPending` items for Step 4 (they may need manual push if the sync job missed them).
+
+**Fallback (if dashboard API is unreachable):**
+- Look for `~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md`.
+- Run: `python3 ~/projects/personal/assistant/automation/checkpoint-helper.py compare "$BRIEFING_FILE"` to detect newly-checked items.
+- For each newly-checked item, complete it in Things 3 using Task ID or keyword match.
+- Then run: `python3 ~/projects/personal/assistant/automation/checkpoint-helper.py save-state "$BRIEFING_FILE"`.
+
+Include a note: "Dashboard reconciliation: X items completed (Y via UI, Z via agent, W via sync)" in the final reflection.
+
+If neither the dashboard nor the briefing file exists, continue to Step 1 anyway.
 
 ## Step 1: Gather (do all of these, in parallel where possible)
 
@@ -238,11 +248,13 @@ Present the dry-run results. If there are updates to make, ask Derek to confirm,
 
 ## Step 4: Sync Things 3
 
-**Complete finished tasks**: For tasks completed today (from Things 3 completed-today + work accomplished), mark them done:
+**Complete finished tasks via dashboard**: For any items identified as done today that are still `syncPending` (from Step 0), push them through the dashboard API so the sync job picks them up:
 ```sh
-~/.local/bin/things3/complete.sh --search "task keyword"
+curl -s -X POST http://localhost:3141/api/complete-task/<ITEM_ID> \
+  -H 'Content-Type: application/json' \
+  -d '{"source": "agent:eod"}'
 ```
-Search first to confirm the match. Skip if already completed.
+The 15-min sync job (`briefing-sync.sh`) will propagate these to Things 3 and action-items.md. Only call `things3/complete.sh` directly if the dashboard API is down (fallback).
 
 **Add new tasks**: For each of my action items from Step 3 that doesn't already exist in Things 3:
 ```sh
@@ -253,6 +265,13 @@ TASK_ID=$(~/.local/bin/things3/new-id.sh)
 Use `--deadline` if there's a hard deadline. Use `--project` if it maps to an existing project.
 Use `--when "tomorrow"` for items that should surface tomorrow. Use a specific date for items with deadlines.
 Persist the same `Task ID` in `/memories/action-items.md` for deterministic completion later.
+
+Also PATCH the dashboard so new items appear there:
+```sh
+curl -s -X PATCH http://localhost:3141/api/briefing \
+  -H 'Content-Type: application/json' \
+  -d '{"action_items": [{"id": "<TASK_ID>", "text": "Task title", "done": false, "source": "agent:eod"}]}'
+```
 
 **Reschedule stale tasks**: If Things 3 Today still has items that didn't get done and aren't urgent, reschedule:
 ```sh
@@ -268,10 +287,10 @@ After writing journals and syncing tasks, give Derek a spoken summary:
 **What happened**: 2-3 sentence narrative of the day.
 **Wins**: Restate the 3 wins from the journal (already confirmed, don't re-ask).
 **Stuck**: Anything blocked or unresolved.
-**Checkpoint processing**: Include count of items completed via briefing checkboxes (from Step 0) if any.
+**Dashboard stats**: From Step 0, report completion breakdown by source (e.g., "12 items completed: 5 via dashboard UI, 4 via agent, 3 via sync job"). If dashboard was unreachable, note fallback to checkpoint processing.
 **Tomorrow**: 2-3 suggested priorities based on open threads + calendar.
 
-## Step 7: Update tracking files
+## Step 6: Update tracking files
 
 **Update `/memories/priorities.md`:**
 - New action items from meetings
@@ -283,9 +302,9 @@ For tomorrow's meetings, query WorkIQ: "What meetings do I have scheduled for to
 
 **Update `/memories/action-items.md`:**
 - Add all new "My Items" from Step 3 with format: `- [ ] Description | Owed to: Name | Source: meeting/date | Due: date | Things3: yes | Task ID: AI-...`
-- Move completed items to the "Completed" section with date
-- Prune Completed entries older than 7 days
 - Mark overdue items with "(OVERDUE)"
+- Prune Completed entries older than 7 days
+- Do NOT move completed items to the "Completed" section here. The 15-min sync job (`briefing-sync.sh`) handles that continuously. Moving items in both places causes merge conflicts.
 
 **Update `/memories/waiting-on-others.md`:**
 - Add all new commitments from Step 3 with format: `- [ ] **Person** | What they owe | Source: meeting/date | Due: date or ASAP | Last nudge: never | Channel: email/Teams/iMessage | Status: pending`
@@ -294,14 +313,35 @@ For tomorrow's meetings, query WorkIQ: "What meetings do I have scheduled for to
 - Update Status to "overdue" for past-due items
 - Update Status to "stale" for items 5+ business days old with no nudge
 
-## Step 8: Session marker
+## Step 7: Session marker
 
 Write today's date to `~/.local/share/daily-consolidation/last-session.txt`.
 
-## Step 9: Done
+## Step 8: Done
 
 Tell Derek what you captured. Keep it to 5-10 lines. Include:
 - Journal summary
 - Things 3 changes (tasks added/completed/rescheduled)
 - Action items added to tracking (mine + waiting on others)
 - Any priority changes
+
+## Gotchas
+
+Hard-won lessons. Check here before debugging.
+
+| Issue | Fix |
+|-------|-----|
+| WorkIQ call returns partial meeting data or misses recaps | Retry ONCE. If still incomplete, write journals with what you have and note "⚠️ WorkIQ partial" in the journal. Never block the whole routine. |
+| Things 3 `complete.sh --search` completes the wrong task | Use `--task-id` with the `AI-` prefixed ID when available. Keyword search is substring-based and can hit false positives. |
+| Terminal command hangs with timeout=0 | Always set explicit timeouts: 10s for quick ops, 30s for batch ops. Never use timeout=0. |
+| Work journal accidentally includes iMessage or personal data | Hard boundary. Never include iMessage content, personal email, or non-Microsoft data in the work journal. If an iMessage relates to work, capture only the work-relevant fact without attributing the source. |
+| Checkpoint `save-state` called before completions are pushed | Always complete Things 3 tasks BEFORE calling `save-state`. Order matters for idempotency. |
+| action-items.md prune deletes items completed less than 7 days ago | Only prune Completed entries older than 7 days. waiting-on-others.md Resolved entries prune at 14 days. |
+| Dashboard API unreachable at EOD | Fall back to checkpoint-helper.py for the markdown briefing file. Complete tasks directly via `things3/complete.sh`. Note the fallback in the reflection. |
+| Race condition: EOD + sync job both completing the same item | Route completions through the dashboard API (`POST /api/complete-task/:id`). The sync job reads `syncPending` from JSON and won't double-complete. Direct `things3/complete.sh` bypasses this and can race. |
+| Source field missing on dashboard writes | Always include `source: "agent:eod"` on complete-task and PATCH calls. The source field powers the completion stats breakdown in Step 5. |
+| EOD and sync job both editing action-items.md | EOD only adds new items and updates overdue flags. The sync job handles moving completed items. This avoids merge conflicts. |
+| Wins prompt gets no response from Derek | Default to "Execution day, no major shifts" for Learned/Shifted. Still present the 3 candidate wins for confirmation. |
+| Journal file already exists from overnight generate script | Merge new content into it. Preserve existing sections. Never overwrite. |
+| Connects signals section is empty | Omit empty subsections entirely. Not every day has D&I or Manager Excellence signals. Don't force it. |
+| Multiple journal contexts (work/personal/church/hmbl) written sequentially | Journal writes are independent. Fire them in parallel. Same for Things 3 syncs and memory file updates. |

@@ -95,6 +95,13 @@ What rolled from day to day? What needs a decision vs. just execution? Cross-ref
 ### Balance check
 How did the week distribute across work, personal, church, and HMBL? Is any context being neglected?
 
+### Relationship drift
+Run the drift detector:
+```sh
+python3 ~/projects/personal/assistant/scripts/relationship-drift.py --markdown
+```
+Include its output in the weekly summary. For each flagged person, suggest a concrete next step (schedule a 1:1, send a Teams ping, nudge on an open item). If no contacts are flagged, note "No relationship drift flags this week" and move on.
+
 ## Step 3: Set next week
 
 Propose 3-5 priorities for next week across contexts. Weight toward impact.

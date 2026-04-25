@@ -64,13 +64,14 @@ No Teams send API is available. Instead:
 4. Display the message text for easy copy
 
 ### Channel: iMessage
-Use the iMessage send script:
+Prefer the `mac-messages` MCP server (tool: `send_message`). It auto-falls back to SMS/RCS for non-iMessage recipients, validates phone numbers, and confirms delivery method.
+
+Fallback only if the MCP tool errors:
 ```sh
 ~/.local/bin/send-imessage.sh "[phone or email]" "message text"
 ```
-- The script tries AppleScript first. If that fails (TCC), it opens Messages with the recipient pre-selected and shows the message for manual paste.
 - Look up the recipient's phone number or iMessage email from contacts context in the waiting-on-others entry or `/memories/identity.md`.
-- **Always draft first and confirm with Derek before running the script.**
+- **Always draft first and confirm with Derek before sending.**
 
 ### Channel: personal email
 For non-Microsoft email (personal Outlook, Gmail):
@@ -118,7 +119,7 @@ Then ask: **"Send these, or want to adjust any?"**
 After Derek confirms, execute per channel:
 - **Email (work)**: `mcp_mailtools_SendDraftMessage` (if draft was created) or `mcp_mailtools_ReplyWithFullThread` with `sendImmediately: true`
 - **Teams**: Open the Teams chat link, display message for paste
-- **iMessage**: Run `~/.local/bin/send-imessage.sh "[recipient]" "[message]"`
+- **iMessage**: Call the `mac-messages` MCP `send_message` tool. Fall back to `~/.local/bin/send-imessage.sh "[recipient]" "[message]"` only if the MCP call fails.
 - **Personal email**: Open `mailto:` link with pre-filled subject and body
 
 Report what was sent, what needs manual action.

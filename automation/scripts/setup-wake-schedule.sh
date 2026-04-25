@@ -6,7 +6,7 @@
 # What this does:
 #   - Wakes at 6:25 AM Mon-Fri (5 min before morning briefing at 6:30 AM)
 #   - Wakes at 7:55 PM Mon-Fri (5 min before end-of-day auto-run at 8:00 PM)
-#   - No separate midday wake — RunAtLoad handles midday sync on next login if missed.
+#   - Briefing-sync job (every 15 min) handles continuous completion propagation.
 #
 # Limitations:
 #   - Only reliable on AC power. On battery, macOS may skip the wake to save charge.

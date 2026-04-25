@@ -1,0 +1,531 @@
+{
+  "date": "2026-04-24",
+  "generatedAt": "2026-04-24T08:08:00-07:00",
+  "lastUpdated": "2026-04-25T01:14:02.486Z",
+  "updateCount": 7,
+  "checkpointId": "AI-20260424-080800",
+  "dayFit": {
+    "score": 85,
+    "level": "green",
+    "summary": "light calendar, major deep work opportunity",
+    "failures": [
+      "No 1:1s today — use async comms to unblock waiting items"
+    ],
+    "passes": [
+      "Morning focus — 2hr block before Modernize Azure Onboarding (10:00)",
+      "Chiro at 11:30 — personal time protected",
+      "Deep work — entire afternoon open after 2:00",
+      "No conflicts"
+    ],
+    "recoveryMoves": [
+      "Decline PM Upskilling Office Hrs to protect 1:00-5:00 deep work block"
+    ]
+  },
+  "carryOver": [
+    {
+      "id": "AI-20260422-100937",
+      "text": "Respond to Pieter de Bruin on M365 learn/docs agent",
+      "detail": "3 days pending, OVERDUE. Directly relevant to Agent Skills strategy.",
+      "priority": "high",
+      "status": "done",
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "source": "ui",
+      "channel": "outlook-work",
+      "sender": "Pieter de Bruin",
+      "emailId": "AAMkADVjOTQ0MmYwLTA5MDctNGZmZi1hZTQ2LTQ1ZTcwOGU2NzdlNQBGAAAAAAAT2nfPF/mOQ46ffpuBk3uDBwDvASdhud8LQJbVdnNWP2uNAAAAAAEMAADvASdhud8LQJbVdnNWP2uNAAg0XSkfAAA=",
+      "updatedAt": "2026-04-25T00:58:26.831Z",
+      "syncPending": false,
+      "syncedAt": "2026-04-24T17:58:26.816123"
+    },
+    {
+      "id": "malika-edu",
+      "text": "Review/decide Azure Edu Center proposal (Malika Watler)",
+      "detail": "4 days pending, OVERDUE. Decision needed on scenario direction, success criteria, RACI.",
+      "priority": "high",
+      "status": "open",
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "source": "email",
+      "channel": "outlook-work",
+      "sender": "Malika Watler",
+      "emailId": "AAMkADVjOTQ0MmYwLTA5MDctNGZmZi1hZTQ2LTQ1ZTcwOGU2NzdlNQBGAAAAAAAT2nfPF/mOQ46ffpuBk3uDBwDvASdhud8LQJbVdnNWP2uNAAAAAAEMAADvASdhud8LQJbVdnNWP2uNAAg0XSjZAAA="
+    },
+    {
+      "id": "airr-review",
+      "text": "Review Q&A AIRR decline analysis (Abhinava)",
+      "detail": "4 days pending, OVERDUE.",
+      "priority": "high",
+      "status": "open",
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "source": "email",
+      "channel": "outlook-work",
+      "sender": "Abhinava Maddha",
+      "emailId": "AAMkADVjOTQ0MmYwLTA5MDctNGZmZi1hZTQ2LTQ1ZTcwOGU2NzdlNQBGAAAAAAAT2nfPF/mOQ46ffpuBk3uDBwDvASdhud8LQJbVdnNWP2uNAAAAAAEMAADvASdhud8LQJbVdnNWP2uNAAg0XSjcAAA="
+    },
+    {
+      "id": "search-connects",
+      "text": "Complete Connects",
+      "detail": "Due Apr 30. Heather's FY27 strategy doc and Inline Experiences roadmap are inputs.",
+      "priority": "medium",
+      "status": "open",
+      "addedAt": "2026-04-24T08:08:00-07:00"
+    },
+    {
+      "id": "docs-mod-pod",
+      "text": "Determine final pod assignment for Docs Modernization (part 2)",
+      "detail": "",
+      "priority": "medium",
+      "status": "open",
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "source": "teams",
+      "channel": "teams",
+      "sender": null
+    },
+    {
+      "id": "hui-xie-epic",
+      "text": "Follow up on Hui Xie epic blocked for engineering investigation",
+      "detail": "",
+      "priority": "medium",
+      "status": "open",
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "source": "teams",
+      "channel": "teams",
+      "sender": "Hui Xie"
+    },
+    {
+      "id": "learn-pov-skilling",
+      "text": "Land Learn POV for Global Skilling workshops (with Karin)",
+      "detail": "",
+      "priority": "medium",
+      "status": "open",
+      "addedAt": "2026-04-24T08:08:00-07:00"
+    },
+    {
+      "id": "ai-practices-pres",
+      "text": "Prepare AI-enabled practices presentation",
+      "detail": "Due Apr 30, from Sprint Readiness yesterday.",
+      "priority": "medium",
+      "status": "open",
+      "addedAt": "2026-04-24T08:08:00-07:00"
+    },
+    {
+      "id": "heather-fy27-review",
+      "text": "Review Heather's FY27 strategy doc",
+      "detail": "NEW yesterday. Input for Connects.",
+      "priority": "medium",
+      "status": "open",
+      "addedAt": "2026-04-24T08:08:00-07:00"
+    },
+    {
+      "id": "inline-exp-roadmap",
+      "text": "Review Inline Experiences roadmap",
+      "detail": "NEW yesterday.",
+      "priority": "medium",
+      "status": "open",
+      "addedAt": "2026-04-24T08:08:00-07:00"
+    },
+    {
+      "id": "pr-74-figma",
+      "text": "Review PR #74 (Figma Prompt / UX Designer agent)",
+      "detail": "NEW yesterday.",
+      "priority": "medium",
+      "status": "open",
+      "addedAt": "2026-04-24T08:08:00-07:00"
+    },
+    {
+      "id": "qa-data-reuse-spec",
+      "text": "Review Q&A Data Reuse Spec and provide prioritization signal",
+      "detail": "NEW yesterday.",
+      "priority": "medium",
+      "status": "open",
+      "addedAt": "2026-04-24T08:08:00-07:00"
+    }
+  ],
+  "inbox": [
+    {
+      "id": "daniel-chat",
+      "text": "Respond to Daniel Stafford ('can we chat')",
+      "detail": "Teams DM. Direct ping, likely needs quick sync or decision. Respond this morning.",
+      "priority": "high",
+      "status": "done",
+      "source": "ui",
+      "channel": "teams",
+      "sender": "Daniel Stafford",
+      "emailId": null,
+      "threadId": "19:29158e26-9dd7-465d-a88c-4da198182d72_ba572e89-33ca-4fec-b942-481decb85915@unq.gbl.spaces/1777046052015",
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "draftConfidence": 0.9,
+      "draftReason": "Simple scheduling reply, high voice corpus match",
+      "updatedAt": "2026-04-24T22:17:48.229Z",
+      "syncPending": false,
+      "syncedAt": "2026-04-24T15:17:48.206502",
+      "receivedAt": "2026-04-24T07:42:00-07:00",
+      "chatName": "Daniel Stafford",
+      "teamsDeepLink": "https://teams.microsoft.com/l/message/19:29158e26-9dd7-465d-a88c-4da198182d72_ba572e89-33ca-4fec-b942-481decb85915@unq.gbl.spaces/1777046052015?context=%7B%22contextType%22:%22chat%22%7D"
+    },
+    {
+      "id": "isabella-access",
+      "text": "Approve Isabella Fernandez dev-environment access",
+      "detail": "Teams DM. Access needed for Learn Companion and Q&A testing.",
+      "priority": "high",
+      "status": "done",
+      "source": "ui",
+      "channel": "teams",
+      "sender": "Isabella Fernandez",
+      "emailId": null,
+      "threadId": "19:0e56b04d-5eab-41d7-98e2-a4f01ba16784_ba572e89-33ca-4fec-b942-481decb85915@unq.gbl.spaces/1776988130132",
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "draftConfidence": 0.85,
+      "draftReason": "Short confirmation reply, no prior DM voice corpus",
+      "receivedAt": "2026-04-24T07:55:00-07:00",
+      "chatName": "Isabella Fernandez",
+      "teamsDeepLink": "https://teams.microsoft.com/l/message/19:0e56b04d-5eab-41d7-98e2-a4f01ba16784_ba572e89-33ca-4fec-b942-481decb85915@unq.gbl.spaces/1776988130132?context=%7B%22contextType%22:%22chat%22%7D",
+      "updatedAt": "2026-04-24T22:17:48.229Z",
+      "syncPending": false,
+      "syncedAt": "2026-04-24T15:17:48.206502"
+    },
+    {
+      "id": "hui-hygiene",
+      "text": "Clarify ADO hygiene tooling for Hui Xie",
+      "detail": "Email RE: ADO Hygiene Report. Asking which tool you used; /ado-hygiene shows his items as clean.",
+      "priority": "medium",
+      "status": "done",
+      "source": "ui",
+      "channel": "outlook-work",
+      "sender": "Hui Xie",
+      "emailId": "AAMkADVjOTQ0MmYwLTA5MDctNGZmZi1hZTQ2LTQ1ZTcwOGU2NzdlNQBGAAAAAAAT2nfPF/mOQ46ffpuBk3uDBwDvASdhud8LQJbVdnNWP2uNAAAAAAEMAADvASdhud8LQJbVdnNWP2uNAAhPdws+AAA=",
+      "threadId": null,
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "draftConfidence": 0.85,
+      "draftReason": "Brief clarification, strong voice corpus with Hui",
+      "receivedAt": "2026-04-23T22:42:00Z",
+      "chatName": null,
+      "updatedAt": "2026-04-24T20:01:09.122Z",
+      "syncPending": false,
+      "syncedAt": "2026-04-24T13:01:09.120001"
+    },
+    {
+      "id": "osmond-spec",
+      "text": "Osmond mentioned you in Agentic AI First Answers Feature Spec",
+      "detail": "Responded to Imran's review comments, tagged you for visibility. Updates on retry logic, reconnect handling, timeout/SLA targets.",
+      "priority": "medium",
+      "status": "done",
+      "source": "ui",
+      "channel": "outlook-work",
+      "sender": "Osmond Jiang",
+      "emailId": "AAMkADVjOTQ0MmYwLTA5MDctNGZmZi1hZTQ2LTQ1ZTcwOGU2NzdlNQBGAAAAAAAT2nfPF/mOQ46ffpuBk3uDBwDvASdhud8LQJbVdnNWP2uNAAAAAAEMAADvASdhud8LQJbVdnNWP2uNAAhR5GcQAAA=",
+      "threadId": null,
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "draftConfidence": null,
+      "draftReason": "FYI, no reply needed",
+      "receivedAt": "2026-04-24T01:31:00Z",
+      "chatName": null,
+      "updatedAt": "2026-04-24T20:01:09.122Z",
+      "syncPending": false,
+      "syncedAt": "2026-04-24T13:01:09.120001"
+    },
+    {
+      "id": "jack-figma",
+      "text": "Jack Batzner: Figma MCP clarification",
+      "detail": "Teams DM. Confirming whether you meant Figma MCP to ingest specs and drive Copilot CLI / VS Code implementations.",
+      "priority": "medium",
+      "status": "done",
+      "source": "ui",
+      "channel": "teams",
+      "sender": "Jack Batzner",
+      "emailId": null,
+      "threadId": "19:5cd927c4-64fa-4dcc-8d7a-2222297e38ab_ba572e89-33ca-4fec-b942-481decb85915@unq.gbl.spaces/1777041433422",
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "draftConfidence": 0.65,
+      "draftReason": "Needs Derek to confirm specific intent",
+      "receivedAt": "2026-04-24T06:20:00-07:00",
+      "chatName": "Jack Batzner",
+      "teamsDeepLink": "https://teams.microsoft.com/l/message/19:5cd927c4-64fa-4dcc-8d7a-2222297e38ab_ba572e89-33ca-4fec-b942-481decb85915@unq.gbl.spaces/1777041433422?context=%7B%22contextType%22:%22chat%22%7D",
+      "updatedAt": "2026-04-25T01:14:02.486Z",
+      "syncPending": false,
+      "syncedAt": "2026-04-24T18:14:02.485218"
+    },
+    {
+      "id": "hui-tooling",
+      "text": "Hui Xie: Initiative Sprint Readiness tooling confusion",
+      "detail": "Teams thread. Confused about /planning-task-setup and /initiative-sprint-kickoff-email pulling prior sprint data.",
+      "priority": "medium",
+      "status": "done",
+      "source": "ui",
+      "channel": "teams",
+      "sender": "Hui Xie",
+      "emailId": null,
+      "threadId": "19:meeting_NzE5ZjMyY2YtOTZkMS00ZDE5LTg3ZjUtYzYyZGZkOTg5OGY1@thread.v2/1777013829795",
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "draftConfidence": 0.73,
+      "draftReason": "Needs tooling context Derek has but agent doesn't",
+      "receivedAt": "2026-04-23T18:05:00-07:00",
+      "chatName": "Initiative Sprint Readiness",
+      "teamsDeepLink": "https://teams.microsoft.com/l/message/19:meeting_NzE5ZjMyY2YtOTZkMS00ZDE5LTg3ZjUtYzYyZGZkOTg5OGY1@thread.v2/1777013829795?context=%7B%22contextType%22:%22chat%22%7D",
+      "updatedAt": "2026-04-25T01:14:02.486Z",
+      "syncPending": false,
+      "syncedAt": "2026-04-24T18:14:02.485218"
+    },
+    {
+      "id": "dmp-proposal",
+      "text": "DMP Management sent a proposal (HMBL wind-down)",
+      "detail": "Personal email. Accountant sent proposal for signature. Review and sign.",
+      "priority": "medium",
+      "status": "open",
+      "source": "email",
+      "channel": "outlook-personal",
+      "sender": "DMP Management",
+      "emailId": "AQMkADAwATIwMTAwAC0wMTlhLWNiZjItMDACLTAwCgBGAAAD52k-H4yp2k_3ua8DR5uHSQcAJL7c6dr49U29KPlQkFCpSAAAAgEMAAAAJL7c6dr49U29KPlQkFCpSAAI4cFW3AAAAA==",
+      "threadId": null,
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "draftConfidence": null,
+      "draftReason": "Portal action, not email reply",
+      "receivedAt": "2026-04-23T22:18:03Z",
+      "chatName": null
+    },
+    {
+      "id": "godaddy-domains",
+      "text": "GoDaddy: domains cancel in 5 days",
+      "detail": "HMBL email from Apr 14. May already be past deadline. Check if mccallum.pro domains need renewal.",
+      "priority": "medium",
+      "status": "open",
+      "source": "email",
+      "channel": "hmbl",
+      "sender": "GoDaddy",
+      "emailId": "AAMkAGZhZGIwMWVkLTQ0YmQtNDdjMy1iODIzLWUyODY2OGU4Y2M0MwBGAAAAAADJ0fdG4l0RRIObRqka7hTrBwAe-HamDcloS4bOrT7hukDSAAAAAAEMAAAe-HamDcloS4bOrT7hukDSAASSMudlAAA=",
+      "threadId": null,
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "draftConfidence": null,
+      "draftReason": "Decision needed, not email reply",
+      "receivedAt": "2026-04-14T18:55:27Z",
+      "chatName": null
+    }
+  ],
+  "inboxLowCount": 18,
+  "meetings": [
+    {
+      "id": "modernize-azure-onboarding",
+      "title": "Modernize Azure Onboarding — Insights",
+      "time": "2026-04-24T10:00:00-07:00",
+      "endTime": "2026-04-24T10:30:00-07:00",
+      "duration": 30,
+      "attendees": [
+        "Pankaj Dixit",
+        "Heather",
+        "Sonia",
+        "Isabella Fernandez",
+        "Hui Xie",
+        "Mauricio Valdez Mendia",
+        "Dylan Ozyjowski",
+        "Anthony Nevico"
+      ],
+      "attended": false,
+      "signals": [
+        "Cross-team onboarding initiative",
+        "Isabella ramp-up context",
+        "Hui Xie sidebar opportunity"
+      ],
+      "raiseThis": [
+        "Use proximity to Hui Xie for a quick sidebar on epic blocker or hygiene question"
+      ],
+      "prep": null,
+      "conflict": null
+    },
+    {
+      "id": "chiro",
+      "title": "Chiro",
+      "time": "2026-04-24T11:30:00-07:00",
+      "endTime": "2026-04-24T12:20:00-07:00",
+      "duration": 50,
+      "attendees": [],
+      "attended": false,
+      "signals": [],
+      "raiseThis": [],
+      "prep": null,
+      "conflict": null
+    },
+    {
+      "id": "pm-upskilling",
+      "title": "PM Upskilling Weekly Office Hrs",
+      "time": "2026-04-24T13:05:00-07:00",
+      "endTime": "2026-04-24T14:00:00-07:00",
+      "duration": 55,
+      "attendees": [
+        "Sal Shaikh",
+        "Annie Pearl",
+        "Heather",
+        "Tanvi"
+      ],
+      "attended": false,
+      "optional": true,
+      "signals": [
+        "Optional upskilling",
+        "Consider declining to protect afternoon deep work"
+      ],
+      "raiseThis": [],
+      "prep": null,
+      "conflict": null
+    }
+  ],
+  "tasks": [
+    {
+      "id": "daniel-chat",
+      "text": "Respond to Daniel Stafford ('can we chat')",
+      "project": "People & Growth",
+      "status": "open",
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "syncPending": false,
+      "syncedAt": "2026-04-24T15:17:48.206502",
+      "updatedAt": "2026-04-24T22:17:48.229Z"
+    },
+    {
+      "id": "isabella-access",
+      "text": "Approve Isabella dev-environment access",
+      "project": "Operational",
+      "status": "open",
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "syncPending": false,
+      "syncedAt": "2026-04-24T15:17:48.206502",
+      "updatedAt": "2026-04-24T22:17:48.229Z"
+    },
+    {
+      "id": "hui-hygiene",
+      "text": "Clarify ADO hygiene tooling for Hui Xie",
+      "project": "Operational",
+      "status": "open",
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "syncPending": false,
+      "syncedAt": "2026-04-24T13:01:09.120001",
+      "updatedAt": "2026-04-24T20:01:09.122Z"
+    },
+    {
+      "id": "jack-figma",
+      "text": "Respond to Jack Batzner on Figma MCP",
+      "project": "Agent Skills",
+      "status": "open",
+      "addedAt": "2026-04-24T08:08:00-07:00",
+      "syncPending": false,
+      "syncedAt": "2026-04-24T18:14:02.485218",
+      "updatedAt": "2026-04-25T01:14:02.486Z"
+    }
+  ],
+  "accountability": {
+    "overdue": [],
+    "approaching": [
+      "Complete Connects — due Apr 30 (6 days)",
+      "Prepare AI-enabled practices presentation — due Apr 30 (6 days)"
+    ],
+    "waitingOnOthers": 5,
+    "stale": 4,
+    "waitingOn": [
+      {
+        "person": "Heather Crince",
+        "item": "Send Connects for initial review",
+        "detail": "OVERDUE 2 days · channel: email",
+        "stale": true,
+        "daysOpen": 2
+      },
+      {
+        "person": "Matthew Trilby-Bassett",
+        "item": "Follow up on docs accuracy and partner comms",
+        "detail": "Channel: Teams",
+        "stale": true,
+        "daysOpen": 8
+      },
+      {
+        "person": "Isabella Fernandez",
+        "item": "Update AIFA UI; follow up on latency/privacy/spec",
+        "detail": "Channel: Teams",
+        "stale": true,
+        "daysOpen": 7
+      },
+      {
+        "person": "Isabella Fernandez",
+        "item": "Explore historical indexing for Q&A",
+        "detail": "Channel: Teams",
+        "stale": true,
+        "daysOpen": 8
+      },
+      {
+        "person": "Justin Garrett",
+        "item": "Share MVP/SA strategy and vision docs",
+        "detail": "Channel: email/Teams",
+        "stale": false,
+        "daysOpen": 1
+      }
+    ],
+    "dismissedWaiting": [
+      {
+        "person": "Laura Bergstrom",
+        "item": "Send pre-read for 1:1 (VoA + Language as a System)",
+        "dismissedAt": "2026-04-24T21:58:08.735Z",
+        "source": "ui"
+      },
+      {
+        "person": "Karin Johnson",
+        "item": "Hand over metrics documentation",
+        "dismissedAt": "2026-04-24T21:58:10.714Z",
+        "source": "ui"
+      },
+      {
+        "person": "Brenda Alford",
+        "item": "Coordinate with Apple and Vine Co. once designs delivered",
+        "dismissedAt": "2026-04-24T21:59:45.511Z",
+        "source": "ui"
+      },
+      {
+        "person": "Collin Schedler",
+        "item": "Continue automating daily briefs via scheduled tasks",
+        "dismissedAt": "2026-04-25T01:10:48.270Z",
+        "source": "ui"
+      }
+    ],
+    "completedItems": [
+      {
+        "type": "overdue",
+        "text": "Respond to Pieter de Bruin — 3 days OVERDUE",
+        "completedAt": "2026-04-25T00:33:30.475Z",
+        "source": "ui"
+      },
+      {
+        "type": "overdue",
+        "text": "Review/decide Azure Edu Center proposal (Malika) — 4 days OVERDUE",
+        "completedAt": "2026-04-25T00:59:43.859Z",
+        "source": "ui"
+      },
+      {
+        "type": "overdue",
+        "text": "Review Q&A AIRR decline analysis (Abhinava) — 4 days OVERDUE",
+        "completedAt": "2026-04-25T01:00:46.962Z",
+        "source": "ui"
+      }
+    ]
+  },
+  "upcoming": [
+    {
+      "date": "2026-04-25",
+      "items": [
+        "Review PR #74",
+        "Review Inline Experiences roadmap",
+        "Review Heather's FY27 strategy doc",
+        "No Meeting Friday Afternoon block"
+      ]
+    },
+    {
+      "date": "2026-04-28",
+      "items": [
+        "Osmond Jiang Perspective due",
+        "Review Q&A Data Reuse Spec",
+        "Prepare AI-enabled practices presentation",
+        "Fr. Francisco logo review target",
+        "Run /pods to refresh pod assignments"
+      ]
+    },
+    {
+      "date": "2026-04-30",
+      "items": [
+        "Connects final deadline",
+        "AI-enabled practices presentation due"
+      ]
+    }
+  ]
+}

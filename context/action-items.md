@@ -2,39 +2,49 @@
 
 Things Derek owes others. Synced to Things 3.
 
-Updated: 2026-04-21
+Updated: 2026-04-25
 
 ## Active
 
-- [ ] Respond to Priya Agrawal on Q&A ecosystem health | Owed to: Priya | Source: email/2026-04-15 | Due: ASAP (OVERDUE 6 days) | Things3: yes
-- [ ] Review corrected ADO Epic Change Report from Tanvi | Owed to: Tanvi | Source: email/2026-04-15 | Due: ASAP (OVERDUE 6 days) | Things3: yes
-- [ ] Review Ecosystems Eng Design Review follow-ups | Owed to: team | Source: meeting/2026-04-15 | Due: ASAP (OVERDUE 6 days) | Things3: yes
-- [ ] Evaluate tools from AgencySquad workshop | Owed to: self | Source: workshop/2026-04-15 | Due: ASAP (OVERDUE 6 days) | Things3: yes
-- [ ] Submit Loop investment update for April MBR | Owed to: AX&E | Source: Teams/2026-04-21 | Due: EOD 2026-04-21 | Things3: yes
-- [ ] Merge PR #53 + respond to Matthew on ADO hygiene | Owed to: Matthew | Source: email+Teams/2026-04-20 | Due: ASAP | Things3: yes
-- [ ] Review Karin's Run the Business Epic 1134374 | Owed to: Karin | Source: email/2026-04-20 | Due: ASAP | Things3: yes
-- [ ] Complete Connects | Owed to: Heather | Source: priorities | Due: 2026-04-23 | Things3: yes
-- [ ] Discuss Amplify framing with Heather | Owed to: Heather | Source: Collin sync/2026-04-17 | Due: next 1:1 | Things3: yes
-- [ ] Finalize key metrics with Karin (Learn Platform Operations) | Owed to: Karin | Source: priorities | Due: ASAP | Things3: yes
-- [ ] Help Sonia compile growth efforts inventory | Owed to: Sonia | Source: LPP Strategy Day/2026-04-16 | Due: ASAP | Things3: yes
+- [ ] Complete Connects | Owed to: Heather | Source: priorities | Due: 2026-04-30 | Things3: yes
+- [ ] Review/decide on Azure Edu Center proposal | Owed to: Malika Watler | Source: email/2026-04-20 | Due: ASAP (5 days, OVERDUE) | Things3: yes
+- [ ] Review Q&A AIRR decline analysis | Owed to: Abhinava Maddha | Source: email/2026-04-20 | Due: ASAP (5 days, OVERDUE) | Things3: yes
+- [ ] Land Learn POV for Global Skilling workshops (with Karin) | Owed to: Karin | Source: Teams/LT meeting/2026-04-21 | Due: upcoming workshops | Things3: yes
+- [ ] Determine final pod assignment for Docs Modernization (part 2) | Owed to: team | Source: Teams/2026-04-21 | Due: ASAP | Things3: yes
+- [ ] Follow up on Hui Xie epic blocked for engineering investigation | Owed to: Hui Xie | Source: Teams/2026-04-21 | Due: ASAP | Things3: yes
 - [ ] Write Perspectives for Osmond Jiang | Owed to: Osmond | Source: email/2026-04-20 | Due: 2026-05-17 | Things3: yes
-- [ ] Reply to Nathan Orona re: Azure Recommendation Catalog walkthrough | Owed to: Nathan | Source: Teams/2026-04-21 | Due: before 3:35pm today | Things3: yes
 - [ ] Process CoreIdentity approval requests (6 total) | Owed to: team | Source: email/2026-04-20+21 | Due: ASAP | Things3: yes
-- [ ] Approve Zhiliang Xu SharePoint access to pod-dashboard | Owed to: Zhiliang | Source: email/2026-04-21 | Due: ASAP | Things3: yes
-- [ ] Call Brenda Alford re: confirmation banners | Owed to: Brenda | Source: email/2026-04-21 | Due: today | Things3: yes
-- [ ] Review Fiverr order delivery (San) | Owed to: HMBL | Source: Fiverr/2026-04-21 | Due: within 3 days | Things3: yes
+- [ ] Prepare AI-enabled practices presentation | Owed to: team | Source: Sprint Readiness/2026-04-23 | Due: 2026-04-30 | Things3: yes
+- [ ] Review Heather's FY27 strategy doc | Owed to: Heather | Source: email/2026-04-23 | Due: ASAP | Things3: yes
+- [ ] Review Inline Experiences roadmap | Owed to: Heather | Source: email/2026-04-23 | Due: ASAP | Things3: yes
+- [ ] Review PR #74 (Figma Prompt / UX Designer agent) | Owed to: team | Source: GitHub/2026-04-23 | Due: ASAP | Things3: yes
+- [ ] Review Q&A Data Reuse Spec and provide prioritization signal | Owed to: Louis/Isabella/Matthew | Source: Teams/2026-04-23 | Due: ASAP | Things3: yes
+- [ ] Analyze Azure onboarding customer journeys with Pankaj | Owed to: Pankaj Dixit | Source: Modernize Azure Onboarding meeting/2026-04-24 | Due: 2026-04-28 | Things3: yes | Task ID: AI-20260425-094637
+- [ ] Add timestamps to ADO hygiene reports | Owed to: Collin/Hui Xie | Source: email thread/2026-04-24 | Due: 2026-04-28 | Things3: yes | Task ID: AI-20260425-094647
+- [ ] Review Tracey Salem's Student Ambassadors docs | Owed to: Tracey Salem | Source: email/2026-04-24 | Due: 2026-04-28 | Things3: yes | Task ID: AI-20260425-094658
 
 ## Completed (last 7 days, auto-pruned)
+- [x] Respond to Daniel Stafford "can we chat" | Completed: 2026-04-24
+- [x] Approve Isabella Fernandez dev-environment access | Completed: 2026-04-24
+- [x] Respond to Jack Batzner on Figma MCP | Completed: 2026-04-24
+- [x] Respond to Pieter de Bruin on M365 learn/docs agent | Completed: 2026-04-24
+- [x] Clarify ADO hygiene tooling for Hui Xie | Completed: 2026-04-24
 
-- [x] Read Curtis High/Low/Parrot email | Completed: 2026-04-20
-- [x] Cancel Verizon insurance on Adi's phone | Completed: 2026-04-20
-- [x] Fix Hui Xie Sprint Kickoff deck permissions | Completed: 2026-04-20
-- [x] Follow up on missing CU data | Completed: 2026-04-17
-- [x] Clarify OKR metric symbols with James | Completed: 2026-04-17
-- [x] Submit Big Rocks weekly update by noon | Completed: 2026-04-17
-- [x] Review agentic AIFA UI with Isabella | Completed: 2026-04-17
-- [x] Review PR #49 - enhanced community support metrics | Completed: 2026-04-17
-- [x] Accept Isabella Fernandez as direct report in HR | Completed: 2026-04-17
-- [x] Review Gini Hu's Agentic AI First Answers evaluation checkpoints | Completed: 2026-04-17
-- [x] Respond to Brian Dunnington on tech design sequencing | Completed: 2026-04-16
-- [x] Review Collin's PR #42 (Learn Companion initiative update) | Completed: 2026-04-16
+- [x] Discuss Amplify framing with Heather | Completed: 2026-04-23
+- [x] Help Sonia compile growth efforts inventory | Completed: 2026-04-23
+- [x] Call Brenda Alford re: confirmation banners | Completed: 2026-04-23
+- [x] Give Ryan Hill a Perspective | Completed: 2026-04-23
+- [x] Respond to Daniel Stafford on docs preview forum question | Completed: 2026-04-23
+- [x] Resubmit OneRAI Release Assessment | Completed: 2026-04-23
+- [x] Merge PR #53 and respond to Matthew on ADO hygiene | Completed: 2026-04-23
+- [x] Fix Hui Xie Sprint Kickoff deck permissions | Completed: 2026-04-23
+- [x] Review Karin's Run the Business Epic 1134374 | Completed: 2026-04-23
+- [x] Respond to Priya Agrawal on Q&A ecosystem health | Completed: 2026-04-22
+- [x] Review corrected ADO Epic Change Report from Tanvi | Completed: 2026-04-22
+- [x] Review Ecosystems Eng Design Review follow-ups | Completed: 2026-04-22
+- [x] Evaluate tools from AgencySquad workshop | Completed: 2026-04-22
+- [x] Submit MBR Loop investment update | Completed: 2026-04-22
+- [x] Finalize key metrics with Karin | Completed: 2026-04-22
+- [x] Give Ryan Currie a Perspective | Completed: 2026-04-22
+- [x] Read Brendan Burns AX&E Leadership Update | Completed: 2026-04-22
+- [x] Merge PR #58 (Team DL aliases, hygiene prompt update) | Completed: 2026-04-21

@@ -42,19 +42,6 @@
       "last_status": null
     },
     {
-      "id": "midday-triage",
-      "name": "Midday Sync",
-      "description": "Automated midday completion reconciliation",
-      "type": "automated",
-      "schedule": "M-F 12:00 PM",
-      "agent": "midday-sync",
-      "script": "scripts/midday-triage.sh",
-      "plist": "com.atlas.midday-triage",
-      "enabled": true,
-      "last_run": "2026-04-22T00:04:11Z",
-      "last_status": "failed"
-    },
-    {
       "id": "weekly-review",
       "name": "Weekly Review Reminder",
       "description": "Notification to run weekly review interactively",
@@ -66,12 +53,48 @@
       "enabled": true,
       "last_run": null,
       "last_status": null
+    },
+    {
+      "id": "meeting-sweep",
+      "name": "Rolling Meeting Brief Sweep",
+      "description": "Every 15 min during work hours: pre-brief upcoming high-stakes meetings (next 60 min) that haven't been briefed yet. Per-event ledger at assistant/state/meeting-briefs.json.",
+      "type": "automated",
+      "schedule": "M-F every 15 min, 7 AM - 6 PM",
+      "agent": "meeting-brief",
+      "script": "scripts/meeting-sweep.sh",
+      "plist": "com.atlas.meeting-sweep",
+      "enabled": false,
+      "enable_instructions": "1) Confirm /meeting-brief prompt resolves an event end-to-end interactively (run `/meeting-brief next` once). 2) Create a launchd plist at ~/Library/LaunchAgents/com.atlas.meeting-sweep.plist with StartInterval=900 and KeepAlive=false. 3) launchctl load -w ~/Library/LaunchAgents/com.atlas.meeting-sweep.plist. 4) Set `enabled: true` here.",
+      "last_run": null,
+      "last_status": null
+    },
+    {
+      "id": "auto-draft-inbox",
+      "name": "Auto Draft Inbox",
+      "description": "Every 30 min during work hours: scan work inbox for new messages where Derek can reply, score with /draft-message confidence rubric, save Tier-A drafts (>=0.80) to Outlook on the original thread. Never sends. Log: assistant/state/auto-drafts.log.",
+      "type": "automated",
+      "schedule": "M-F every 30 min, 8 AM - 6 PM",
+      "agent": "draft-inbox",
+      "script": "scripts/auto-draft-inbox.sh",
+      "plist": "com.atlas.auto-draft-inbox",
+      "enabled": false,
+      "enable_instructions": "1) Run `/draft-inbox --since 2h --dry-run` interactively first to confirm scoring and draft-save behavior look right. 2) Run live once: `/draft-inbox --since 2h` and verify drafts appear in Outlook on the correct threads. 3) Create launchd plist ~/Library/LaunchAgents/com.atlas.auto-draft-inbox.plist with StartInterval=1800 and KeepAlive=false. 4) launchctl load -w ~/Library/LaunchAgents/com.atlas.auto-draft-inbox.plist. 5) Set `enabled: true` here. Always conservative: threshold 0.80, never auto-sends.",
+      "last_run": null,
+      "last_status": null
     }
   ],
   "wake_schedule": {
     "enabled": true,
-    "morning": { "time": "06:25", "days": "MTWRF", "command": "sudo pmset repeat wakeorpoweron MTWRF 06:25:00" },
-    "evening": { "time": "19:55", "days": "MTWRF", "daemon": "/Library/LaunchDaemons/com.atlas.evening-wake-scheduler.plist" },
+    "morning": {
+      "time": "06:25",
+      "days": "MTWRF",
+      "command": "sudo pmset repeat wakeorpoweron MTWRF 06:25:00"
+    },
+    "evening": {
+      "time": "19:55",
+      "days": "MTWRF",
+      "daemon": "/Library/LaunchDaemons/com.atlas.evening-wake-scheduler.plist"
+    },
     "note": "Run once to activate both: sudo zsh assistant/automation/scripts/setup-wake-schedule.sh",
     "verify": "pmset -g sched",
     "caveat": "Only reliable on AC power. On battery macOS may skip the wake."

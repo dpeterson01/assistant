@@ -27,12 +27,11 @@ You now have a fully integrated completion tracking system that lets you mark wo
 4. Updates action-items.md to move completed items
 5. Reports: "Sync complete. X items closed from briefing checks"
 
-### Midday (12:00 PM, automated fallback)
-1. `/midday-sync` agent runs automatically
-2. Detects any newly-checked boxes in your briefing (won't re-process items already synced by `/check-briefing`)
-3. Automatically completes matching tasks in Things 3 (using stable Task IDs)
-4. Updates action-items.md to move completed items
-5. Posts a notification: "Midday sync complete. X items closed from briefing checks"
+### Continuous (every 15 min, automated)
+1. The briefing-sync job runs every 15 minutes during work hours
+2. Detects items marked done/dismissed in the dashboard
+3. Propagates completions to Things 3 and action-items.md
+4. Clears `syncPending` flags after successful sync
 
 ### End of Day (manual or 5:15 PM reminder)
 1. Run `/end-of-day` manually or wait for the 5:15 PM reminder
@@ -73,18 +72,6 @@ The agent will:
 - Mark it complete
 - Update action-items.md
 - Return a receipt: "Completed: Review corrected ADO report"
-
-### `/midday-sync` — Manual Midday Reconciliation
-Run this anytime to process your briefing checkboxes mid-day (already runs automatically at noon).
-
-```
-/midday-sync
-```
-
-Returns:
-- Count of items closed from briefing
-- Any ambiguous matches that need clarification
-- Summary of what's still open
 
 ### `/things3` — Task Management
 Query or manage your Things 3 tasks directly.
@@ -143,7 +130,7 @@ TASK_ID=$(~/.local/bin/things3/new-id.sh)
    ```
    - [x] Approve OneRAI Release Assessment
    ```
-3. At noon, midday-sync detects the check, finds matching task in Things 3, completes it
+3. The 15-minute sync job detects the dashboard completion, finds matching task in Things 3, completes it
 4. action-items.md is updated to reflect completion
 
 ### Example 2: Complete via Task ID
@@ -170,8 +157,8 @@ TASK_ID=$(~/.local/bin/things3/new-id.sh)
 - Updates action-items.md
 - No waiting for scheduled syncs
 
-**Scheduled**: Midday (12:00 PM) and End-of-Day
-- Automatic fallback for items you didn't manually check
+**Scheduled**: Briefing sync (every 15 min) and End-of-Day
+- Continuous sync propagates dashboard completions to Things 3 and action-items.md
 - Checkpoint state prevents duplicates (idempotent)
 
 ## Troubleshooting
@@ -179,7 +166,7 @@ TASK_ID=$(~/.local/bin/things3/new-id.sh)
 **Checkpoint not syncing?**
 - Check that your briefing file exists: `~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md`
 - Verify checkpoint state file was created: `~/.checkpoints/YYYY-MM-DD.json`
-- Run manually: `/midday-sync` or `/end-of-day`
+- Run manually: `/check-briefing` or `/end-of-day`
 
 **Task not completing?**
 - Check that task exists in Things 3: `~/.local/bin/things3/search.sh "keyword"`

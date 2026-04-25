@@ -15,7 +15,6 @@ automation/       Scheduled launchd automation scripts + manifest
 
 - **`/check-briefing`** — Immediately sync newly-checked briefing items to Things 3 + action tracking (no wait for scheduled syncs)
 - **`/done ...`** — Quick completion capture that marks tasks complete in Things 3 and updates action tracking
-- **`/midday-sync`** — Midday reconciliation pass that closes high-confidence completed items (automatic at 12 PM)
 - **`/end-of-day`** — EOD sync with journal capture and final checkpoint processing
 
 ## Checkbox Workflow
@@ -27,8 +26,9 @@ Your morning briefing now includes `- [ ]` checkboxes for all actionable items:
 - **Today's tasks** from Things 3
 
 As you complete work, just check the box in Typora. Then:
-- **At midday** (12:00 PM): midday-sync agent runs automatically, detects newly-checked items, closes matching tasks in Things 3.
-- **At end of day** (or manually): end-of-day agent processes any remaining unchecked items and finalizes the day.
+- **On demand**: Run `/check-briefing` to immediately push checked items to Things 3.
+- **Continuously**: The 15-minute sync job detects completions and propagates them automatically.
+- **At end of day** (or manually): end-of-day agent processes any remaining items and finalizes the day.
 
 No need to switch between briefing, Things 3, and email—just check the box and move on.
 

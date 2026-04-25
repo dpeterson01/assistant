@@ -55,15 +55,7 @@ fi
 echo "Starting Copilot CLI morning-briefing agent..."
 cd "$HOME/projects/personal"
 
-# Determine day of week: only allow iMCP on weekends (Sat=6, Sun=7)
-DOW=$(date +%u)
-IS_WEEKEND=false
-if [[ $DOW -eq 6 || $DOW -eq 7 ]]; then
-    IS_WEEKEND=true
-    echo "Weekend: iMCP enabled"
-else
-    echo "Weekday: iMCP skipped (hangs risk)"
-fi
+# mac-messages is always available (replaced iMCP which had Bonjour timeout issues)
 
 # Build the copilot command with a 10-minute timeout (perl used; macOS lacks GNU timeout)
 COPILOT_CMD=(perl -e 'alarm 600; exec @ARGV' -- copilot
@@ -76,13 +68,10 @@ COPILOT_CMD=(perl -e 'alarm 600; exec @ARGV' -- copilot
     --allow-tool='outlook'
     --allow-tool='hmbl-mail'
     --allow-tool='memory'
+    --allow-tool='mac-messages'
     --deny-tool='shell(rm)'
     --deny-tool='shell(git push)'
 )
-
-if $IS_WEEKEND; then
-    COPILOT_CMD+=(--allow-tool='iMCP')
-fi
 
 "${COPILOT_CMD[@]}" 2>&1 | tee -a "$LOG_FILE"
 
