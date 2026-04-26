@@ -25,7 +25,7 @@ If Derek pasted text inline, use that.
 If Derek referenced a recent output ("the Heather draft", "today's briefing", "the recap from the LT meeting"), find it:
 
 - Drafts from `/draft-message` are typically still in the conversation. Use the most recent draft.
-- Briefings: `~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md`
+- Briefings: `~/projects/personal/assistant/data/briefings/YYYY-MM-DD_daily_brief.md`
 - Meeting recaps: `~/projects/personal/assistant/meetings/YYYY/MM/`
 - Ask if ambiguous.
 

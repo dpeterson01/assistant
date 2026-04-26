@@ -18,9 +18,9 @@
 set -euo pipefail
 
 DATE=$(date +%Y-%m-%d)
-REPO_ROOT="$HOME/projects/personal"
-AUTOMATION_DIR="$REPO_ROOT/assistant/automation"
-SCRIPTS_DIR="$REPO_ROOT/assistant/scripts"
+ASSISTANT_DIR="$HOME/projects/personal/assistant"
+AUTOMATION_DIR="$ASSISTANT_DIR/automation"
+SCRIPTS_DIR="$ASSISTANT_DIR/scripts"
 LOG_DIR="$AUTOMATION_DIR/logs"
 LOG_FILE="$LOG_DIR/meeting-recap-sweep-${DATE}.log"
 ATLAS="$SCRIPTS_DIR/atlas-db.py"
@@ -58,7 +58,7 @@ if [[ ! -f "$ATLAS" ]]; then
 fi
 
 # Check assistant.db isn't corrupt (quick integrity test)
-DB_FILE="$REPO_ROOT/assistant/state/assistant.db"
+DB_FILE="$ASSISTANT_DIR/data/state/assistant.db"
 if [[ -f "$DB_FILE" ]]; then
   if ! python3 -c "import sqlite3; c=sqlite3.connect('$DB_FILE'); c.execute('PRAGMA integrity_check')" 2>/dev/null; then
     echo "ERROR: assistant.db may be corrupt. Backing up and continuing."
@@ -69,7 +69,7 @@ fi
 # Max recap window: meetings that ended more than this many minutes ago are skipped.
 MAX_AGE_MIN="${MEETING_RECAP_MAX_AGE:-60}"
 
-cd "$REPO_ROOT"
+cd "$ASSISTANT_DIR"
 
 # Step 1: Fetch today's meetings that have ended.
 # Ask for all meetings from today, including those that already ended.

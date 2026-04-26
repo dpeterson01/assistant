@@ -4,3 +4,7 @@ node_modules/
 automation/logs/
 automation/__pycache__/
 automation/.checkpoints/
+
+# Personal data (symlink to iCloud or local directory)
+data
+__pycache__/

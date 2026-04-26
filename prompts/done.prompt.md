@@ -15,18 +15,11 @@ Given Derek's input, mark matching task(s) complete in Things 3 and keep memory 
 
 ## Data Architecture
 
-The source of truth for commitments is **assistant.db** (SQLite). All reads and writes go through `atlas-db.py`:
+See [data-architecture.md](../context/data-architecture.md) for full query/mutation reference.
 
 ```sh
 ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
 ```
-
-**At the start of every agent run**, pull Things 3 completions into the DB:
-```sh
-$ATLAS sync-things3
-```
-
-**Do NOT manually edit** `assistant/context/action-items.md` or `assistant/context/waiting-on-others.md`. They are generated views.
 
 ## Workflow
 

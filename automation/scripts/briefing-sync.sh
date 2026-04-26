@@ -9,8 +9,9 @@ set -euo pipefail
 
 DASHBOARD_URL="http://localhost:3141"
 THINGS3_DIR="$HOME/.local/bin/things3"
-ACTION_ITEMS="$HOME/projects/personal/assistant/context/action-items.md"
-AUTOMATION_DIR="$HOME/projects/personal/assistant/automation"
+ASSISTANT_DIR="$HOME/projects/personal/assistant"
+ACTION_ITEMS="$ASSISTANT_DIR/data/context/action-items.md"
+AUTOMATION_DIR="$ASSISTANT_DIR/automation"
 LOG_DIR="$AUTOMATION_DIR/logs"
 DATE=$(date +%Y-%m-%d)
 LOG_FILE="$LOG_DIR/briefing-sync-${DATE}.log"
@@ -47,7 +48,7 @@ fi
 # ──────────────────────────────────────────────
 
 echo "--- Phase 0: Email cleanup ---"
-FILTER_SCRIPT="$HOME/projects/personal/assistant/filter-scripts/filter-spam-emails.py"
+FILTER_SCRIPT="$ASSISTANT_DIR/filter-scripts/filter-spam-emails.py"
 if [[ -f "$FILTER_SCRIPT" ]]; then
   if python3 "$FILTER_SCRIPT" --apply 2>&1; then
     echo "  ✓ Email cleanup complete"

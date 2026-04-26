@@ -1,14 +1,31 @@
 # Assistant
 
-Personal AI assistant configuration: VS Code prompts, Things 3 scripts, and utility scripts.
+Personal AI assistant framework: VS Code prompts, Things 3 scripts, dashboard, automation, and commitment tracking.
+
+## Quick Start
+
+```sh
+git clone <repo-url> && cd assistant
+./setup.sh
+```
+
+The setup script creates a `data/` directory for your personal data (briefings, action items, identity, database). This directory is **gitignored** so your personal information never reaches GitHub. You can back it up by pointing it at iCloud or another cloud-synced folder.
 
 ## Structure
 
 ```
-prompts/          VS Code Copilot prompts (symlinked from ~/Library/Application Support/Code/User/prompts)
-things3/          Things 3 CLI scripts (symlinked from ~/.local/bin/things3)
-filter-scripts/   Email/spam filter scripts (symlinked from ~/.local/bin/)
-automation/       Scheduled launchd automation scripts + manifest
+prompts/          VS Code Copilot agent prompts
+things3/          Things 3 CLI scripts
+scripts/          Core tools (atlas-db.py)
+dashboard/        Express.js dashboard (port 3141)
+automation/       Scheduled launchd automation scripts
+context/          Framework docs (triage rules, schemas, architecture)
+filter-scripts/   Email/spam filter scripts
+data/             Personal data (gitignored, created by setup.sh)
+  briefings/      Daily briefing files (.json, .md)
+  state/          SQLite database, logs
+  context/        Identity, priorities, action items, waiting-on-others
+data-templates/   Templates copied into data/ during setup
 ```
 
 ## Workflow Commands
@@ -45,7 +62,13 @@ $ATLAS commit complete --task-id "AI-20260421-101530"
 
 ## Setup
 
-After cloning, create symlinks:
+After cloning, run the setup script:
+
+```sh
+./setup.sh
+```
+
+This creates the `data/` directory and populates it with template files. Then optionally create symlinks:
 
 ```sh
 ln -sf "$(pwd)/prompts" ~/Library/Application\ Support/Code/User/prompts

@@ -11,18 +11,11 @@ You are Derek's personal AI partner. Read `/memories/identity.md` and `/memories
 
 ## Data Architecture
 
-The source of truth for commitments, meetings, and interactions is **assistant.db** (SQLite). All reads and writes go through `atlas-db.py`:
+See [data-architecture.md](../context/data-architecture.md) for full query/mutation reference.
 
 ```sh
 ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
 ```
-
-**At the start of every agent run**, pull Things 3 completions into the DB:
-```sh
-$ATLAS sync-things3
-```
-
-**Do NOT manually edit** `assistant/context/action-items.md` or `assistant/context/waiting-on-others.md`. They are generated views.
 
 ## Step 1: Gather the week
 
@@ -38,7 +31,7 @@ $ATLAS meeting list
 For each entry with `recap_status=recapped`, read the `recap_file`.
 
 ### Daily briefings (primary source)
-Read all daily briefing files from this week in `~/projects/personal/assistant/briefings/`. Use `ls -t ~/projects/personal/assistant/briefings/ | head -7` and read each one. These contain pre-synthesized meeting signals, triaged communications, action items, accountability checks, and task sync reports. This is the richest single source for the week.
+Read all daily briefing files from this week in `~/projects/personal/assistant/data/briefings/`. Use `ls -t ~/projects/personal/assistant/data/briefings/ | head -7` and read each one. These contain pre-synthesized meeting signals, triaged communications, action items, accountability checks, and task sync reports. This is the richest single source for the week.
 
 Extract from briefings:
 - All wins (already confirmed by Derek at end-of-day)
@@ -141,7 +134,7 @@ Execute the `/self-critique` prompt logic (see `self-critique.prompt.md`). The c
 1. Score five dimensions: Signal-to-Noise, Accuracy, Efficiency, Completeness, Freshness
 2. Compare against prior week's critique
 3. Generate categorized recommendations (auto-fix, needs discussion, observation)
-4. Append results to `assistant/state/self-critique-log.md`
+4. Append results to `assistant/data/state/self-critique-log.md`
 
 Include in the weekly summary a compact `## System Health` section:
 - The score table (5 dimensions with trends)

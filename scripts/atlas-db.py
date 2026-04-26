@@ -41,21 +41,34 @@ import sqlite3
 import subprocess
 import sys
 from datetime import datetime, timezone, timedelta
+from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
 
+# ---- constants ---------------------------------------------------------------
+
+DIRECTIONS = ("mine", "theirs")
+COMMIT_STATUSES = ("active", "completed", "cancelled")
+CATEGORIES = ("work", "personal", "church", "hmbl")
+INTERACTION_DIRECTIONS = ("inbound", "outbound")
+INTERACTION_TYPES = ("email", "teams", "meeting", "imessage", "phone", "nudge")
+BRIEF_STATUSES = ("pending", "sent", "skipped", "failed", "refreshed")
+CATEGORY_AREA_MAP = {"work": "Work", "personal": "Personal", "church": "Church", "hmbl": "HMBL"}
+
 # ---- paths -------------------------------------------------------------------
 
-REPO_ROOT = Path(__file__).resolve().parents[2]  # personal/
-DB_PATH = REPO_ROOT / "assistant" / "state" / "assistant.db"
-ACTION_ITEMS_PATH = REPO_ROOT / "assistant" / "context" / "action-items.md"
-WAITING_ON_PATH = REPO_ROOT / "assistant" / "context" / "waiting-on-others.md"
-LEDGER_PATH = REPO_ROOT / "assistant" / "state" / "meeting-briefs.json"
+ASSISTANT_ROOT = Path(__file__).resolve().parents[1]  # assistant/
+_DATA_DIR = Path(os.environ.get("ATLAS_DATA_DIR", "")) if os.environ.get("ATLAS_DATA_DIR") else ASSISTANT_ROOT / "data"
+DB_PATH = Path(os.environ.get("ATLAS_DB_PATH", "")) if os.environ.get("ATLAS_DB_PATH") else _DATA_DIR / "state" / "assistant.db"
+_CONTEXT_DIR = Path(os.environ.get("ATLAS_CONTEXT_DIR", "")) if os.environ.get("ATLAS_CONTEXT_DIR") else _DATA_DIR / "context"
+ACTION_ITEMS_PATH = _CONTEXT_DIR / "action-items.md"
+WAITING_ON_PATH = _CONTEXT_DIR / "waiting-on-others.md"
+LEDGER_PATH = _DATA_DIR / "state" / "meeting-briefs.json"
 THINGS3_DB = Path.home() / "Library" / "Group Containers" / \
     "JLMPQHK86H.com.culturedcode.ThingsMac" / "ThingsData-BX8ZL" / \
     "Things Database.thingsdatabase" / "main.sqlite"
-THINGS3_ADD = REPO_ROOT / "assistant" / "things3" / "add.sh"
-THINGS3_COMPLETE = REPO_ROOT / "assistant" / "things3" / "complete.sh"
+THINGS3_ADD = ASSISTANT_ROOT / "things3" / "add.sh"
+THINGS3_COMPLETE = ASSISTANT_ROOT / "things3" / "complete.sh"
 
 # ---- schema ------------------------------------------------------------------
 
@@ -145,13 +158,48 @@ def get_db(readonly: bool = False) -> sqlite3.Connection:
     return conn
 
 
+@contextmanager
+def open_db(readonly: bool = False):
+    """Context manager that yields a DB connection and closes it on exit."""
+    conn = get_db(readonly=readonly)
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
 def ensure_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA_SQL)
     row = conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
+    current = int(row["value"]) if row else 0
+
+    if current < SCHEMA_VERSION:
+        _run_migrations(conn, current)
+
     if not row:
         conn.execute("INSERT INTO meta (key, value) VALUES ('schema_version', ?)",
                       (str(SCHEMA_VERSION),))
-        conn.commit()
+    elif current < SCHEMA_VERSION:
+        conn.execute("UPDATE meta SET value=? WHERE key='schema_version'",
+                      (str(SCHEMA_VERSION),))
+    conn.commit()
+
+
+# Migration registry: version -> callable(conn)
+# Each migration brings the DB from version N-1 to N.
+# Add new migrations here as the schema evolves.
+MIGRATIONS: dict[int, callable] = {
+    # 1: initial schema (handled by SCHEMA_SQL CREATE IF NOT EXISTS)
+}
+
+
+def _run_migrations(conn: sqlite3.Connection, current: int) -> None:
+    """Apply migrations sequentially from current+1 to SCHEMA_VERSION."""
+    for ver in range(current + 1, SCHEMA_VERSION + 1):
+        migration = MIGRATIONS.get(ver)
+        if migration:
+            sys.stderr.write(f"migrating schema v{ver - 1} -> v{ver}\n")
+            migration(conn)
 
 
 def generate_task_id() -> str:
@@ -267,184 +315,176 @@ def do_render(conn: sqlite3.Connection) -> None:
 # ---- commitment subcommands -------------------------------------------------
 
 def cmd_commit_add(args) -> int:
-    conn = get_db()
-    ensure_schema(conn)
-    task_id = args.task_id or generate_task_id()
+    with open_db() as conn:
+        ensure_schema(conn)
+        task_id = args.task_id or generate_task_id()
 
-    # Check for duplicate
-    existing = conn.execute("SELECT task_id FROM commitments WHERE task_id=?",
-                            (task_id,)).fetchone()
-    if existing:
-        sys.stderr.write(f"task_id already exists: {task_id}\n")
-        return 1
+        # Check for duplicate
+        existing = conn.execute("SELECT task_id FROM commitments WHERE task_id=?",
+                                (task_id,)).fetchone()
+        if existing:
+            sys.stderr.write(f"task_id already exists: {task_id}\n")
+            return 1
 
-    conn.execute(
-        "INSERT INTO commitments (task_id, title, direction, category, person, "
-        "source, channel, due_date, notes) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (task_id, args.title, args.direction, args.category, args.person,
-         args.source, args.channel, args.due, args.notes)
-    )
-    conn.commit()
-
-    # Push to Things 3
-    things3_uuid = None
-    if not args.no_push and THINGS3_ADD.exists():
-        things3_uuid = push_to_things3(
-            title=args.title, task_id=task_id, direction=args.direction,
-            person=args.person, due=args.due, category=args.category,
-            notes=args.notes
+        conn.execute(
+            "INSERT INTO commitments (task_id, title, direction, category, person, "
+            "source, channel, due_date, notes) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (task_id, args.title, args.direction, args.category, args.person,
+             args.source, args.channel, args.due, args.notes)
         )
-        if things3_uuid:
-            conn.execute("UPDATE commitments SET things3_uuid=? WHERE task_id=?",
-                         (things3_uuid, task_id))
-            conn.commit()
+        conn.commit()
 
-    if not args.no_render:
-        do_render(conn)
+        # Push to Things 3
+        things3_ok = False
+        if not args.no_push and THINGS3_ADD.exists():
+            things3_ok = push_to_things3(
+                title=args.title, task_id=task_id, direction=args.direction,
+                person=args.person, due=args.due, category=args.category,
+                notes=args.notes
+            )
 
-    print(json.dumps({"task_id": task_id, "things3_uuid": things3_uuid}))
-    conn.close()
+        if not args.no_render:
+            do_render(conn)
+
+        print(json.dumps({"task_id": task_id, "things3_pushed": things3_ok}))
     return 0
 
 
-def complete_in_things3(task_id: str, things3_uuid: str | None) -> None:
-    """Push a completion to Things 3 via complete.sh."""
+def complete_in_things3(task_id: str, things3_uuid: str | None) -> bool:
+    """Push a completion to Things 3 via complete.sh. Returns True on success."""
     if not THINGS3_COMPLETE.exists():
-        return
+        sys.stderr.write("things3/complete.sh not found, skipping\n")
+        return False
     try:
         if things3_uuid:
-            subprocess.run([str(THINGS3_COMPLETE), things3_uuid],
-                           capture_output=True, text=True, timeout=10)
+            result = subprocess.run([str(THINGS3_COMPLETE), things3_uuid],
+                                   capture_output=True, text=True, timeout=10)
         else:
-            subprocess.run([str(THINGS3_COMPLETE), "--task-id", task_id],
-                           capture_output=True, text=True, timeout=10)
+            result = subprocess.run([str(THINGS3_COMPLETE), "--task-id", task_id],
+                                   capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            sys.stderr.write(f"things3 complete exit {result.returncode}: {result.stderr.strip()}\n")
+            return False
+        return True
     except Exception as e:
         sys.stderr.write(f"things3 complete failed: {e}\n")
+        return False
 
 
 def cmd_commit_complete(args) -> int:
-    conn = get_db()
-    ensure_schema(conn)
+    with open_db() as conn:
+        ensure_schema(conn)
 
-    # Get things3_uuid before updating
-    row = conn.execute(
-        "SELECT things3_uuid FROM commitments WHERE task_id=? AND status='active'",
-        (args.task_id,)
-    ).fetchone()
-    if not row:
-        sys.stderr.write(f"no active commitment: {args.task_id}\n")
-        conn.close()
-        return 1
+        # Get things3_uuid before updating
+        row = conn.execute(
+            "SELECT things3_uuid FROM commitments WHERE task_id=? AND status='active'",
+            (args.task_id,)
+        ).fetchone()
+        if not row:
+            sys.stderr.write(f"no active commitment: {args.task_id}\n")
+            return 1
 
-    now = datetime.now().strftime("%Y-%m-%d")
-    conn.execute(
-        "UPDATE commitments SET status='completed', completed_at=? "
-        "WHERE task_id=? AND status='active'", (now, args.task_id)
-    )
-    conn.commit()
+        now = datetime.now().strftime("%Y-%m-%d")
+        conn.execute(
+            "UPDATE commitments SET status='completed', completed_at=? "
+            "WHERE task_id=? AND status='active'", (now, args.task_id)
+        )
+        conn.commit()
 
-    # Push completion to Things 3
-    if not getattr(args, 'no_push', False):
-        complete_in_things3(args.task_id, row["things3_uuid"])
+        # Push completion to Things 3
+        if not getattr(args, 'no_push', False):
+            complete_in_things3(args.task_id, row["things3_uuid"])
 
-    if not args.no_render:
-        do_render(conn)
-    print(f"completed: {args.task_id}")
-    conn.close()
+        if not args.no_render:
+            do_render(conn)
+        print(f"completed: {args.task_id}")
     return 0
 
 
 def cmd_commit_cancel(args) -> int:
-    conn = get_db()
-    ensure_schema(conn)
-    now = datetime.now().strftime("%Y-%m-%d")
-    result = conn.execute(
-        "UPDATE commitments SET status='cancelled', completed_at=? "
-        "WHERE task_id=? AND status='active'", (now, args.task_id)
-    )
-    if result.rowcount == 0:
-        sys.stderr.write(f"no active commitment: {args.task_id}\n")
-        conn.close()
-        return 1
-    conn.commit()
-    if not args.no_render:
-        do_render(conn)
-    print(f"cancelled: {args.task_id}")
-    conn.close()
+    with open_db() as conn:
+        ensure_schema(conn)
+        now = datetime.now().strftime("%Y-%m-%d")
+        result = conn.execute(
+            "UPDATE commitments SET status='cancelled', completed_at=? "
+            "WHERE task_id=? AND status='active'", (now, args.task_id)
+        )
+        if result.rowcount == 0:
+            sys.stderr.write(f"no active commitment: {args.task_id}\n")
+            return 1
+        conn.commit()
+        if not args.no_render:
+            do_render(conn)
+        print(f"cancelled: {args.task_id}")
     return 0
 
 
 def cmd_commit_list(args) -> int:
-    conn = get_db(readonly=True)
-    ensure_schema(conn)
-    sql = "SELECT * FROM commitments WHERE 1=1"
-    params: list = []
-    if args.direction:
-        sql += " AND direction=?"
-        params.append(args.direction)
-    if args.status:
-        sql += " AND status=?"
-        params.append(args.status)
-    if args.person:
-        sql += " AND person LIKE ?"
-        params.append(f"%{args.person}%")
-    if args.category:
-        sql += " AND category=?"
-        params.append(args.category)
-    sql += " ORDER BY due_date IS NULL, due_date, created_at"
-    rows = conn.execute(sql, params).fetchall()
-    print(json.dumps([dict(r) for r in rows], indent=2))
-    conn.close()
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+        sql = "SELECT * FROM commitments WHERE 1=1"
+        params: list = []
+        if args.direction:
+            sql += " AND direction=?"
+            params.append(args.direction)
+        if args.status:
+            sql += " AND status=?"
+            params.append(args.status)
+        if args.person:
+            sql += " AND person LIKE ?"
+            params.append(f"%{args.person}%")
+        if args.category:
+            sql += " AND category=?"
+            params.append(args.category)
+        sql += " ORDER BY due_date IS NULL, due_date, created_at"
+        rows = conn.execute(sql, params).fetchall()
+        print(json.dumps([dict(r) for r in rows], indent=2))
     return 0
 
 
 def cmd_commit_overdue(args) -> int:
-    conn = get_db(readonly=True)
-    ensure_schema(conn)
-    today = datetime.now().strftime("%Y-%m-%d")
-    rows = conn.execute(
-        "SELECT * FROM commitments WHERE status='active' "
-        "AND due_date IS NOT NULL AND due_date != 'ASAP' AND due_date < ? "
-        "ORDER BY due_date, direction", (today,)
-    ).fetchall()
-    print(json.dumps([dict(r) for r in rows], indent=2))
-    conn.close()
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+        today = datetime.now().strftime("%Y-%m-%d")
+        rows = conn.execute(
+            "SELECT * FROM commitments WHERE status='active' "
+            "AND due_date IS NOT NULL AND due_date != 'ASAP' AND due_date < ? "
+            "ORDER BY due_date, direction", (today,)
+        ).fetchall()
+        print(json.dumps([dict(r) for r in rows], indent=2))
     return 0
 
 
 def cmd_commit_search(args) -> int:
-    conn = get_db(readonly=True)
-    ensure_schema(conn)
-    rows = conn.execute(
-        "SELECT * FROM commitments WHERE title LIKE ? OR person LIKE ? OR notes LIKE ?",
-        (f"%{args.query}%", f"%{args.query}%", f"%{args.query}%")
-    ).fetchall()
-    print(json.dumps([dict(r) for r in rows], indent=2))
-    conn.close()
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+        rows = conn.execute(
+            "SELECT * FROM commitments WHERE title LIKE ? OR person LIKE ? OR notes LIKE ?",
+            (f"%{args.query}%", f"%{args.query}%", f"%{args.query}%")
+        ).fetchall()
+        print(json.dumps([dict(r) for r in rows], indent=2))
     return 0
 
 
 def cmd_commit_nudge(args) -> int:
-    conn = get_db()
-    ensure_schema(conn)
-    now = datetime.now().strftime("%Y-%m-%d %H:%M")
-    result = conn.execute(
-        "UPDATE commitments SET last_nudge=?, nudge_count=nudge_count+1 "
-        "WHERE task_id=? AND status='active'", (now, args.task_id)
-    )
-    if result.rowcount == 0:
-        sys.stderr.write(f"no active commitment: {args.task_id}\n")
-        conn.close()
-        return 1
-    if args.channel:
-        conn.execute("UPDATE commitments SET channel=? WHERE task_id=?",
-                      (args.channel, args.task_id))
-    conn.commit()
-    if not args.no_render:
-        do_render(conn)
-    print(f"nudged: {args.task_id}")
-    conn.close()
+    with open_db() as conn:
+        ensure_schema(conn)
+        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+        result = conn.execute(
+            "UPDATE commitments SET last_nudge=?, nudge_count=nudge_count+1 "
+            "WHERE task_id=? AND status='active'", (now, args.task_id)
+        )
+        if result.rowcount == 0:
+            sys.stderr.write(f"no active commitment: {args.task_id}\n")
+            return 1
+        if args.channel:
+            conn.execute("UPDATE commitments SET channel=? WHERE task_id=?",
+                          (args.channel, args.task_id))
+        conn.commit()
+        if not args.no_render:
+            do_render(conn)
+        print(f"nudged: {args.task_id}")
     return 0
 
 
@@ -463,121 +503,115 @@ def parse_iso(s: str) -> datetime:
 
 
 def cmd_meeting_add(args) -> int:
-    conn = get_db()
-    ensure_schema(conn)
-    start = parse_iso(args.start)
-    date_str = start.astimezone().strftime("%Y-%m-%d")
+    with open_db() as conn:
+        ensure_schema(conn)
+        start = parse_iso(args.start)
+        date_str = start.astimezone().strftime("%Y-%m-%d")
 
-    conn.execute(
-        "INSERT OR REPLACE INTO meetings "
-        "(event_id, title, date, start_time, end_time, attendees, "
-        "external_count, category, brief_status, claimed_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now','localtime'))",
-        (args.event_id, args.title, date_str, args.start,
-         args.end, args.attendees, args.external or 0, args.category)
-    )
-    conn.commit()
-    print(json.dumps({"event_id": args.event_id, "date": date_str}))
-    conn.close()
+        conn.execute(
+            "INSERT OR REPLACE INTO meetings "
+            "(event_id, title, date, start_time, end_time, attendees, "
+            "external_count, category, brief_status, claimed_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now','localtime'))",
+            (args.event_id, args.title, date_str, args.start,
+             args.end, args.attendees, args.external or 0, args.category)
+        )
+        conn.commit()
+        print(json.dumps({"event_id": args.event_id, "date": date_str}))
     return 0
 
 
 def cmd_meeting_mark(args) -> int:
-    conn = get_db()
-    ensure_schema(conn)
-    valid = {"pending", "sent", "skipped", "failed", "refreshed"}
-    if args.status not in valid:
-        sys.stderr.write(f"invalid brief_status: {args.status} (valid: {valid})\n")
-        return 2
+    with open_db() as conn:
+        ensure_schema(conn)
+        if args.status not in BRIEF_STATUSES:
+            sys.stderr.write(f"invalid brief_status: {args.status} (valid: {BRIEF_STATUSES})\n")
+            return 2
 
-    row = conn.execute("SELECT event_id, refresh_count FROM meetings WHERE event_id=?",
-                        (args.event_id,)).fetchone()
-    if not row:
-        sys.stderr.write(f"unknown event: {args.event_id}\n")
-        return 1
+        row = conn.execute("SELECT event_id, refresh_count FROM meetings WHERE event_id=?",
+                            (args.event_id,)).fetchone()
+        if not row:
+            sys.stderr.write(f"unknown event: {args.event_id}\n")
+            return 1
 
-    updates = ["brief_status=?"]
-    params: list = [args.status]
-    if args.file:
-        updates.append("brief_file=?")
-        params.append(args.file)
-    if args.status == "refreshed":
-        updates.append("refresh_count=refresh_count+1")
+        updates = ["brief_status=?"]
+        params: list = [args.status]
+        if args.file:
+            updates.append("brief_file=?")
+            params.append(args.file)
+        if args.status == "refreshed":
+            updates.append("refresh_count=refresh_count+1")
 
-    params.append(args.event_id)
-    conn.execute(f"UPDATE meetings SET {', '.join(updates)} WHERE event_id=?", params)
-    conn.commit()
-    conn.close()
+        params.append(args.event_id)
+        conn.execute(f"UPDATE meetings SET {', '.join(updates)} WHERE event_id=?", params)
+        conn.commit()
     return 0
 
 
 def cmd_meeting_recap(args) -> int:
-    conn = get_db()
-    ensure_schema(conn)
+    with open_db() as conn:
+        ensure_schema(conn)
 
-    # Upsert: create meeting row if it doesn't exist
-    existing = conn.execute("SELECT event_id FROM meetings WHERE event_id=?",
-                             (args.event_id,)).fetchone()
-    if not existing:
-        conn.execute(
-            "INSERT INTO meetings (event_id, title, recap_status) VALUES (?, ?, 'recapped')",
-            (args.event_id, args.title or "Unknown meeting")
-        )
+        # Upsert: create meeting row if it doesn't exist
+        existing = conn.execute("SELECT event_id FROM meetings WHERE event_id=?",
+                                 (args.event_id,)).fetchone()
+        if not existing:
+            conn.execute(
+                "INSERT INTO meetings (event_id, title, recap_status) VALUES (?, ?, 'recapped')",
+                (args.event_id, args.title or "Unknown meeting")
+            )
 
-    updates = ["recap_status='recapped'"]
-    params: list = []
-    if args.summary:
-        updates.append("recap_summary=?")
-        params.append(args.summary)
-    if args.copilot_summary:
-        updates.append("copilot_summary=?")
-        params.append(args.copilot_summary)
-    if args.recap_file:
-        updates.append("recap_file=?")
-        params.append(args.recap_file)
-    if args.key_decisions:
-        updates.append("key_decisions=?")
-        params.append(args.key_decisions)
-    if args.action_items:
-        updates.append("action_items=?")
-        params.append(args.action_items)
-    if args.recording_url:
-        updates.append("recording_url=?")
-        params.append(args.recording_url)
+        updates = ["recap_status='recapped'"]
+        params: list = []
+        if args.summary:
+            updates.append("recap_summary=?")
+            params.append(args.summary)
+        if args.copilot_summary:
+            updates.append("copilot_summary=?")
+            params.append(args.copilot_summary)
+        if args.recap_file:
+            updates.append("recap_file=?")
+            params.append(args.recap_file)
+        if args.key_decisions:
+            updates.append("key_decisions=?")
+            params.append(args.key_decisions)
+        if args.action_items:
+            updates.append("action_items=?")
+            params.append(args.action_items)
+        if args.recording_url:
+            updates.append("recording_url=?")
+            params.append(args.recording_url)
 
-    params.append(args.event_id)
-    conn.execute(f"UPDATE meetings SET {', '.join(updates)} WHERE event_id=?", params)
-    conn.commit()
-    print(f"recapped: {args.event_id}")
-    conn.close()
+        params.append(args.event_id)
+        conn.execute(f"UPDATE meetings SET {', '.join(updates)} WHERE event_id=?", params)
+        conn.commit()
+        print(f"recapped: {args.event_id}")
     return 0
 
 
 def cmd_meeting_list(args) -> int:
-    conn = get_db(readonly=True)
-    ensure_schema(conn)
-    sql = "SELECT * FROM meetings"
-    params: list = []
-    if args.date:
-        sql += " WHERE date=?"
-        params.append(args.date)
-    sql += " ORDER BY date DESC, start_time DESC"
-    rows = conn.execute(sql, params).fetchall()
-    print(json.dumps([dict(r) for r in rows], indent=2))
-    conn.close()
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+        sql = "SELECT * FROM meetings"
+        params: list = []
+        if args.date:
+            sql += " WHERE date=?"
+            params.append(args.date)
+        sql += " ORDER BY date DESC, start_time DESC"
+        rows = conn.execute(sql, params).fetchall()
+        print(json.dumps([dict(r) for r in rows], indent=2))
     return 0
 
 
 def cmd_meeting_show(args) -> int:
-    conn = get_db(readonly=True)
-    ensure_schema(conn)
-    row = conn.execute("SELECT * FROM meetings WHERE event_id=?",
-                        (args.event_id,)).fetchone()
-    if not row:
-        sys.stderr.write(f"unknown event: {args.event_id}\n")
-        return 1
-    print(json.dumps(dict(row), indent=2))
-    conn.close()
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+        row = conn.execute("SELECT * FROM meetings WHERE event_id=?",
+                            (args.event_id,)).fetchone()
+        if not row:
+            sys.stderr.write(f"unknown event: {args.event_id}\n")
+            return 1
+        print(json.dumps(dict(row), indent=2))
     return 0
 
 
@@ -593,39 +627,38 @@ def cmd_meeting_pending(args) -> int:
         sys.stderr.write(f"invalid JSON on stdin: {e}\n")
         return 2
 
-    conn = get_db(readonly=True)
-    ensure_schema(conn)
-    cutoff = datetime.now(timezone.utc) + timedelta(minutes=args.within_min)
-    out = []
-    for ev in events:
-        if not all(k in ev for k in ("event_id", "title", "start")):
-            continue
-        try:
-            start = parse_iso(ev["start"]).astimezone(timezone.utc)
-        except Exception:
-            continue
-        if start > cutoff:
-            continue
-        if start < datetime.now(timezone.utc) - timedelta(minutes=5):
-            continue
-        existing = conn.execute("SELECT brief_status FROM meetings WHERE event_id=?",
-                                 (ev["event_id"],)).fetchone()
-        if existing and existing["brief_status"] in ("sent", "refreshed"):
-            continue
-        # High-stakes check
-        ext = int(ev.get("external_count", 0))
-        if ext < 1:
-            title = ev.get("title", "")
-            dur = 0
-            if "end" in ev and "start" in ev:
-                try:
-                    dur = int((parse_iso(ev["end"]) - parse_iso(ev["start"])).total_seconds() // 60)
-                except Exception:
-                    pass
-            if not (HIGH_STAKES_RE.search(title) and dur >= 25):
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+        cutoff = datetime.now(timezone.utc) + timedelta(minutes=args.within_min)
+        out = []
+        for ev in events:
+            if not all(k in ev for k in ("event_id", "title", "start")):
                 continue
-        out.append(ev)
-    conn.close()
+            try:
+                start = parse_iso(ev["start"]).astimezone(timezone.utc)
+            except Exception:
+                continue
+            if start > cutoff:
+                continue
+            if start < datetime.now(timezone.utc) - timedelta(minutes=5):
+                continue
+            existing = conn.execute("SELECT brief_status FROM meetings WHERE event_id=?",
+                                     (ev["event_id"],)).fetchone()
+            if existing and existing["brief_status"] in ("sent", "refreshed"):
+                continue
+            # High-stakes check
+            ext = int(ev.get("external_count", 0))
+            if ext < 1:
+                title = ev.get("title", "")
+                dur = 0
+                if "end" in ev and "start" in ev:
+                    try:
+                        dur = int((parse_iso(ev["end"]) - parse_iso(ev["start"])).total_seconds() // 60)
+                    except Exception:
+                        pass
+                if not (HIGH_STAKES_RE.search(title) and dur >= 25):
+                    continue
+            out.append(ev)
     print(json.dumps(out, indent=2))
     return 0
 
@@ -642,31 +675,30 @@ def cmd_meeting_recap_pending(args) -> int:
         sys.stderr.write(f"invalid JSON on stdin: {e}\n")
         return 2
 
-    conn = get_db(readonly=True)
-    ensure_schema(conn)
-    now = datetime.now(timezone.utc)
-    today_str = now.astimezone().strftime("%Y-%m-%d")
-    max_age = timedelta(minutes=args.max_age_min)
-    out = []
-    for ev in events:
-        if not all(k in ev for k in ("event_id", "title", "end")):
-            continue
-        try:
-            end = parse_iso(ev["end"]).astimezone(timezone.utc)
-        except Exception:
-            continue
-        if end.astimezone().strftime("%Y-%m-%d") != today_str:
-            continue
-        if end > now:
-            continue
-        if (now - end) > max_age:
-            continue
-        existing = conn.execute("SELECT recap_status FROM meetings WHERE event_id=?",
-                                 (ev["event_id"],)).fetchone()
-        if existing and existing["recap_status"] == "recapped":
-            continue
-        out.append(ev)
-    conn.close()
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+        now = datetime.now(timezone.utc)
+        today_str = now.astimezone().strftime("%Y-%m-%d")
+        max_age = timedelta(minutes=args.max_age_min)
+        out = []
+        for ev in events:
+            if not all(k in ev for k in ("event_id", "title", "end")):
+                continue
+            try:
+                end = parse_iso(ev["end"]).astimezone(timezone.utc)
+            except Exception:
+                continue
+            if end.astimezone().strftime("%Y-%m-%d") != today_str:
+                continue
+            if end > now:
+                continue
+            if (now - end) > max_age:
+                continue
+            existing = conn.execute("SELECT recap_status FROM meetings WHERE event_id=?",
+                                     (ev["event_id"],)).fetchone()
+            if existing and existing["recap_status"] == "recapped":
+                continue
+            out.append(ev)
     print(json.dumps(out, indent=2))
     return 0
 
@@ -674,61 +706,58 @@ def cmd_meeting_recap_pending(args) -> int:
 # ---- interaction subcommands ------------------------------------------------
 
 def cmd_interaction_log(args) -> int:
-    conn = get_db()
-    ensure_schema(conn)
-    ts = args.timestamp or datetime.now().strftime("%Y-%m-%d %H:%M")
-    conn.execute(
-        "INSERT INTO interactions (person, type, direction, summary, source_id, "
-        "category, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        (args.person, args.type, args.direction, args.summary,
-         args.source_id, args.category, ts)
-    )
-    conn.commit()
-    row_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    print(json.dumps({"id": row_id, "person": args.person, "timestamp": ts}))
-    conn.close()
+    with open_db() as conn:
+        ensure_schema(conn)
+        ts = args.timestamp or datetime.now().strftime("%Y-%m-%d %H:%M")
+        conn.execute(
+            "INSERT INTO interactions (person, type, direction, summary, source_id, "
+            "category, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (args.person, args.type, args.direction, args.summary,
+             args.source_id, args.category, ts)
+        )
+        conn.commit()
+        row_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        print(json.dumps({"id": row_id, "person": args.person, "timestamp": ts}))
     return 0
 
 
 def cmd_interaction_last(args) -> int:
-    conn = get_db(readonly=True)
-    ensure_schema(conn)
-    row = conn.execute(
-        "SELECT * FROM interactions WHERE person LIKE ? ORDER BY timestamp DESC LIMIT 1",
-        (f"%{args.person}%",)
-    ).fetchone()
-    if not row:
-        print(json.dumps({"person": args.person, "last_interaction": None}))
-    else:
-        print(json.dumps(dict(row), indent=2))
-    conn.close()
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+        row = conn.execute(
+            "SELECT * FROM interactions WHERE person LIKE ? ORDER BY timestamp DESC LIMIT 1",
+            (f"%{args.person}%",)
+        ).fetchone()
+        if not row:
+            print(json.dumps({"person": args.person, "last_interaction": None}))
+        else:
+            print(json.dumps(dict(row), indent=2))
     return 0
 
 
 def cmd_interaction_list(args) -> int:
-    conn = get_db(readonly=True)
-    ensure_schema(conn)
-    sql = "SELECT * FROM interactions WHERE 1=1"
-    params: list = []
-    if args.person:
-        sql += " AND person LIKE ?"
-        params.append(f"%{args.person}%")
-    if args.type:
-        sql += " AND type=?"
-        params.append(args.type)
-    if args.category:
-        sql += " AND category=?"
-        params.append(args.category)
-    if args.days:
-        sql += " AND timestamp >= date('now', ?, 'localtime')"
-        params.append(f"-{args.days} days")
-    sql += " ORDER BY timestamp DESC"
-    if args.limit:
-        sql += " LIMIT ?"
-        params.append(args.limit)
-    rows = conn.execute(sql, params).fetchall()
-    print(json.dumps([dict(r) for r in rows], indent=2))
-    conn.close()
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+        sql = "SELECT * FROM interactions WHERE 1=1"
+        params: list = []
+        if args.person:
+            sql += " AND person LIKE ?"
+            params.append(f"%{args.person}%")
+        if args.type:
+            sql += " AND type=?"
+            params.append(args.type)
+        if args.category:
+            sql += " AND category=?"
+            params.append(args.category)
+        if args.days:
+            sql += " AND timestamp >= date('now', ?, 'localtime')"
+            params.append(f"-{args.days} days")
+        sql += " ORDER BY timestamp DESC"
+        if args.limit:
+            sql += " LIMIT ?"
+            params.append(args.limit)
+        rows = conn.execute(sql, params).fetchall()
+        print(json.dumps([dict(r) for r in rows], indent=2))
     return 0
 
 
@@ -736,18 +765,17 @@ def cmd_interaction_list(args) -> int:
 
 def push_to_things3(title: str, task_id: str, direction: str,
                     person: str | None, due: str | None,
-                    category: str | None, notes: str | None) -> str | None:
-    """Push a task to Things 3 via add.sh. Returns nothing (UUID found on next sync)."""
+                    category: str | None, notes: str | None) -> bool:
+    """Push a task to Things 3 via add.sh. Returns True on success."""
     if not THINGS3_ADD.exists():
         sys.stderr.write("things3/add.sh not found, skipping push\n")
-        return None
+        return False
 
     cmd = [str(THINGS3_ADD), title, "--task-id", task_id]
 
     # Map category to Things 3 area
-    area_map = {"work": "Work", "personal": "Personal", "church": "Church", "hmbl": "HMBL"}
-    if category and category in area_map:
-        cmd.extend(["--area", area_map[category]])
+    if category and category in CATEGORY_AREA_MAP:
+        cmd.extend(["--area", CATEGORY_AREA_MAP[category]])
 
     if due and due != "ASAP":
         cmd.extend(["--deadline", due])
@@ -763,11 +791,14 @@ def push_to_things3(title: str, task_id: str, direction: str,
         cmd.extend(["--notes", "\n".join(note_parts)])
 
     try:
-        subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        if result.returncode != 0:
+            sys.stderr.write(f"things3 push exit {result.returncode}: {result.stderr.strip()}\n")
+            return False
+        return True
     except Exception as e:
         sys.stderr.write(f"things3 push failed: {e}\n")
-
-    return None  # UUID resolved on next sync-things3 run
+        return False
 
 
 def cmd_sync_things3(args) -> int:
@@ -776,76 +807,74 @@ def cmd_sync_things3(args) -> int:
         sys.stderr.write(f"Things 3 DB not found: {THINGS3_DB}\n")
         return 1
 
-    conn = get_db()
-    ensure_schema(conn)
+    with open_db() as conn:
+        ensure_schema(conn)
 
-    # Connect to Things 3 DB (read-only)
-    t3uri = f"file:{THINGS3_DB}?mode=ro"
-    t3 = sqlite3.connect(t3uri, uri=True)
-    t3.row_factory = sqlite3.Row
+        # Connect to Things 3 DB (read-only)
+        t3uri = f"file:{THINGS3_DB}?mode=ro"
+        t3 = sqlite3.connect(t3uri, uri=True)
+        t3.row_factory = sqlite3.Row
 
-    synced = 0
+        synced = 0
 
-    # 1. For commitments with things3_uuid: check completion status
-    rows = conn.execute(
-        "SELECT task_id, things3_uuid FROM commitments "
-        "WHERE things3_uuid IS NOT NULL AND status='active'"
-    ).fetchall()
-    for r in rows:
-        t3row = t3.execute(
-            "SELECT status FROM TMTask WHERE uuid=?", (r["things3_uuid"],)
-        ).fetchone()
-        if t3row and t3row["status"] == 3:  # 3 = completed in Things 3
-            conn.execute(
-                "UPDATE commitments SET status='completed', "
-                "completed_at=date('now','localtime') WHERE task_id=?",
-                (r["task_id"],)
-            )
-            synced += 1
-
-    # 2. For commitments without things3_uuid: try to match by Task ID in notes
-    rows = conn.execute(
-        "SELECT task_id FROM commitments "
-        "WHERE things3_uuid IS NULL AND status='active'"
-    ).fetchall()
-    for r in rows:
-        pattern = f"%Task ID: {r['task_id']}%"
-        t3row = t3.execute(
-            "SELECT uuid, status FROM TMTask WHERE notes LIKE ? AND trashed=0 AND type=0",
-            (pattern,)
-        ).fetchone()
-        if t3row:
-            updates = ["things3_uuid=?"]
-            params: list = [t3row["uuid"]]
-            if t3row["status"] == 3:
-                updates.append("status='completed'")
-                updates.append("completed_at=date('now','localtime')")
+        # 1. For commitments with things3_uuid: check completion status
+        rows = conn.execute(
+            "SELECT task_id, things3_uuid FROM commitments "
+            "WHERE things3_uuid IS NOT NULL AND status='active'"
+        ).fetchall()
+        for r in rows:
+            t3row = t3.execute(
+                "SELECT status FROM TMTask WHERE uuid=?", (r["things3_uuid"],)
+            ).fetchone()
+            if t3row and t3row["status"] == 3:  # 3 = completed in Things 3
+                conn.execute(
+                    "UPDATE commitments SET status='completed', "
+                    "completed_at=date('now','localtime') WHERE task_id=?",
+                    (r["task_id"],)
+                )
                 synced += 1
-            params.append(r["task_id"])
-            conn.execute(
-                f"UPDATE commitments SET {', '.join(updates)} WHERE task_id=?",
-                params
-            )
 
-    conn.commit()
-    t3.close()
+        # 2. For commitments without things3_uuid: try to match by Task ID in notes
+        rows = conn.execute(
+            "SELECT task_id FROM commitments "
+            "WHERE things3_uuid IS NULL AND status='active'"
+        ).fetchall()
+        for r in rows:
+            pattern = f"%Task ID: {r['task_id']}%"
+            t3row = t3.execute(
+                "SELECT uuid, status FROM TMTask WHERE notes LIKE ? AND trashed=0 AND type=0",
+                (pattern,)
+            ).fetchone()
+            if t3row:
+                updates = ["things3_uuid=?"]
+                params: list = [t3row["uuid"]]
+                if t3row["status"] == 3:
+                    updates.append("status='completed'")
+                    updates.append("completed_at=date('now','localtime')")
+                    synced += 1
+                params.append(r["task_id"])
+                conn.execute(
+                    f"UPDATE commitments SET {', '.join(updates)} WHERE task_id=?",
+                    params
+                )
 
-    if synced > 0 and not args.no_render:
-        do_render(conn)
+        conn.commit()
+        t3.close()
 
-    print(json.dumps({"synced_completions": synced}))
-    conn.close()
+        if synced > 0 and not args.no_render:
+            do_render(conn)
+
+        print(json.dumps({"synced_completions": synced}))
     return 0
 
 
 # ---- render command ----------------------------------------------------------
 
 def cmd_render(args) -> int:
-    conn = get_db(readonly=True)
-    ensure_schema(conn)
-    do_render(conn)
-    print("rendered: action-items.md, waiting-on-others.md")
-    conn.close()
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+        do_render(conn)
+        print("rendered: action-items.md, waiting-on-others.md")
     return 0
 
 
@@ -950,74 +979,73 @@ def parse_waiting_line(line: str) -> dict | None:
 
 def cmd_import_markdown(args) -> int:
     """Import existing action-items.md and waiting-on-others.md into the DB."""
-    conn = get_db()
-    ensure_schema(conn)
-    imported = 0
-    skipped = 0
-    counter = 0
+    with open_db() as conn:
+        ensure_schema(conn)
+        imported = 0
+        skipped = 0
+        counter = 0
 
-    # Import action items (direction=mine)
-    if ACTION_ITEMS_PATH.exists():
-        for line in ACTION_ITEMS_PATH.read_text().splitlines():
-            if not line.strip().startswith("- ["):
-                continue
-            item = parse_action_item_line(line)
-            if not item:
-                continue
+        # Import action items (direction=mine)
+        if ACTION_ITEMS_PATH.exists():
+            for line in ACTION_ITEMS_PATH.read_text().splitlines():
+                if not line.strip().startswith("- ["):
+                    continue
+                item = parse_action_item_line(line)
+                if not item:
+                    continue
 
-            task_id = item.get("task_id") or f"IMPORT-{datetime.now().strftime('%Y%m%d')}-{counter:04d}"
-            counter += 1
+                task_id = item.get("task_id") or f"IMPORT-{datetime.now().strftime('%Y%m%d')}-{counter:04d}"
+                counter += 1
 
-            existing = conn.execute("SELECT task_id FROM commitments WHERE task_id=?",
-                                     (task_id,)).fetchone()
-            if existing:
-                skipped += 1
-                continue
+                existing = conn.execute("SELECT task_id FROM commitments WHERE task_id=?",
+                                         (task_id,)).fetchone()
+                if existing:
+                    skipped += 1
+                    continue
 
-            conn.execute(
-                "INSERT INTO commitments (task_id, title, direction, person, source, "
-                "channel, due_date, status, completed_at, last_nudge, notes) "
-                "VALUES (?, ?, 'mine', ?, ?, ?, ?, ?, ?, ?, ?)",
-                (task_id, item.get("title", ""), item.get("person"),
-                 item.get("source"), item.get("channel"), item.get("due_date"),
-                 item.get("status", "active"), item.get("completed_at"),
-                 item.get("last_nudge"), item.get("notes"))
-            )
-            imported += 1
+                conn.execute(
+                    "INSERT INTO commitments (task_id, title, direction, person, source, "
+                    "channel, due_date, status, completed_at, last_nudge, notes) "
+                    "VALUES (?, ?, 'mine', ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (task_id, item.get("title", ""), item.get("person"),
+                     item.get("source"), item.get("channel"), item.get("due_date"),
+                     item.get("status", "active"), item.get("completed_at"),
+                     item.get("last_nudge"), item.get("notes"))
+                )
+                imported += 1
 
-    # Import waiting-on-others (direction=theirs)
-    if WAITING_ON_PATH.exists():
-        for line in WAITING_ON_PATH.read_text().splitlines():
-            if not line.strip().startswith("- ["):
-                continue
-            item = parse_waiting_line(line)
-            if not item:
-                continue
+        # Import waiting-on-others (direction=theirs)
+        if WAITING_ON_PATH.exists():
+            for line in WAITING_ON_PATH.read_text().splitlines():
+                if not line.strip().startswith("- ["):
+                    continue
+                item = parse_waiting_line(line)
+                if not item:
+                    continue
 
-            task_id = item.get("task_id") or f"IMPORT-{datetime.now().strftime('%Y%m%d')}-{counter:04d}"
-            counter += 1
+                task_id = item.get("task_id") or f"IMPORT-{datetime.now().strftime('%Y%m%d')}-{counter:04d}"
+                counter += 1
 
-            existing = conn.execute("SELECT task_id FROM commitments WHERE task_id=?",
-                                     (task_id,)).fetchone()
-            if existing:
-                skipped += 1
-                continue
+                existing = conn.execute("SELECT task_id FROM commitments WHERE task_id=?",
+                                         (task_id,)).fetchone()
+                if existing:
+                    skipped += 1
+                    continue
 
-            conn.execute(
-                "INSERT INTO commitments (task_id, title, direction, person, source, "
-                "channel, due_date, status, completed_at, last_nudge, notes) "
-                "VALUES (?, ?, 'theirs', ?, ?, ?, ?, ?, ?, ?, ?)",
-                (task_id, item.get("title", ""), item.get("person"),
-                 item.get("source"), item.get("channel"), item.get("due_date"),
-                 item.get("status", "active"), item.get("completed_at"),
-                 item.get("last_nudge"), item.get("notes"))
-            )
-            imported += 1
+                conn.execute(
+                    "INSERT INTO commitments (task_id, title, direction, person, source, "
+                    "channel, due_date, status, completed_at, last_nudge, notes) "
+                    "VALUES (?, ?, 'theirs', ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (task_id, item.get("title", ""), item.get("person"),
+                     item.get("source"), item.get("channel"), item.get("due_date"),
+                     item.get("status", "active"), item.get("completed_at"),
+                     item.get("last_nudge"), item.get("notes"))
+                )
+                imported += 1
 
-    conn.commit()
-    do_render(conn)
-    print(json.dumps({"imported": imported, "skipped": skipped}))
-    conn.close()
+        conn.commit()
+        do_render(conn)
+        print(json.dumps({"imported": imported, "skipped": skipped}))
     return 0
 
 
@@ -1033,45 +1061,44 @@ def cmd_import_ledger(args) -> int:
         sys.stderr.write("corrupt ledger JSON\n")
         return 1
 
-    conn = get_db()
-    ensure_schema(conn)
-    imported = 0
+    with open_db() as conn:
+        ensure_schema(conn)
+        imported = 0
 
-    for event_id, entry in ledger.get("events", {}).items():
-        existing = conn.execute("SELECT event_id FROM meetings WHERE event_id=?",
-                                 (event_id,)).fetchone()
-        if existing:
-            continue
+        for event_id, entry in ledger.get("events", {}).items():
+            existing = conn.execute("SELECT event_id FROM meetings WHERE event_id=?",
+                                     (event_id,)).fetchone()
+            if existing:
+                continue
 
-        start = entry.get("start", "")
-        date_str = ""
-        if start:
-            try:
-                date_str = parse_iso(start).astimezone().strftime("%Y-%m-%d")
-            except Exception:
-                pass
+            start = entry.get("start", "")
+            date_str = ""
+            if start:
+                try:
+                    date_str = parse_iso(start).astimezone().strftime("%Y-%m-%d")
+                except Exception:
+                    pass
 
-        # Map ledger status to brief_status / recap_status
-        status = entry.get("status", "")
-        brief_status = status if status in ("pending", "sent", "skipped", "failed", "refreshed") else None
-        recap_status = "recapped" if status == "recapped" else ("recap-failed" if status == "recap-failed" else None)
+            # Map ledger status to brief_status / recap_status
+            status = entry.get("status", "")
+            brief_status = status if status in ("pending", "sent", "skipped", "failed", "refreshed") else None
+            recap_status = "recapped" if status == "recapped" else ("recap-failed" if status == "recap-failed" else None)
 
-        conn.execute(
-            "INSERT INTO meetings (event_id, title, date, start_time, "
-            "external_count, brief_status, brief_file, recap_status, recap_file, "
-            "recap_summary, refresh_count, claimed_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (event_id, entry.get("title", ""), date_str, start,
-             entry.get("external_count", 0), brief_status,
-             entry.get("file"), recap_status, entry.get("recap_file"),
-             entry.get("recap_summary"), entry.get("refresh_count", 0),
-             entry.get("claimed_at"))
-        )
-        imported += 1
+            conn.execute(
+                "INSERT INTO meetings (event_id, title, date, start_time, "
+                "external_count, brief_status, brief_file, recap_status, recap_file, "
+                "recap_summary, refresh_count, claimed_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (event_id, entry.get("title", ""), date_str, start,
+                 entry.get("external_count", 0), brief_status,
+                 entry.get("file"), recap_status, entry.get("recap_file"),
+                 entry.get("recap_summary"), entry.get("refresh_count", 0),
+                 entry.get("claimed_at"))
+            )
+            imported += 1
 
-    conn.commit()
-    print(json.dumps({"imported": imported}))
-    conn.close()
+        conn.commit()
+        print(json.dumps({"imported": imported}))
     return 0
 
 
@@ -1079,27 +1106,130 @@ def cmd_import_ledger(args) -> int:
 
 def cmd_dump(args) -> int:
     """Export full DB to JSON for backup/debugging."""
-    conn = get_db(readonly=True)
-    ensure_schema(conn)
-    data = {
-        "exported_at": datetime.now().isoformat(),
-        "commitments": [dict(r) for r in conn.execute("SELECT * FROM commitments ORDER BY created_at").fetchall()],
-        "meetings": [dict(r) for r in conn.execute("SELECT * FROM meetings ORDER BY date DESC").fetchall()],
-        "interactions": [dict(r) for r in conn.execute("SELECT * FROM interactions ORDER BY timestamp DESC").fetchall()],
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+        data = {
+            "exported_at": datetime.now().isoformat(),
+            "commitments": [dict(r) for r in conn.execute("SELECT * FROM commitments ORDER BY created_at").fetchall()],
+            "meetings": [dict(r) for r in conn.execute("SELECT * FROM meetings ORDER BY date DESC").fetchall()],
+            "interactions": [dict(r) for r in conn.execute("SELECT * FROM interactions ORDER BY timestamp DESC").fetchall()],
+        }
+        print(json.dumps(data, indent=2))
+    return 0
+
+
+def cmd_metrics(args) -> int:
+    """Retrospective metrics for a date range."""
+    from datetime import timedelta
+    today = datetime.now().date()
+    end = datetime.strptime(args.until, "%Y-%m-%d").date() if getattr(args, "until", None) else today
+    if getattr(args, "since", None):
+        start = datetime.strptime(args.since, "%Y-%m-%d").date()
+    else:
+        start = end - timedelta(days=args.days)
+
+    s, e = start.isoformat(), end.isoformat()
+
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+
+        # Commitments completed in range
+        completed = conn.execute(
+            "SELECT * FROM commitments WHERE status='completed' "
+            "AND completed_at >= ? AND completed_at <= ? ORDER BY completed_at",
+            (s, e + "T23:59:59")
+        ).fetchall()
+
+        # Commitments created in range
+        created = conn.execute(
+            "SELECT * FROM commitments WHERE created_at >= ? AND created_at <= ? ORDER BY created_at",
+            (s, e + "T23:59:59")
+        ).fetchall()
+
+        # Currently overdue
+        overdue = conn.execute(
+            "SELECT * FROM commitments WHERE status='active' AND direction='mine' "
+            "AND due_date IS NOT NULL AND due_date < ? ORDER BY due_date",
+            (today.isoformat(),)
+        ).fetchall()
+
+        # Meetings in range
+        meetings = conn.execute(
+            "SELECT * FROM meetings WHERE date >= ? AND date <= ? ORDER BY date",
+            (s, e)
+        ).fetchall()
+
+        # Interactions in range
+        interactions = conn.execute(
+            "SELECT type, COUNT(*) as cnt FROM interactions "
+            "WHERE timestamp >= ? AND timestamp <= ? GROUP BY type ORDER BY cnt DESC",
+            (s, e + "T23:59:59")
+        ).fetchall()
+
+        # Nudges in range
+        nudged = conn.execute(
+            "SELECT * FROM commitments WHERE last_nudge >= ? AND last_nudge <= ?",
+            (s, e + "T23:59:59")
+        ).fetchall()
+
+        # Compute cycle time for completed items (days from created to completed)
+        cycle_times = []
+        for r in completed:
+            if r["created_at"] and r["completed_at"]:
+                c = datetime.fromisoformat(r["created_at"][:10])
+                d = datetime.fromisoformat(r["completed_at"][:10])
+                cycle_times.append((d - c).days)
+
+        # By category and direction breakdowns
+        completed_by_cat = {}
+        for r in completed:
+            cat = r["category"] or "uncategorized"
+            completed_by_cat[cat] = completed_by_cat.get(cat, 0) + 1
+
+        completed_mine = sum(1 for r in completed if r["direction"] == "mine")
+        completed_theirs = sum(1 for r in completed if r["direction"] == "theirs")
+
+        meetings_with_recap = sum(1 for m in meetings if m.get("recap_status") == "done")
+
+    metrics = {
+        "period": {"start": s, "end": e, "days": (end - start).days},
+        "commitments": {
+            "created": len(created),
+            "completed": len(completed),
+            "completed_mine": completed_mine,
+            "completed_theirs": completed_theirs,
+            "completed_by_category": completed_by_cat,
+            "currently_overdue": len(overdue),
+            "nudges_sent": len(nudged),
+        },
+        "cycle_time": {
+            "median_days": sorted(cycle_times)[len(cycle_times) // 2] if cycle_times else None,
+            "avg_days": round(sum(cycle_times) / len(cycle_times), 1) if cycle_times else None,
+            "max_days": max(cycle_times) if cycle_times else None,
+            "count": len(cycle_times),
+        },
+        "meetings": {
+            "total": len(meetings),
+            "with_recap": meetings_with_recap,
+        },
+        "interactions": {t: c for t, c in interactions},
+        "overdue_items": [
+            {"task_id": r["task_id"], "title": r["title"], "due": r["due_date"],
+             "person": r["person"]}
+            for r in overdue
+        ],
     }
-    print(json.dumps(data, indent=2))
-    conn.close()
+    print(json.dumps(metrics, indent=2))
     return 0
 
 
 # ---- init --------------------------------------------------------------------
 
 def cmd_init(args) -> int:
-    conn = get_db()
-    ensure_schema(conn)
-    conn.commit()
-    print(f"initialized: {DB_PATH}")
-    conn.close()
+    with open_db() as conn:
+        ensure_schema(conn)
+        conn.commit()
+        print(f"initialized: {DB_PATH}")
     return 0
 
 
@@ -1239,6 +1369,12 @@ def main() -> int:
     # dump
     sub.add_parser("dump", help="Export full DB to JSON")
 
+    # metrics
+    s = sub.add_parser("metrics", help="Retrospective metrics for a date range")
+    s.add_argument("--days", type=int, default=7, help="Look-back window in days")
+    s.add_argument("--since", help="Start date YYYY-MM-DD (overrides --days)")
+    s.add_argument("--until", help="End date YYYY-MM-DD (default: today)")
+
     args = ap.parse_args()
 
     dispatch = {
@@ -1265,6 +1401,7 @@ def main() -> int:
         ("import-markdown", None): lambda: cmd_import_markdown(args),
         ("import-ledger", None): lambda: cmd_import_ledger(args),
         ("dump", None): lambda: cmd_dump(args),
+        ("metrics", None): lambda: cmd_metrics(args),
     }
 
     key = (args.group, getattr(args, "cmd", None))

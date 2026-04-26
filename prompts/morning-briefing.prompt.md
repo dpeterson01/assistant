@@ -37,32 +37,11 @@ This detects newly-checked items, completes matching Things 3 tasks by Task ID, 
 
 ## Data Architecture
 
-The source of truth for commitments (action items + waiting-on-others), meetings, and interactions is **assistant.db** (SQLite). All reads and writes go through `atlas-db.py`:
+See [data-architecture.md](../context/data-architecture.md) for full query/mutation reference.
 
 ```sh
 ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
 ```
-
-**At the start of every agent run**, pull Things 3 completions into the DB:
-```sh
-$ATLAS sync-things3
-```
-
-**Query examples** (all return JSON):
-- `$ATLAS commit list --direction mine --status active` (my open action items)
-- `$ATLAS commit list --direction theirs --status active` (what others owe Derek)
-- `$ATLAS commit overdue` (all overdue items, both directions)
-- `$ATLAS commit search --query "Heather"` (cross-cutting search)
-
-**Mutations** (all auto-render `assistant/context/action-items.md` and `assistant/context/waiting-on-others.md`):
-- `$ATLAS commit add --title "..." --direction mine --person "..." --source "..." --due "..." --category work` (auto-generates Task ID, auto-pushes to Things 3)
-- `$ATLAS commit complete --task-id AI-...` (marks done in DB + Things 3, re-renders markdown)
-- `$ATLAS commit nudge --task-id AI-... --channel email` (records nudge timestamp)
-- `$ATLAS meeting add --event-id ID --title "..." --start ISO` (claim a meeting for briefing)
-- `$ATLAS meeting mark --event-id ID --status sent --file PATH` (update brief status)
-- `$ATLAS meeting recap --event-id ID --summary "..." --recap-file PATH` (store recap)
-
-**Do NOT manually edit** `assistant/context/action-items.md` or `assistant/context/waiting-on-others.md`. They are generated views.
 
 Read `/memories/identity.md` and `/memories/priorities.md` first. Then run `$ATLAS sync-things3` and query the DB for commitments. Hold these in context for the entire briefing.
 
@@ -77,9 +56,9 @@ The briefing has two phases:
 ## Step 1: Reload context (do all in parallel where possible)
 
 ### Recent briefings (primary context source)
-Check if any briefings exist: `ls ~/projects/personal/assistant/briefings/ 2>/dev/null | head -1`
+Check if any briefings exist: `ls ~/projects/personal/assistant/data/briefings/ 2>/dev/null | head -1`
 
-**If briefings exist**: Read the last 3-5 daily briefings (most recent by date). Use `ls -t ~/projects/personal/assistant/briefings/ | head -5`. Extract:
+**If briefings exist**: Read the last 3-5 daily briefings (most recent by date). Use `ls -t ~/projects/personal/assistant/data/briefings/ | head -5`. Extract:
 - Recurring meeting patterns and open follow-ups
 - Items that have appeared in multiple briefings without resolution (flag these as stale)
 - Prior meeting context for today's attendees
@@ -208,54 +187,14 @@ On weekdays, skip the iMessage fetch. Today's personal journal already has overn
 Use the `mac-messages` MCP server for all iMessage operations: `get_recent_messages`, `find_contact`, `get_chat_transcript`, `fuzzy_search_messages`.
 
 ### Triage all inbound communications
-After collecting emails and Teams, classify every item using these rules:
+After collecting emails and Teams, classify every item using the rules in [triage-rules.md](../context/triage-rules.md). That file defines:
+- Hard exclusions (access requests, etc.)
+- Priority tiers (🔴 HIGH, 🟡 MEDIUM, 🟢 LOW) with sender-based rules and aging boosts
+- Thread escalation rules
+- Action item extraction tests (5-point filter before creating any task)
+- Inline draft reply confidence thresholds
 
-**Hard exclusion for briefings**:
-- Do not include access requests (for example SharePoint access, permission approvals, distribution-list access, repo access) in the briefing output, regardless of tier.
-- Do not add access requests to the "What came in overnight" section, "Today's tasks," or meeting prep bullets.
-- If access requests are present, process them silently in background maintenance only when explicitly requested in a separate command.
-
-**🔴 HIGH (surface first, add to Things 3)**
-- From anyone in chain-of-command UP — Heather (manager), Curtis (VP), Ruhi (Sean's manager / Curtis-peer), or above — addressed To: you with ≤5 recipients. Ask or no ask. Signal is the message.
-- From engineering counterparts at Heather's level (Sean and other M2-band partners on active initiatives), with or without explicit ask. Aging boost is tighter for this tier (see below).
-- From direct reports OR cross-org skip-down DMs to you 1:1 (e.g., Osmond, who reports up through Sean's org), with an ask, decision, or escalation tone.
-- Contains a deadline today or this week.
-- Matches an active item in `action-items.md` or `waiting-on-others.md`.
-- Someone delivering something Derek is waiting on.
-- Teams @mention of you, regardless of sender (auto-promote one tier from base).
-- External-domain sender (non-microsoft.com) on a topic that intersects `priorities.md`.
-- Meeting prep needed within 24 hours.
-- **Aging boost**: unread items 2+ business days old escalate one tier. Sean / M2-band engineering partners use a tighter 1-business-day boost given the cross-functional sensitivity.
-
-**🟡 MEDIUM (review today)**
-- From PM peers under Heather (Sonia, Mark) — peer-leader requests are reciprocity-sensitive; treat as MEDIUM by default and HIGH if there's an ask, deadline, or @mention.
-- From people named in `priorities.md` as active cross-team partners (derived from priorities, not a hardcoded list — refresh whenever priorities change).
-- From people one level below Derek's PM-peer band (e.g., Karin, who reports to Sonia) when addressed directly to you.
-- Cross-org partners on active initiatives (DevDiv contacts like Shayne/Kay/Mandy, etc.) when addressed to you.
-- FYI threads where Derek is explicitly To: or @cc'd with context he needs.
-- Responses to threads Derek started.
-- Teams DMs (1:1, not @mentions, not channels) from anyone.
-- Direct/skip-down reports posting in shared channels Derek is in.
-- **Aging boost**: unread items 3+ business days old escalate to HIGH.
-
-**🟢 LOW (batch later or skip)**
-- Broad distribution (>5 To:/Cc:) where Derek has no named role.
-- Informational channel posts with no @mention.
-- Social/casual messages.
-- Skip-up CCs on large distributions (FYI from a VP, not directed at Derek).
-- **Aging boost**: unread items 5+ business days old escalate to MEDIUM.
-
-**Thread escalation rule**: Classify per-thread, not per-message. If a MEDIUM thread receives a reply from a HIGH-tier sender (Heather, Curtis, Ruhi, Sean), the entire thread re-classifies as HIGH for triage purposes.
-
-**Action item extraction**: For every HIGH or MEDIUM item, determine: does this require Derek to DO something? Apply these tests before creating a task:
-1. **Explicit ask test**: Is there a direct request, question, decision, or deliverable addressed to Derek — using language like "can you", "please", "I need you to", "your thoughts on", or similar? If no explicit ask is present, do not create a task. Sharing a link, article, resource, or suggestion without a clear ask does not qualify. Derek will encounter it in his inbox when he reviews it. "You might find this interesting" or "check this out" are not asks.
-2. **Announcement filter**: Kickoff emails, announcements, FYIs, and updates where Derek is on the To: or Cc: line but has no named role or ask → do not create a task. These belong in briefing context only.
-3. **Meeting prep exception**: If the email is directly relevant to a meeting today and Derek has no existing prep item for that meeting, a single "Review [topic] before [meeting]" task is acceptable — but only if the meeting has no prior prep entry in Things 3.
-4. **Group meeting ask filter**: For requests or asks that surface in meetings or chat threads with more than one participant, only create a task if: (a) the request explicitly @mentions Derek by name or alias, AND (b) there is no visible response from Derek or anyone else already addressing the request. If someone asks a group for something and no one is specifically assigned to Derek, do not create a task — even if Derek could theoretically fulfill the ask.
-5. **Unaccepted offer filter**: If Derek volunteered or offered to help during a meeting or conversation but there is no explicit acceptance, confirmation, or follow-up from the other person, do not create a task. An offer Derek made that has not been accepted is not a commitment.
-6. **Access request filter**: If the item is an access request or permission grant (SharePoint, repo, distribution list, system/app access), do not include it in the briefing and do not create a briefing task for it.
-
-If a task passes these tests, extract: what to do, who it's owed to, source, and deadline (explicit or inferred).
+Apply triage to every inbound item before proceeding to Step 2.
 
 ## Step 2: Brief Derek
 
@@ -302,21 +241,9 @@ If there are unread items from prior days, call them out: "N unread items aged 2
 
 #### Inline draft replies (high-confidence only)
 
-For each 🔴/🟡 email item that needs a reply from Derek, run the `/draft-message` Step 2.5 confidence scoring inline (use the recipient, channel = email, purpose = reply to this thread). Behavior by score:
+Score each 🔴/🟡 email item using the `/draft-message` Step 2.5 confidence model. Follow the confidence thresholds and exclusions defined in [triage-rules.md](../context/triage-rules.md#inline-draft-replies).
 
-- **≥ 0.80** — Run the full `/draft-message` pipeline silently and **save the result as a real Outlook draft** attached to the original thread via `mcp_mailtools_CreateDraftMessage` (or the appropriate MCP for personal Outlook / Gmail / HMBL). Add a marker line under the briefing item:
-  > 📝 Draft saved to Outlook (confidence 0.NN) — open thread to review and send
-- **0.70–0.79** — Generate the draft inline in the briefing, do **not** save to Outlook. Show under the item, indented:
-  > 📝 Draft ready (confidence 0.NN):
-  > > [first 2–3 sentences of draft]
-  > Reply with `/draft-message reply to [sender] about [topic]` to expand and save.
-- **0.50–0.69** — Show a one-line hint only, no draft generated:
-  > 📝 Draft available on request (confidence 0.NN). Run `/draft-message reply to [sender]` if useful.
-- **< 0.50** — No draft hint. Item appears in triage as normal.
-
-Hard exclusions from `/draft-message` Step 2.5 apply (Curtis, Father Francisco, brand-new external contacts, sensitivity flags, action-not-yet-taken). Never auto-send. Outlook's send button is the gate.
-
-Log every auto-saved draft to `assistant/state/auto-drafts.log` as `YYYY-MM-DDTHH:MM:SS | <recipient> | <subject> | <confidence> | <thread-id>` so Derek and `/briefing-tune` can audit hit rate.
+Log every auto-saved draft to `assistant/data/state/auto-drafts.log` as `YYYY-MM-DDTHH:MM:SS | <recipient> | <subject> | <confidence> | <thread-id>` so Derek and `/briefing-tune` can audit hit rate.
 
 ### Today's meetings
 Present the full meeting briefings assembled in Step 1, in chronological order. For each meeting show:
@@ -336,6 +263,10 @@ For meetings with prep needed, prefix with `- [ ]` checkbox so Derek can check i
   - If they're in a meeting today: `- [ ]` "Bring up [item] with [person] in [meeting name]"
   - If overdue and not recently nudged: "Consider running `/nudge [person]` to follow up"
   - Count: "X items pending from others, Y overdue"
+- **Auto-nudge candidates**: Items where `daysOpen >= 5` AND `last_nudge` is null or older than 3 days are auto-nudge candidates. For each:
+  - Set `stale: true` in the JSON `accountability.waitingOn` entry
+  - In the .md, append: "⏰ Stale 5+ days. Run `/nudge [person]` or use the dashboard nudge button."
+  - If the person is in a meeting today, prefer the in-meeting approach over a nudge message.
 
 ### Birthdays
 If any birthdays are coming up in the next 7 days, list them. Today/tomorrow birthdays get a 🎂 callout. If a birthday person is a meeting attendee or direct report, suggest acknowledging it.
@@ -352,7 +283,7 @@ Keep the briefing under 50 lines. Lead with what matters most.
 
 ## Step 3: Save and open briefing
 
-Save the full briefing output to `~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md` where YYYY-MM-DD is today's date.
+Save the full briefing output to `~/projects/personal/assistant/data/briefings/YYYY-MM-DD_daily_brief.md` where YYYY-MM-DD is today's date.
 
 The file should contain:
 - A YAML frontmatter block with `date`, `meetings_count`, `action_items_count`, `high_priority_count`, and `checkpoint_id` (format: `AI-YYYYMMDD-HHMMSS`)
@@ -366,100 +297,19 @@ Note: checkpoint_id and checkpoint state are used by `/check-briefing` and sched
 
 Open it in Typora immediately so Derek can start reading:
 ```sh
-open -a Typora ~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md
+open -a Typora ~/projects/personal/assistant/data/briefings/YYYY-MM-DD_daily_brief.md
 ```
 
 ## Step 3b: Generate dashboard JSON
 
-Also save a structured JSON file to `~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.json`. This powers the interactive dashboard at `http://localhost:3141`. The dashboard tracks completion state, syncs to Things 3 every 15 min, and surfaces draft candidates.
+Also save a structured JSON file to `~/projects/personal/assistant/data/briefings/YYYY-MM-DD_daily_brief.json`. This powers the interactive dashboard at `http://localhost:3141`.
 
-Build the JSON from the same data gathered in Steps 1-2. Use this exact schema:
-
-```json
-{
-  "date": "YYYY-MM-DD",
-  "generatedAt": "ISO-8601 timestamp",
-  "lastUpdated": "ISO-8601 timestamp (same as generatedAt initially)",
-  "updateCount": 0,
-  "checkpointId": "AI-YYYYMMDD-HHMMSS",
-  "dayFit": {
-    "score": <number 0-100>,
-    "level": "green|yellow|red",
-    "summary": "<one-line summary>",
-    "failures": ["<criterion that failed>", ...],
-    "passes": ["<criterion that passed>", ...],
-    "recoveryMoves": ["<suggestion>", ...]
-  },
-  "carryOver": [<items>],
-  "inbox": [<items, including all priority levels>],
-  "inboxLowCount": <number of low-priority items in the array, kept for legacy clients>,
-  "meetings": [<meetings>],
-  "tasks": [<Things 3 today items>],
-  "accountability": {
-    "overdue": [<strings>],
-    "approaching": [<strings>],
-    "waitingOn": [
-      { "person": "<name>", "item": "<short summary>", "detail": "<context, optional>", "stale": <bool>, "daysOpen": <number> }
-    ],
-    "waitingOnOthers": <total count, kept for legacy clients>,
-    "stale": <count of stale entries, kept for legacy clients>
-  },
-  "upcoming": [<next 2-3 days items>]
-}
-```
-
-### Per-item fields (carryOver, inbox, tasks)
-Each item must include:
-- `id`: Stable identifier. Use the Things 3 Task ID (`AI-YYYYMMDD-HHMMSS`) if one was created, otherwise a short kebab-case slug (e.g., `connects-due`, `pieter-agent`).
-- `text`: Brief item title (matches the briefing checkbox text minus the Task ID suffix)
-- `detail`: 1-2 sentence context (optional, can be empty string)
-- `priority`: `"high"` | `"medium"` | `"low"`
-- `status`: `"open"` (always `"open"` for newly generated items)
-- `addedAt`: ISO-8601 timestamp (briefing generation time)
-
-### Deep link fields (carryOver AND inbox)
-These fields enable the dashboard to link directly to the source message. Include on BOTH carryOver and inbox items whenever the item originated from an email or Teams message:
-- `source`: `"email"` | `"teams"` | `"imessage"` | `"priorities"` | `"journal"`
-- `channel`: `"outlook-work"` | `"outlook-personal"` | `"gmail"` | `"hmbl"` | `"teams"` | `null`
-- `sender`: Display name of the sender
-- `emailId`: Exchange/Gmail message ID from the MCP tool response. For Outlook, use the `id` field from the email object. For Gmail, use the message `id`. Set `null` only if truly unavailable.
-- `threadId`: Teams chat/channel thread ID from the MCP tool response. Set `null` only if truly unavailable.
-- `teamsDeepLink`: Full Teams deep link URL if available. `null` for non-Teams items.
-- `chatName`: For Teams items, the name of the Teams chat or channel. `null` for non-Teams items.
-
-When carrying items forward from a previous briefing's inbox to today's carryOver, **preserve all deep link fields** (`source`, `channel`, `sender`, `emailId`, `threadId`, `teamsDeepLink`, `chatName`) from the original item.
-
-### Additional inbox-only fields
-- `receivedAt`: ISO-8601 timestamp of when the original message/email was received (from email headers or Teams message time). Required for inbox items.
-- `draftConfidence`: The confidence score from Step 2's inline draft scoring (0.0-1.0), or `null` if not scored
-- `draftReason`: One-line explanation of the confidence score, or `null`
-
-### Meeting fields
-Each meeting must include:
-- `id`: Kebab-case slug from meeting title
-- `title`, `time`, `endTime`, `duration` (minutes)
-- `attendees`: Array of display names
-- `attended`: `false` (set to `true` by EOD or sync)
-- `optional`: `true` if Derek is optional, omit otherwise
-- `signals`: Array of signal strings from the briefing
-- `raiseThis`: Array of suggested talking points
-- `prep`: String describing prep needed, or `null`
-- `conflict`: Conflict description string, or `null`
-
-### Tasks section
-Populate from Things 3 Today items. Each task:
-- `id`: Use the `AI-` Task ID from `$ATLAS commit add` output, or Things 3 task ID prefixed with `t-` for non-AI-prefixed IDs
-- `text`: Task title
-- `project`: Things 3 project name
-- `status`: `"open"`
-- `addedAt`: ISO-8601 timestamp
-
-### Important rules
-- Every checkbox item in the .md briefing MUST have a corresponding entry in the JSON. The `id` is the link between them.
-- Items that were already done when gathering data (e.g., completed overnight) should have `"status": "done"` and no `syncPending` flag.
-- **Reconcile accountability with source of truth**: `accountability.waitingOn` must only include items from `$ATLAS commit list --direction theirs --status active`. Never include completed items. If a previous briefing's JSON contains a waiting-on item that has since been completed in the DB, drop it.
-- **Include every triaged inbox item** in the `inbox` array regardless of priority (high, medium, low). The dashboard collapses low-priority items behind a toggle. The legacy `inboxLowCount` field still reports the count for backward compatibility but is no longer the source of truth.
-- The JSON file is the source of truth for the dashboard. The .md file is the human-readable format for Typora.
+Build the JSON from the same data gathered in Steps 1-2. Follow the schema defined in [dashboard-json-schema.md](../context/dashboard-json-schema.md), which specifies:
+- Top-level structure (dayFit, carryOver, inbox, meetings, tasks, accountability, upcoming)
+- Per-item fields and deep link fields
+- Meeting fields and high-stakes criteria
+- Accountability structure
+- Reconciliation rules (every .md checkbox must have a matching JSON entry)
 
 Then continue to Phase B while Derek reads.
 
@@ -536,7 +386,7 @@ Present: "Added X tasks, completed Y tasks, updated tags on Z tasks" with the li
 - Remove items that were completed yesterday
 - Only change what's clearly warranted
 
-**Action items and waiting-on-others are updated automatically** by the `$ATLAS commit add/complete/nudge` commands in Step 4. Every mutation re-renders `assistant/context/action-items.md` and `assistant/context/waiting-on-others.md`. Do NOT manually edit these files.
+**Action items and waiting-on-others are updated automatically** by the `$ATLAS commit add/complete/nudge` commands in Step 4. Every mutation re-renders `assistant/data/context/action-items.md` and `assistant/data/context/waiting-on-others.md`. Do NOT manually edit these files.
 
 **If you discover new overdue items** (items in the DB with past due dates that haven't been flagged), the rendered markdown already marks them with "(OVERDUE)" automatically.
 
@@ -576,7 +426,7 @@ Hard-won lessons. Check here before debugging.
 | JSON and markdown briefings drift out of sync | Every checkbox item in the .md MUST have a matching entry in the .json. The `id` field is the link. Generate both from the same data in Step 3/3b. |
 | Triage creates tasks for FYI emails with no actual ask | Apply the 5-point action item extraction tests (explicit ask, announcement filter, meeting prep, group ask, unaccepted offer) before creating any task. |
 | Access requests appear in briefing | Hard exclusion. Filter silently, never surface in any section. |
-| Draft confidence scoring saves a draft Derek didn't want | Never auto-send. Outlook's send button is the gate. Log all auto-drafts to `assistant/state/auto-drafts.log`. |
+| Draft confidence scoring saves a draft Derek didn't want | Never auto-send. Outlook's send button is the gate. Log all auto-drafts to `assistant/data/state/auto-drafts.log`. |
 | Parallel tool calls include WorkIQ + shell + MCP in same batch | Correct. These are independent. Do not serialize them. |
 | Contact lookup fails because filename doesn't match display name | Read `index.json` first to get the name-to-file mapping. Match on name, aliases, or email. |
 | Meeting brief ledger `claim` returns non-zero | The rolling sweep already produced a brief. Skip generation and reference the existing path. |

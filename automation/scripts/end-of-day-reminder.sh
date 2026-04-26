@@ -4,7 +4,8 @@
 # Sends a notification (end-of-day requires interactive session)
 
 DATE=$(date +%Y-%m-%d)
-LOG_DIR="$HOME/projects/personal/assistant/automation/logs"
+ASSISTANT_DIR="$HOME/projects/personal/assistant"
+LOG_DIR="$ASSISTANT_DIR/automation/logs"
 mkdir -p "$LOG_DIR"
 echo "$(date '+%Y-%m-%d %H:%M:%S') - End-of-day reminder sent" >> "$LOG_DIR/reminders-${DATE}.log"
 

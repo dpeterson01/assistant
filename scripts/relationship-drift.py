@@ -34,10 +34,10 @@ JOURNAL_DIRS = [
     HOME / "Library/Mobile Documents/com~apple~CloudDocs/initiatives/catholic_church/journals",
 ]
 
-BRIEFING_DIR = REPO / "briefings"
+BRIEFING_DIR = REPO / "data/briefings"
 
-ACTION_ITEMS = REPO / "context/action-items.md"
-WAITING_ON = REPO / "context/waiting-on-others.md"
+ACTION_ITEMS = REPO / "data/context/action-items.md"
+WAITING_ON = REPO / "data/context/waiting-on-others.md"
 
 DATE_RE = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
 

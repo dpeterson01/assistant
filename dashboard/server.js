@@ -1,5 +1,5 @@
 import express from 'express';
-import { readFileSync, readdirSync, writeFileSync, existsSync, watch } from 'fs';
+import { readFileSync, readdirSync, writeFileSync, existsSync, mkdirSync, watch } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { execFile } from 'child_process';
@@ -8,16 +8,43 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = 3141;
 
-const BRIEFINGS_DIR = join(__dirname, '..', 'briefings');
+const DATA_DIR = join(__dirname, '..', 'data');
+const BRIEFINGS_DIR = join(DATA_DIR, 'briefings');
+const ARCHIVE_DIR = join(BRIEFINGS_DIR, 'archive');
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(join(__dirname, 'public')));
 
+// --- Input validation helpers ---
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const ITEM_ID_RE = /^[a-zA-Z0-9_-]{1,120}$/;
+
+function isValidDate(s) {
+  return typeof s === 'string' && DATE_RE.test(s) && !isNaN(Date.parse(s));
+}
+
+function isValidItemId(s) {
+  return typeof s === 'string' && ITEM_ID_RE.test(s);
+}
+
+function sanitizeString(s, maxLen = 500) {
+  if (typeof s !== 'string') return s;
+  return s.slice(0, maxLen);
+}
+
 // --- File helpers ---
 
 function briefingPath(date) {
-  if (date) return join(BRIEFINGS_DIR, `${date}_daily_brief.json`);
-  // Latest
+  if (date) {
+    // Check top-level first, then archive
+    const top = join(BRIEFINGS_DIR, `${date}_daily_brief.json`);
+    if (existsSync(top)) return top;
+    const archived = join(ARCHIVE_DIR, `${date}_daily_brief.json`);
+    if (existsSync(archived)) return archived;
+    return top; // default to top-level for new writes
+  }
+  // Latest: only look in top-level (archive contains old briefings)
   const files = readdirSync(BRIEFINGS_DIR)
     .filter(f => f.endsWith('_daily_brief.json'))
     .sort()
@@ -259,6 +286,30 @@ function markEmailRead(item) {
 // Teams mark-as-read: blocked by admin consent for Chat.ReadWrite scope.
 // When scope is approved, add markTeamsChatRead() here using mark-teams-read.py.
 
+// --- Undo buffer ---
+// Stores recent status changes so they can be reverted within a grace period.
+// Each entry: { id, previousStatus, previousSource, section, timestamp }
+const UNDO_GRACE_MS = 15_000; // 15 seconds
+const undoBuffer = [];
+
+function pruneUndoBuffer() {
+  const cutoff = Date.now() - UNDO_GRACE_MS;
+  while (undoBuffer.length > 0 && undoBuffer[0].timestamp < cutoff) {
+    undoBuffer.shift();
+  }
+}
+
+function recordUndo(item, section) {
+  pruneUndoBuffer();
+  undoBuffer.push({
+    id: item.id,
+    previousStatus: item.status,
+    previousSource: item.source,
+    section,
+    timestamp: Date.now(),
+  });
+}
+
 function setItemStatus(data, id, status, source = 'api') {
   const ts = now();
   for (const section of ['carryOver', 'inbox', 'tasks']) {
@@ -266,6 +317,7 @@ function setItemStatus(data, id, status, source = 'api') {
     if (!list) continue;
     const item = list.find(i => i.id === id);
     if (item) {
+      recordUndo(item, section);
       item.status = status;
       item.updatedAt = ts;
       item.source = source;
@@ -282,6 +334,9 @@ function setItemStatus(data, id, status, source = 'api') {
 
 // GET /api/briefing?date=2026-04-23 (optional, defaults to latest)
 app.get('/api/briefing', (req, res) => {
+  if (req.query.date && !isValidDate(req.query.date)) {
+    return res.status(400).json({ error: 'Invalid date format (expected YYYY-MM-DD)' });
+  }
   const data = readBriefing(req.query.date);
   if (!data) {
     trackHealth('GET /api/briefing', false, 'No briefing found');
@@ -301,10 +356,12 @@ app.get('/api/briefing', (req, res) => {
 //   - accountability: full replace if provided
 //   - scalar fields (lastUpdated, updateCount): auto-set
 app.patch('/api/briefing', (req, res) => {
-  const data = readBriefing(req.body.date);
-  if (!data) return res.status(404).json({ error: 'No briefing found for date' });
-
   const patch = req.body;
+  if (!patch || typeof patch !== 'object') return res.status(400).json({ error: 'Request body must be a JSON object' });
+  if (patch.date && !isValidDate(patch.date)) return res.status(400).json({ error: 'Invalid date format (expected YYYY-MM-DD)' });
+
+  const data = readBriefing(patch.date);
+  if (!data) return res.status(404).json({ error: 'No briefing found for date' });
   const ts = now();
 
   // Merge array sections by id
@@ -339,6 +396,7 @@ app.patch('/api/briefing', (req, res) => {
 
 // POST /api/complete-task/:id — mark done in JSON + complete in Things 3
 app.post('/api/complete-task/:id', (req, res) => {
+  if (!isValidItemId(req.params.id)) return res.status(400).json({ error: 'Invalid item id' });
   try {
     const data = readBriefing();
     const source = req.body?.source || 'api';
@@ -363,6 +421,7 @@ app.post('/api/complete-task/:id', (req, res) => {
 
 // POST /api/dismiss/:id — remove from dashboard + delete from Things 3
 app.post('/api/dismiss/:id', (req, res) => {
+  if (!isValidItemId(req.params.id)) return res.status(400).json({ error: 'Invalid item id' });
   try {
     const data = readBriefing();
     const source = req.body?.source || 'api';
@@ -381,6 +440,38 @@ app.post('/api/dismiss/:id', (req, res) => {
     res.json({ ok: true, id: req.params.id });
   } catch (err) {
     trackHealth('POST /api/dismiss', false, err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/undo/:id — revert the last status change within the grace period.
+// Only works if setItemStatus was called within the last UNDO_GRACE_MS.
+app.post('/api/undo/:id', (req, res) => {
+  if (!isValidItemId(req.params.id)) return res.status(400).json({ error: 'Invalid item id' });
+  try {
+    pruneUndoBuffer();
+    // Find the most recent undo entry for this id (search from end)
+    const idx = undoBuffer.findLastIndex(e => e.id === req.params.id);
+    if (idx === -1) {
+      return res.status(410).json({ error: 'Undo window expired or no recent change for this item' });
+    }
+    const entry = undoBuffer.splice(idx, 1)[0];
+    const data = readBriefing();
+    if (!data) return res.status(404).json({ error: 'No briefing found' });
+    const item = findItem(data, req.params.id);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+
+    item.status = entry.previousStatus;
+    item.source = entry.previousSource;
+    item.updatedAt = now();
+    delete item.syncPending;
+    data.lastUpdated = now();
+    writeBriefing(data);
+
+    trackHealth('POST /api/undo', true);
+    res.json({ ok: true, id: req.params.id, restoredStatus: entry.previousStatus });
+  } catch (err) {
+    trackHealth('POST /api/undo', false, err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -549,7 +640,7 @@ app.post('/api/draft-nudge', async (req, res) => {
 // POST /api/dismiss-waiting — hide a waiting-on-others entry from the dashboard.
 // Body: { index } (preferred) OR { person, item } to match.
 // This is a session-scoped dismissal: it mutates the briefing JSON only.
-// assistant/context/waiting-on-others.md (generated from assistant.db) is the
+// assistant/data/context/waiting-on-others.md (generated from assistant.db) is the
 // source of truth and is updated by atlas-db.py. Tomorrow's briefing will
 // re-pull from the DB.
 app.post('/api/dismiss-waiting', (req, res) => {
@@ -660,6 +751,7 @@ app.post('/api/dismiss-accountability', (req, res) => {
 
 // POST /api/mark-read/:id — mark email as read via Graph API
 app.post('/api/mark-read/:id', (req, res) => {
+  if (!isValidItemId(req.params.id)) return res.status(400).json({ error: 'Invalid item id' });
   try {
     const data = readBriefing();
     const item = findItem(data, req.params.id);

@@ -36,8 +36,8 @@ JOURNAL_DIRS = [
     ("church", HOME / "Library/Mobile Documents/com~apple~CloudDocs/initiatives/catholic_church/journals"),
 ]
 
-ACTION_ITEMS = REPO / "context/action-items.md"
-WAITING_ON = REPO / "context/waiting-on-others.md"
+ACTION_ITEMS = REPO / "data/context/action-items.md"
+WAITING_ON = REPO / "data/context/waiting-on-others.md"
 
 
 # ----- contact resolution -----------------------------------------------------

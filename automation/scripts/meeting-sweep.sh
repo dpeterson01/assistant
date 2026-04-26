@@ -14,9 +14,9 @@
 set -euo pipefail
 
 DATE=$(date +%Y-%m-%d)
-REPO_ROOT="$HOME/projects/personal"
-AUTOMATION_DIR="$REPO_ROOT/assistant/automation"
-SCRIPTS_DIR="$REPO_ROOT/assistant/scripts"
+ASSISTANT_DIR="$HOME/projects/personal/assistant"
+AUTOMATION_DIR="$ASSISTANT_DIR/automation"
+SCRIPTS_DIR="$ASSISTANT_DIR/scripts"
 LOG_DIR="$AUTOMATION_DIR/logs"
 LOG_FILE="$LOG_DIR/meeting-sweep-${DATE}.log"
 ATLAS="$SCRIPTS_DIR/atlas-db.py"
@@ -52,7 +52,7 @@ if [[ ! -f "$ATLAS" ]]; then
 fi
 
 # Check assistant.db isn't corrupt (quick integrity test)
-DB_FILE="$REPO_ROOT/assistant/state/assistant.db"
+DB_FILE="$ASSISTANT_DIR/data/state/assistant.db"
 if [[ -f "$DB_FILE" ]]; then
   if ! python3 -c "import sqlite3; c=sqlite3.connect('$DB_FILE'); c.execute('PRAGMA integrity_check')" 2>/dev/null; then
     echo "WARNING: assistant.db may be corrupt. Backing up."
@@ -63,7 +63,7 @@ fi
 # Lookahead window for meetings worth pre-briefing (minutes from now).
 LOOKAHEAD_MIN="${MEETING_SWEEP_LOOKAHEAD:-60}"
 
-cd "$REPO_ROOT"
+cd "$ASSISTANT_DIR"
 
 # Step 1: Fetch upcoming events as JSON via the calendar agent.
 # We delegate to a minimal copilot call that ONLY emits JSON to stdout.

@@ -6,7 +6,8 @@
 set -euo pipefail
 
 DATE=$(date +%Y-%m-%d)
-AUTOMATION_DIR="$HOME/projects/personal/assistant/automation"
+ASSISTANT_DIR="$HOME/projects/personal/assistant"
+AUTOMATION_DIR="$ASSISTANT_DIR/automation"
 LOG_DIR="$AUTOMATION_DIR/logs"
 LOG_FILE="$LOG_DIR/end-of-day-auto-${DATE}.log"
 EOD_SENTINEL="$LOG_DIR/eod-complete-${DATE}.sentinel"

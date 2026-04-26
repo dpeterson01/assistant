@@ -19,7 +19,7 @@ $ATLAS commit list --direction mine --status active
 $ATLAS commit list --direction theirs --status active
 ```
 
-**Do NOT manually edit** `assistant/context/action-items.md` or `assistant/context/waiting-on-others.md`. They are generated views.
+**Do NOT manually edit** `assistant/data/context/action-items.md` or `assistant/data/context/waiting-on-others.md`. They are generated views.
 
 ## Execution Rules
 
@@ -70,7 +70,7 @@ For each Tier A item, run `/draft-message` Steps 3–4 to produce the draft body
 
 If `--dry-run` is true, skip the save and just report what would have been created.
 
-After each successful save, append a line to `assistant/state/auto-drafts.log`:
+After each successful save, append a line to `assistant/data/state/auto-drafts.log`:
 
 ```
 YYYY-MM-DDTHH:MM:SS | <inbox> | <recipient> | <subject> | <confidence> | <thread-id> | <draft-id>
@@ -123,7 +123,7 @@ osascript -e 'display notification "N drafts ready in Outlook (avg conf 0.NN)" w
 
 **All candidates below threshold.** Report the C/D counts, suggest running `/draft-inbox --threshold 0.70` if Derek wants the borderline ones drafted too.
 
-**MCP draft-create not available for an inbox.** Fall back to inline draft text in the report, do not pretend a draft was saved. Log to `assistant/state/auto-drafts.log` with `<draft-id>` as `inline-only`.
+**MCP draft-create not available for an inbox.** Fall back to inline draft text in the report, do not pretend a draft was saved. Log to `assistant/data/state/auto-drafts.log` with `<draft-id>` as `inline-only`.
 
 **Recipient match ambiguous (multiple emails for same name).** Use the email address from the source message To/Cc/From headers directly. Do not invoke `find_contact` resolution.
 

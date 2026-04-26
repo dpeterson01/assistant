@@ -57,9 +57,9 @@ For attendees returned as `new_contact="true"`:
 
 In parallel with Step 3:
 - Recent emails involving any attendee (last 14 days, max 5 most recent threads)
-- Any mention of the meeting title in `assistant/briefings/*.md` (last 7 days)
-- Open items in `context/action-items.md` mentioning any attendee
-- Open items in `context/waiting-on-others.md` mentioning any attendee
+- Any mention of the meeting title in `assistant/data/briefings/*.md` (last 7 days)
+- Open items in `data/context/action-items.md` mentioning any attendee
+- Open items in `data/context/waiting-on-others.md` mentioning any attendee
 - Any related Teams threads in the last 7 days
 
 Cap aggressively — do not exceed ~15 source items total. Recency wins.

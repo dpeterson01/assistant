@@ -436,7 +436,7 @@ This gives you the best of both worlds: Things 3 for task lifecycle (what you in
    - **Efficiency**: Steps that consistently failed/timed out. Data sources that returned nothing useful.
    - **Completeness**: Things Derek did that weren't captured. Meetings without recaps. Contacts not enriched.
 
-2. **Diff against prior critique**: Read the last critique at `assistant/state/self-critique-log.md` (append-only file, one entry per week). Compare: did last week's recommendations get implemented? Did they help?
+2. **Diff against prior critique**: Read the last critique at `assistant/data/state/self-critique-log.md` (append-only file, one entry per week). Compare: did last week's recommendations get implemented? Did they help?
 
 3. **Generate specific recommendations**: Not vague ("improve meeting prep"). Specific: "Add `@microsoft.com` filter to Teams noise list" or "Increase WorkIQ timeout from 10s to 15s for meeting queries" or "The 'Connects Signals' section was empty 4/5 days; consider removing from EOD template or adding more specific triggers."
 
@@ -445,7 +445,7 @@ This gives you the best of both worlds: Things 3 for task lifecycle (what you in
    - **Needs discussion**: Structural changes (new data sources, workflow changes, prompt architecture). Queue for `/briefing-tune`.
    - **Observation only**: Patterns worth tracking but not actionable yet.
 
-5. **Write to log**: Append the week's critique to `assistant/state/self-critique-log.md` with date, scores, recommendations, and status of prior recommendations.
+5. **Write to log**: Append the week's critique to `assistant/data/state/self-critique-log.md` with date, scores, recommendations, and status of prior recommendations.
 
 **Weekly review integration**: After Step 2 (Synthesize the week), run self-critique. Include the top 2-3 findings in the weekly summary under a new `## System Health` section. Only surface auto-fix items for approval during the review itself.
 

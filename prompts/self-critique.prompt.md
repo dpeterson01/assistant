@@ -17,7 +17,7 @@ $ATLAS commit list --direction mine --status active
 $ATLAS commit list --direction theirs --status active
 ```
 
-Also read the rendered views at `assistant/context/action-items.md` and `assistant/context/waiting-on-others.md`.
+Also read the rendered views at `assistant/data/context/action-items.md` and `assistant/data/context/waiting-on-others.md`.
 
 ## Design Philosophy
 
@@ -29,7 +29,7 @@ Inspired by FenixAGI's `critique_and_revise_instructions()` meta-prompting patte
 
 ### 1a. Daily briefings from this week
 ```sh
-ls -t ~/projects/personal/assistant/briefings/*_daily_brief.md | head -7
+ls -t ~/projects/personal/assistant/data/briefings/*_daily_brief.md | head -7
 ```
 Read each. For every briefing, note:
 - Items that appeared but were never checked off (noise candidates)
@@ -70,7 +70,7 @@ ls -t ~/projects/personal/assistant/automation/logs/ | head -20
 Read recent logs for errors, timeouts, and skip patterns.
 
 ### 1e. Prior self-critique (if exists)
-Read `~/projects/personal/assistant/state/self-critique-log.md` if it exists. Note:
+Read `~/projects/personal/assistant/data/state/self-critique-log.md` if it exists. Note:
 - Prior recommendations and their status
 - Patterns that were flagged before — are they still happening?
 
@@ -152,7 +152,7 @@ Things worth noting but not actionable yet:
 
 ## Step 5: Write the critique
 
-Append to `~/projects/personal/assistant/state/self-critique-log.md` (create if doesn't exist):
+Append to `~/projects/personal/assistant/data/state/self-critique-log.md` (create if doesn't exist):
 
 ```markdown
 ---

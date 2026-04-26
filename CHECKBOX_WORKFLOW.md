@@ -7,7 +7,16 @@ date: 2026-04-21
 
 ## Overview
 
-You now have a fully integrated completion tracking system that lets you mark work complete in one place (your briefing), and it automatically syncs across Things 3 and action tracking throughout the day.
+The **dashboard** (`http://localhost:3141`) is the primary completion surface. Use it to mark items done, dismiss, and undo. The Typora briefing (`.md`) is for reading and annotation; checking boxes there works too but syncs on a 15-minute delay via `briefing-sync`.
+
+| Surface | Latency | Best For |
+|---|---|---|
+| Dashboard (primary) | Instant (API call) | Completing, dismissing, undoing, drafting replies |
+| `/done` command | Instant | Quick completion without opening anything |
+| `/check-briefing` command | On-demand | Batch-syncing Typora checkbox changes now |
+| Typora checkboxes | 15 min (scheduled sync) | Reading the briefing and noting completions inline |
+
+All surfaces converge on the same state: `assistant.db` (commitments table) and `YYYY-MM-DD_daily_brief.json`. The checkpoint system prevents duplicate completions regardless of which surface triggered them.
 
 ## Daily Flow
 
@@ -164,7 +173,7 @@ $ATLAS commit complete --task-id "AI-20260421-101530"
 ## Troubleshooting
 
 **Checkpoint not syncing?**
-- Check that your briefing file exists: `~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md`
+- Check that your briefing file exists: `~/projects/personal/assistant/data/briefings/YYYY-MM-DD_daily_brief.md`
 - Verify checkpoint state file was created: `~/.checkpoints/YYYY-MM-DD.json`
 - Run manually: `/check-briefing` or `/end-of-day`
 

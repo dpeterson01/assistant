@@ -5,9 +5,9 @@
 
 set -e
 
-BRIEFING_DIR="$HOME/projects/personal/briefings"
 ASSISTANT_DIR="$HOME/projects/personal/assistant"
-ACTION_ITEMS="$HOME/projects/personal/context/action-items.md"
+BRIEFING_DIR="$ASSISTANT_DIR/data/briefings"
+ACTION_ITEMS="$ASSISTANT_DIR/data/context/action-items.md"
 CHECKPOINT_HELPER="$ASSISTANT_DIR/automation/checkpoint-helper.py"
 ATLAS="python3 $ASSISTANT_DIR/scripts/atlas-db.py"
 

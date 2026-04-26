@@ -13,13 +13,11 @@ Read `/memories/identity.md` and `/memories/communication-preferences.md` first.
 
 ## Data Architecture
 
-The source of truth for commitments is **assistant.db** (SQLite). All reads and writes go through `atlas-db.py`:
+See [data-architecture.md](../context/data-architecture.md) for full query/mutation reference.
 
 ```sh
 ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
 ```
-
-**Do NOT manually edit** `assistant/context/action-items.md` or `assistant/context/waiting-on-others.md`. They are generated views.
 
 ## Execution Rules
 

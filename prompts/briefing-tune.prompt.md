@@ -17,7 +17,7 @@ $ATLAS commit list --direction mine --status active
 $ATLAS commit list --direction theirs --status active
 ```
 
-Also read the rendered views at `assistant/context/action-items.md` and `assistant/context/waiting-on-others.md`. Then list the most recent 5 daily briefings: `ls -t ~/projects/personal/assistant/briefings/ | head -5`.
+Also read the rendered views at `assistant/data/context/action-items.md` and `assistant/data/context/waiting-on-others.md`. Then list the most recent 5 daily briefings: `ls -t ~/projects/personal/assistant/data/briefings/ | head -5`.
 
 ## How This Conversation Should Feel
 

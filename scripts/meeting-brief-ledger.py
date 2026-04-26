@@ -52,12 +52,12 @@ from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]  # personal/
-LEDGER_PATH = REPO_ROOT / "assistant/state/meeting-briefs.json"
-BRIEFS_ROOT = REPO_ROOT / "assistant/briefings/meetings"
+LEDGER_PATH = REPO_ROOT / "assistant/data/state/meeting-briefs.json"
+BRIEFS_ROOT = REPO_ROOT / "assistant/data/briefings/meetings"
 
 VALID_STATUSES = {"pending", "sent", "skipped", "failed", "refreshed",
                   "recapped", "recap-failed"}
-RECAPS_ROOT = REPO_ROOT / "assistant/meetings"
+RECAPS_ROOT = REPO_ROOT / "assistant/data/meetings"
 HIGH_STAKES_TITLE_RE = re.compile(
     r"\b(1:?1|sync|review|decision|interview|leadership|debrief|prep|kickoff)\b",
     re.IGNORECASE,

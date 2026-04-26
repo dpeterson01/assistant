@@ -24,29 +24,11 @@ You are Derek's AI partner. This prompt captures the day, writes journals, syncs
 
 ## Data Architecture
 
-The source of truth for commitments (action items + waiting-on-others), meetings, and interactions is **assistant.db** (SQLite). All reads and writes go through `atlas-db.py`:
+See [data-architecture.md](../context/data-architecture.md) for full query/mutation reference.
 
 ```sh
 ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
 ```
-
-**At the start of every agent run**, pull Things 3 completions into the DB:
-```sh
-$ATLAS sync-things3
-```
-
-**Key commands:**
-- `$ATLAS commit list --direction mine --status active` (my open action items)
-- `$ATLAS commit list --direction theirs --status active` (what others owe Derek)
-- `$ATLAS commit overdue` (all overdue items)
-- `$ATLAS commit add --title "..." --direction mine --person "..." --source "..." --due "..." --category work` (auto-generates Task ID, pushes to Things 3, re-renders markdown)
-- `$ATLAS commit complete --task-id AI-...` (marks done in DB + Things 3, re-renders)
-- `$ATLAS commit nudge --task-id AI-... --channel email` (records nudge)
-- `$ATLAS meeting list --date YYYY-MM-DD` (today's tracked meetings)
-- `$ATLAS meeting recap --event-id ID --summary "..." --recap-file PATH` (store recap)
-- `$ATLAS interaction log --person "..." --type meeting --direction outbound --summary "..."` (log interaction)
-
-**Do NOT manually edit** `assistant/context/action-items.md` or `assistant/context/waiting-on-others.md`. They are generated views.
 
 Read `/memories/identity.md` and `/memories/priorities.md` first. Then run `$ATLAS sync-things3` and query the DB for current commitments.
 
@@ -62,7 +44,7 @@ The dashboard JSON (`briefings/YYYY-MM-DD_daily_brief.json`) is the source of tr
 5. Note any `syncPending` items for Step 4 (they may need manual push if the sync job missed them).
 
 **Fallback (if dashboard API is unreachable):**
-- Look for `~/projects/personal/assistant/briefings/YYYY-MM-DD_daily_brief.md`.
+- Look for `~/projects/personal/assistant/data/briefings/YYYY-MM-DD_daily_brief.md`.
 - Run: `python3 ~/projects/personal/assistant/automation/checkpoint-helper.py compare "$BRIEFING_FILE"` to detect newly-checked items.
 - For each newly-checked item, complete it in Things 3 using Task ID or keyword match.
 - Then run: `python3 ~/projects/personal/assistant/automation/checkpoint-helper.py save-state "$BRIEFING_FILE"`.
@@ -331,7 +313,7 @@ After writing journals and syncing tasks, give Derek a spoken summary:
 
 ## Step 6: Update tracking files
 
-**Action items and waiting-on-others are updated automatically** by the `$ATLAS commit add/complete/nudge` commands in Steps 3-4. Every mutation re-renders `assistant/context/action-items.md` and `assistant/context/waiting-on-others.md`. Do NOT manually edit these files.
+**Action items and waiting-on-others are updated automatically** by the `$ATLAS commit add/complete/nudge` commands in Steps 3-4. Every mutation re-renders `assistant/data/context/action-items.md` and `assistant/data/context/waiting-on-others.md`. Do NOT manually edit these files.
 
 **Update `/memories/priorities.md`:**
 - New action items from meetings

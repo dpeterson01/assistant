@@ -57,7 +57,7 @@
     {
       "id": "meeting-sweep",
       "name": "Rolling Meeting Brief Sweep",
-      "description": "Every 15 min during work hours: pre-brief upcoming high-stakes meetings (next 60 min) that haven't been briefed yet. Per-event ledger at assistant/state/meeting-briefs.json.",
+      "description": "Every 15 min during work hours: pre-brief upcoming high-stakes meetings (next 60 min) that haven't been briefed yet. Per-event ledger at assistant/data/state/meeting-briefs.json.",
       "type": "automated",
       "schedule": "M-F every 15 min, 7 AM - 6 PM",
       "agent": "meeting-brief",
@@ -71,7 +71,7 @@
     {
       "id": "meeting-recap-sweep",
       "name": "Rolling Meeting Recap Sweep",
-      "description": "Every 15 min during work hours: recap meetings that ended today but haven't been recapped yet. Pulls Copilot meeting summary + meeting chat. 60-min window after meeting end. Per-event ledger at assistant/state/meeting-briefs.json.",
+      "description": "Every 15 min during work hours: recap meetings that ended today but haven't been recapped yet. Pulls Copilot meeting summary + meeting chat. 60-min window after meeting end. Per-event ledger at assistant/data/state/meeting-briefs.json.",
       "type": "automated",
       "schedule": "M-F every 15 min, 7 AM - 7 PM",
       "agent": "meeting-recap-auto",
@@ -85,7 +85,7 @@
     {
       "id": "auto-draft-inbox",
       "name": "Auto Draft Inbox",
-      "description": "Every 30 min during work hours: scan work inbox for new messages where Derek can reply, score with /draft-message confidence rubric, save Tier-A drafts (>=0.80) to Outlook on the original thread. Never sends. Log: assistant/state/auto-drafts.log.",
+      "description": "Every 30 min during work hours: scan work inbox for new messages where Derek can reply, score with /draft-message confidence rubric, save Tier-A drafts (>=0.80) to Outlook on the original thread. Never sends. Log: assistant/data/state/auto-drafts.log.",
       "type": "automated",
       "schedule": "M-F every 30 min, 8 AM - 6 PM",
       "agent": "draft-inbox",

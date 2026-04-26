@@ -44,7 +44,8 @@ if ! command -v copilot &>/dev/null; then
 fi
 
 # Check if already ran today (skip if ATLAS_FORCE_REGEN is set, e.g. from dashboard refresh)
-BRIEFING_FILE="$HOME/projects/personal/assistant/briefings/${DATE}_daily_brief.md"
+ASSISTANT_DIR="$(dirname "$(dirname "$SCRIPT_DIR")")"
+BRIEFING_FILE="$ASSISTANT_DIR/data/briefings/${DATE}_daily_brief.md"
 if [[ -z "${ATLAS_FORCE_REGEN:-}" && -f "$BRIEFING_FILE" ]]; then
     echo "Briefing already exists for today. Skipping."
     osascript -e 'display notification "Briefing already exists for today." with title "Atlas"'
@@ -60,7 +61,7 @@ cd "$HOME/projects/personal"
 # Build the copilot command with a 10-minute timeout (perl used; macOS lacks GNU timeout)
 COPILOT_CMD=(perl -e 'alarm 600; exec @ARGV' -- copilot
     --agent=morning-briefing
-    -p "Run my full morning briefing for today, $(date '+%A %B %d, %Y'). Write the briefing to assistant/briefings/${DATE}_daily_brief.md and open it in Typora when done."
+    -p "Run my full morning briefing for today, $(date '+%A %B %d, %Y'). Write the briefing to assistant/data/briefings/${DATE}_daily_brief.md and open it in Typora when done."
     --allow-tool='shell'
     --allow-tool='write'
     --allow-tool='workiq'
