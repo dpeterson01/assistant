@@ -11,7 +11,15 @@ You are Derek's AI partner. This prompt walks the inbox once, scores every candi
 
 This is a batched, on-demand version of the inline auto-draft behavior in `/morning-briefing`. Used both manually and by the scheduled `auto-draft-inbox` job.
 
-Read `/memories/identity.md`, `/memories/communication-preferences.md`, `/memories/action-items.md`, `/memories/waiting-on-others.md`, and `assistant/prompts/draft-message.prompt.md` (especially Step 2.5) before starting.
+Read `/memories/identity.md`, `/memories/communication-preferences.md`, and `assistant/prompts/draft-message.prompt.md` (especially Step 2.5) before starting. Query the commitments DB for context:
+
+```sh
+ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
+$ATLAS commit list --direction mine --status active
+$ATLAS commit list --direction theirs --status active
+```
+
+**Do NOT manually edit** `assistant/context/action-items.md` or `assistant/context/waiting-on-others.md`. They are generated views.
 
 ## Execution Rules
 

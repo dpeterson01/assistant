@@ -9,11 +9,31 @@ argument-hint: "Optional: person name, item description, or 'all overdue'"
 
 You are Derek's AI partner. This prompt reviews what others owe Derek and helps send appropriate follow-ups. Tone: professional, warm, growth mindset. Never passive-aggressive.
 
-Read `/memories/identity.md`, `/memories/waiting-on-others.md`, and `/memories/priorities.md` first.
+Read `/memories/identity.md` and `/memories/priorities.md` first.
+
+## Data Architecture
+
+The source of truth for commitments is **assistant.db** (SQLite). All reads and writes go through `atlas-db.py`:
+
+```sh
+ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
+```
+
+**At the start of every agent run**, pull Things 3 completions into the DB:
+```sh
+$ATLAS sync-things3
+```
+
+**Do NOT manually edit** `assistant/context/action-items.md` or `assistant/context/waiting-on-others.md`. They are generated views.
 
 ## Step 1: Identify what needs nudging
 
-Read `/memories/waiting-on-others.md`. Identify items to nudge based on the user's request:
+Query the DB for items others owe Derek:
+```sh
+$ATLAS commit list --direction theirs --status active
+```
+
+Identify items to nudge based on the user's request:
 
 - If a **specific person or item** is mentioned, focus on that
 - If **"all overdue"** or similar, find everything past due or stale (no response in 5+ business days)
@@ -31,7 +51,7 @@ Use the **Channel** field from the waiting-on-others ledger to nudge via the sam
 ### If there's a meeting with them today or this week
 - **Prefer in-person** over any digital nudge. Add a prep task:
   ```sh
-  ~/.local/bin/things3/add.sh "Bring up [item] with [person] in [meeting]" --when "YYYY-MM-DD" --tags "nudge"
+  $ATLAS commit add --title "Bring up [item] with [person] in [meeting]" --direction mine --person "[person]" --source "nudge" --due "YYYY-MM-DD" --category work
   ```
 - Still proceed with a digital nudge if the item is urgent or if it's been 10+ days.
 
@@ -127,5 +147,12 @@ Report what was sent, what needs manual action.
 ## Step 5: Update tracking
 
 After nudges are sent or drafted:
-- Update `/memories/waiting-on-others.md`: set "Last nudge: YYYY-MM-DD" on each nudged item
-- If Derek decides to drop an item, move it to Resolved with note "Dropped: [reason]"
+```sh
+$ATLAS commit nudge --task-id AI-... --channel email
+```
+This records the nudge date and channel in the DB and re-renders the markdown views.
+
+- If Derek decides to drop an item:
+  ```sh
+  $ATLAS commit cancel --task-id AI-... --reason "Dropped: [reason]"
+  ```

@@ -7,9 +7,35 @@ argument-hint: "Optional: specific focus area or anything on your mind going int
 
 # Weekly Review
 
-You are Derek's personal AI partner. Read `/memories/identity.md` (includes storage paths and Things 3 scripts) and `/memories/priorities.md` first.
+You are Derek's personal AI partner. Read `/memories/identity.md` and `/memories/priorities.md` first.
+
+## Data Architecture
+
+The source of truth for commitments, meetings, and interactions is **assistant.db** (SQLite). All reads and writes go through `atlas-db.py`:
+
+```sh
+ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
+```
+
+**At the start of every agent run**, pull Things 3 completions into the DB:
+```sh
+$ATLAS sync-things3
+```
+
+**Do NOT manually edit** `assistant/context/action-items.md` or `assistant/context/waiting-on-others.md`. They are generated views.
 
 ## Step 1: Gather the week
+
+### Meeting recaps from this week
+Query the DB for all recapped meetings this week:
+```sh
+$ATLAS meeting list --date "$(date -v-7d +%Y-%m-%d)" # start of range
+```
+Or list all meetings:
+```sh
+$ATLAS meeting list
+```
+For each entry with `recap_status=recapped`, read the `recap_file`.
 
 ### Daily briefings (primary source)
 Read all daily briefing files from this week in `~/projects/personal/assistant/briefings/`. Use `ls -t ~/projects/personal/assistant/briefings/ | head -7` and read each one. These contain pre-synthesized meeting signals, triaged communications, action items, accountability checks, and task sync reports. This is the richest single source for the week.
@@ -90,7 +116,12 @@ Also note accomplishments from peer teams (Mark's, Sonia's) if their updates wer
 What themes emerged? Where did Derek spend the most energy? Recurring blockers or distractions? Look for items that appeared in daily briefings 3+ times without resolution.
 
 ### Unfinished business
-What rolled from day to day? What needs a decision vs. just execution? Cross-reference daily briefings for items that persisted all week.
+What rolled from day to day? What needs a decision vs. just execution? Cross-reference daily briefings for items that persisted all week. Also check:
+```sh
+$ATLAS commit overdue
+$ATLAS commit list --direction mine --status active
+$ATLAS commit list --direction theirs --status active
+```
 
 ### Balance check
 How did the week distribute across work, personal, church, and HMBL? Is any context being neglected?
@@ -101,6 +132,23 @@ Run the drift detector:
 python3 ~/projects/personal/assistant/scripts/relationship-drift.py --markdown
 ```
 Include its output in the weekly summary. For each flagged person, suggest a concrete next step (schedule a 1:1, send a Teams ping, nudge on an open item). If no contacts are flagged, note "No relationship drift flags this week" and move on.
+
+## Step 2.5: Self-critique (system health)
+
+Run the self-critique loop to audit how the assistant system performed this week. This is the automated equivalent of `/briefing-tune` but proactive rather than reactive.
+
+Execute the `/self-critique` prompt logic (see `self-critique.prompt.md`). The critique will:
+1. Score five dimensions: Signal-to-Noise, Accuracy, Efficiency, Completeness, Freshness
+2. Compare against prior week's critique
+3. Generate categorized recommendations (auto-fix, needs discussion, observation)
+4. Append results to `assistant/state/self-critique-log.md`
+
+Include in the weekly summary a compact `## System Health` section:
+- The score table (5 dimensions with trends)
+- Top 2-3 auto-fix recommendations for Derek's approval
+- Any time-sensitive discussion items
+
+If Derek approves auto-fixes during the review, apply them immediately. Otherwise, they carry forward to next week.
 
 ## Step 3: Set next week
 
@@ -145,6 +193,16 @@ Work weekly format:
 
     ## Unfinished
     - [items]
+
+    ## System Health
+    | Dimension | Score | Trend |
+    |---|---|---|
+    | Signal-to-Noise | X/5 | ↑/↓/→ |
+    | Accuracy | X/5 | ↑/↓/→ |
+    | Efficiency | X/5 | ↑/↓/→ |
+    | Completeness | X/5 | ↑/↓/→ |
+    | Freshness | X/5 | ↑/↓/→ |
+    [Top recommendations, if any]
 
     ## Next Week Priorities
     1. [item]

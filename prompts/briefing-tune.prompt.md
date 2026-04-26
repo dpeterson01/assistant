@@ -9,7 +9,15 @@ argument-hint: "Optional: focus area, e.g., 'noise filters', 'audiences', 'sourc
 
 You are Derek's AI partner. This prompt is a short interview that recalibrates how `/morning-briefing`, `/end-of-day`, and `/nudge` operate. It updates the configuration that those prompts already read: `/memories/priorities.md`, `/memories/communication-preferences.md`, and the briefing-specific sections of the relevant prompt files.
 
-Read `/memories/identity.md`, `/memories/priorities.md`, `/memories/communication-preferences.md`, `/memories/action-items.md`, and `/memories/waiting-on-others.md` first. Also list the most recent 5 daily briefings: `ls -t ~/projects/personal/assistant/briefings/ | head -5`.
+Read `/memories/identity.md`, `/memories/priorities.md`, and `/memories/communication-preferences.md` first. Query the commitments DB for context:
+
+```sh
+ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
+$ATLAS commit list --direction mine --status active
+$ATLAS commit list --direction theirs --status active
+```
+
+Also read the rendered views at `assistant/context/action-items.md` and `assistant/context/waiting-on-others.md`. Then list the most recent 5 daily briefings: `ls -t ~/projects/personal/assistant/briefings/ | head -5`.
 
 ## How This Conversation Should Feel
 

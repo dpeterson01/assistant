@@ -54,7 +54,49 @@ function trackHealth(name, ok, detail) {
 // GET /api/health — stoplight status for all tracked operations
 app.get('/api/health', (_req, res) => {
   const allOk = Object.values(health).every(h => h.ok);
-  res.json({ allOk, lastChecked: now(), endpoints: health });
+  res.json({ allOk, lastChecked: now(), endpoints: health, queueDepth: sideEffectQueue.length, regenerating: !!regenProc });
+});
+
+// --- Regenerate briefing: runs the full morning-briefing agent ---
+// POST /api/regenerate — kicks off morning-briefing.sh in the background.
+// Returns immediately. The SSE stream pushes a 'regenerating' event so the
+// dashboard can show a spinner. When the new JSON lands on disk, the fs.watch
+// triggers the normal 'briefing' event.
+
+let regenProc = null;
+
+app.post('/api/regenerate', (_req, res) => {
+  if (regenProc) {
+    return res.status(409).json({ error: 'Regeneration already in progress', pid: regenProc.pid });
+  }
+
+  const script = join(__dirname, '..', 'automation', 'scripts', 'morning-briefing.sh');
+  const logDir = join(__dirname, '..', 'automation', 'logs');
+  const today = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD in local tz
+
+  // Remove the "already exists" guard by setting env var that the script can check
+  const env = {
+    ...process.env,
+    ATLAS_FORCE_REGEN: '1',
+    HOME: process.env.HOME || '/Users/derekpeterson',
+    PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:' + (process.env.HOME || '/Users/derekpeterson') + '/.local/bin',
+  };
+
+  regenProc = execFile('/bin/zsh', [script], { env, timeout: 720_000, cwd: __dirname }, (err) => {
+    const ok = !err;
+    trackHealth('regenerate', ok, ok ? `completed ${now()}` : `failed: ${err.message}`);
+    console.log(`[regen] finished: ${ok ? 'success' : err.message}`);
+    regenProc = null;
+    broadcast('regenerate-done', { ok, at: now() });
+  });
+
+  // Detach so server doesn't block
+  regenProc.unref?.();
+
+  trackHealth('regenerate', true, `started ${now()}`);
+  broadcast('regenerating', { at: now() });
+  console.log(`[regen] started, pid=${regenProc.pid}`);
+  res.json({ status: 'started', pid: regenProc.pid });
 });
 
 // --- Server-Sent Events: live push of briefing updates ---
@@ -130,6 +172,93 @@ try {
 // When status changes to done/dismissed, syncPending is set so the
 // periodic update job can propagate to Things 3, Outlook, action-items.md.
 // source: who triggered the change ("ui" | "sync" | "agent:<name>" | "api")
+
+function findItem(data, id) {
+  for (const section of ['carryOver', 'inbox', 'tasks']) {
+    const list = data[section];
+    if (!list) continue;
+    const item = list.find(i => i.id === id);
+    if (item) return item;
+  }
+  return null;
+}
+
+const THINGS3_DIR = join(__dirname, '..', 'things3');
+const MARK_READ_SCRIPT = join(__dirname, '..', 'scripts', 'mark-read.py');
+
+// --- Side-effect queue with retry ---
+// All external integrations (Things 3, Graph API, etc.) run through this queue.
+// Jobs retry up to 3 times with exponential backoff. The queue processes one job
+// at a time to avoid overwhelming external services.
+
+const sideEffectQueue = [];
+let queueProcessing = false;
+
+function enqueue(label, fn, { maxRetries = 3, backoffMs = 2000 } = {}) {
+  sideEffectQueue.push({ label, fn, attempt: 0, maxRetries, backoffMs });
+  drainQueue();
+}
+
+function drainQueue() {
+  if (queueProcessing || sideEffectQueue.length === 0) return;
+  queueProcessing = true;
+  const job = sideEffectQueue.shift();
+  runJob(job);
+}
+
+function runJob(job) {
+  job.attempt++;
+  job.fn((err, result) => {
+    if (err && job.attempt < job.maxRetries) {
+      const delay = job.backoffMs * Math.pow(2, job.attempt - 1);
+      console.warn(`[queue] ${job.label} attempt ${job.attempt} failed, retrying in ${delay}ms: ${err.message || err}`);
+      setTimeout(() => {
+        queueProcessing = false;
+        sideEffectQueue.unshift(job);
+        drainQueue();
+      }, delay);
+    } else {
+      if (err) console.error(`[queue] ${job.label} failed after ${job.attempt} attempts: ${err.message || err}`);
+      else console.log(`[queue] ${job.label}: ${result || 'ok'}`);
+      queueProcessing = false;
+      drainQueue();
+    }
+  });
+}
+
+function things3Complete(text) {
+  if (!text) return;
+  enqueue(`Things3 complete "${text.slice(0, 40)}"`, (done) => {
+    execFile(join(THINGS3_DIR, 'complete.sh'), ['--search', text], { timeout: 10000 },
+      (err, stdout, stderr) => done(err || (stderr && stderr.includes('not found') ? new Error(stderr) : null), stdout?.trim()));
+  });
+}
+
+function things3Delete(text) {
+  if (!text) return;
+  enqueue(`Things3 delete "${text.slice(0, 40)}"`, (done) => {
+    execFile(join(THINGS3_DIR, 'delete.sh'), ['--search', text], { timeout: 10000 },
+      (err, stdout, stderr) => done(err || (stderr && stderr.includes('not found') ? new Error(stderr) : null), stdout?.trim()));
+  });
+}
+
+function markEmailRead(item) {
+  if (!item.emailId) return;
+  const channel = item.channel || '';
+  let account = 'work';
+  if (channel === 'outlook-personal') account = 'personal';
+  else if (!channel.startsWith('outlook')) return;
+
+  enqueue(`Mark-read ${item.id} (${account})`, (done) => {
+    execFile('python3', [MARK_READ_SCRIPT, '--email-id', item.emailId, '--account', account],
+      { timeout: 15000 },
+      (err, stdout, stderr) => done(err, stdout?.trim()));
+  });
+}
+
+// Teams mark-as-read: blocked by admin consent for Chat.ReadWrite scope.
+// When scope is approved, add markTeamsChatRead() here using mark-teams-read.py.
+
 function setItemStatus(data, id, status, source = 'api') {
   const ts = now();
   for (const section of ['carryOver', 'inbox', 'tasks']) {
@@ -208,18 +337,22 @@ app.patch('/api/briefing', (req, res) => {
   res.json({ ok: true, lastUpdated: data.lastUpdated, updateCount: data.updateCount });
 });
 
-// POST /api/complete-task/:id — mark done in JSON (sync job pushes to Things 3)
+// POST /api/complete-task/:id — mark done in JSON + complete in Things 3
 app.post('/api/complete-task/:id', (req, res) => {
   try {
     const data = readBriefing();
     const source = req.body?.source || 'api';
-    const found = setItemStatus(data, req.params.id, 'done', source);
-    if (!found) {
+    const item = findItem(data, req.params.id);
+    if (!item) {
       trackHealth('POST /api/complete-task', false, 'Item not found');
       return res.status(404).json({ error: 'Item not found' });
     }
+    const text = item.text || '';
+    const found = setItemStatus(data, req.params.id, 'done', source);
     data.lastUpdated = now();
     writeBriefing(data);
+    things3Complete(text);
+    markEmailRead(item);
     trackHealth('POST /api/complete-task', true);
     res.json({ ok: true, id: req.params.id });
   } catch (err) {
@@ -228,18 +361,22 @@ app.post('/api/complete-task/:id', (req, res) => {
   }
 });
 
-// POST /api/dismiss/:id — remove from dashboard, no Things 3 action
+// POST /api/dismiss/:id — remove from dashboard + delete from Things 3
 app.post('/api/dismiss/:id', (req, res) => {
   try {
     const data = readBriefing();
     const source = req.body?.source || 'api';
-    const found = setItemStatus(data, req.params.id, 'dismissed', source);
-    if (!found) {
+    const item = findItem(data, req.params.id);
+    if (!item) {
       trackHealth('POST /api/dismiss', false, 'Item not found');
       return res.status(404).json({ error: 'Item not found' });
     }
+    const text = item.text || '';
+    const found = setItemStatus(data, req.params.id, 'dismissed', source);
     data.lastUpdated = now();
     writeBriefing(data);
+    things3Delete(text);
+    markEmailRead(item);
     trackHealth('POST /api/dismiss', true);
     res.json({ ok: true, id: req.params.id });
   } catch (err) {
@@ -412,8 +549,9 @@ app.post('/api/draft-nudge', async (req, res) => {
 // POST /api/dismiss-waiting — hide a waiting-on-others entry from the dashboard.
 // Body: { index } (preferred) OR { person, item } to match.
 // This is a session-scoped dismissal: it mutates the briefing JSON only.
-// /memories/waiting-on-others.md remains the source of truth and is updated
-// by /end-of-day or manually. Tomorrow's briefing will re-pull from memory.
+// assistant/context/waiting-on-others.md (generated from assistant.db) is the
+// source of truth and is updated by atlas-db.py. Tomorrow's briefing will
+// re-pull from the DB.
 app.post('/api/dismiss-waiting', (req, res) => {
   try {
     const data = readBriefing();
@@ -520,9 +658,18 @@ app.post('/api/dismiss-accountability', (req, res) => {
   }
 });
 
-// POST /api/mark-read/:id — stub (Phase 2, Graph API)
-app.post('/api/mark-read/:id', (_req, res) => {
-  res.json({ ok: false, message: 'Graph API integration not yet configured.' });
+// POST /api/mark-read/:id — mark email as read via Graph API
+app.post('/api/mark-read/:id', (req, res) => {
+  try {
+    const data = readBriefing();
+    const item = findItem(data, req.params.id);
+    if (!item) return res.status(404).json({ error: 'Item not found' });
+    if (!item.emailId) return res.json({ ok: false, message: 'No emailId on this item' });
+    markEmailRead(item);
+    res.json({ ok: true, id: req.params.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /api/obligations?person=Name — open items involving a person

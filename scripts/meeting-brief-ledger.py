@@ -18,15 +18,21 @@ Subcommands:
   claim EVENT_ID --start ISO --title TITLE [--external N]
                                       -> register PENDING; exits non-zero if
                                          already claimed (dedupe primitive)
-  mark EVENT_ID --status STATUS [--file PATH]
-                                      -> set status (sent|skipped|failed|refreshed)
+  mark EVENT_ID --status STATUS [--file PATH] [--recap-file PATH]
+                                        [--recap-summary TEXT]
+                                      -> set status (sent|skipped|failed|refreshed|
+                                         recapped|recap-failed)
                                          increments refresh_count if STATUS=refreshed
   is-briefed EVENT_ID                 -> exits 0 if SENT/REFRESHED, 1 otherwise
+  is-recapped EVENT_ID                -> exits 0 if RECAPPED, 1 otherwise
   pending --within-min N --json       -> read events from stdin (JSON array of
                                          {event_id,title,start,end,attendees,
                                          external_count}), emit those that are
                                          high-stakes, start within N min, and
                                          not yet briefed
+  recap-pending                       -> read events from stdin, emit those that
+                                         ended today, not yet recapped, and
+                                         ended <= 60 min ago (recap window)
   list [--date YYYY-MM-DD]            -> dump ledger entries for a date
 
 High-stakes rule (overridable via env MEETING_BRIEF_RULES):
@@ -49,7 +55,9 @@ REPO_ROOT = Path(__file__).resolve().parents[2]  # personal/
 LEDGER_PATH = REPO_ROOT / "assistant/state/meeting-briefs.json"
 BRIEFS_ROOT = REPO_ROOT / "assistant/briefings/meetings"
 
-VALID_STATUSES = {"pending", "sent", "skipped", "failed", "refreshed"}
+VALID_STATUSES = {"pending", "sent", "skipped", "failed", "refreshed",
+                  "recapped", "recap-failed"}
+RECAPS_ROOT = REPO_ROOT / "assistant/meetings"
 HIGH_STAKES_TITLE_RE = re.compile(
     r"\b(1:?1|sync|review|decision|interview|leadership|debrief|prep|kickoff)\b",
     re.IGNORECASE,
@@ -102,6 +110,14 @@ def path_for(event_id: str, start_iso: str, title: str) -> Path:
     start = parse_iso(start_iso).astimezone()
     date_dir = BRIEFS_ROOT / start.strftime("%Y-%m-%d")
     fname = f"{start.strftime('%H%M')}-{slugify(title)}.md"
+    return date_dir / fname
+
+
+def recap_path_for(event_id: str, start_iso: str, title: str) -> Path:
+    """Stable per-event recap path under assistant/meetings/YYYY/MM/."""
+    start = parse_iso(start_iso).astimezone()
+    date_dir = RECAPS_ROOT / start.strftime("%Y/%m")
+    fname = f"{start.strftime('%Y-%m-%d')}_{slugify(title)}.md"
     return date_dir / fname
 
 
@@ -179,6 +195,10 @@ def cmd_mark(args) -> int:
     entry["last_status_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     if args.file:
         entry["file"] = args.file
+    if args.recap_file:
+        entry["recap_file"] = args.recap_file
+    if args.recap_summary:
+        entry["recap_summary"] = args.recap_summary
     if args.status == "refreshed":
         entry["refresh_count"] = int(entry.get("refresh_count", 0)) + 1
     save_ledger(ledger)
@@ -188,7 +208,15 @@ def cmd_mark(args) -> int:
 def cmd_is_briefed(args) -> int:
     ledger = load_ledger()
     entry = ledger["events"].get(args.event_id)
-    if entry and entry.get("status") in {"sent", "refreshed"}:
+    if entry and entry.get("status") in {"sent", "refreshed", "recapped"}:
+        return 0
+    return 1
+
+
+def cmd_is_recapped(args) -> int:
+    ledger = load_ledger()
+    entry = ledger["events"].get(args.event_id)
+    if entry and entry.get("status") == "recapped":
         return 0
     return 1
 
@@ -224,6 +252,49 @@ def cmd_pending(args) -> int:
         if existing and existing.get("status") in {"sent", "refreshed"} and not args.refresh:
             continue
         if not is_high_stakes(ev):
+            continue
+        out.append(ev)
+
+    print(json.dumps(out, indent=2))
+    return 0
+
+
+def cmd_recap_pending(args) -> int:
+    """Filter piped JSON event list for 'ended today, not yet recapped, within recap window'."""
+    raw = sys.stdin.read().strip()
+    if not raw:
+        sys.stderr.write("no event JSON on stdin\n")
+        return 2
+    try:
+        events = json.loads(raw)
+    except json.JSONDecodeError as e:
+        sys.stderr.write(f"invalid JSON on stdin: {e}\n")
+        return 2
+
+    now = datetime.now(timezone.utc)
+    today_str = now.astimezone().strftime("%Y-%m-%d")
+    max_age = timedelta(minutes=args.max_age_min)
+    ledger = load_ledger()
+    out = []
+    for ev in events:
+        if not all(k in ev for k in ("event_id", "title", "end")):
+            continue
+        try:
+            end = parse_iso(ev["end"]).astimezone(timezone.utc)
+        except Exception:
+            continue
+        # Must have ended today
+        if end.astimezone().strftime("%Y-%m-%d") != today_str:
+            continue
+        # Must have already ended
+        if end > now:
+            continue
+        # Must be within the recap window (default: ended <= 60 min ago)
+        if (now - end) > max_age:
+            continue
+        # Skip if already recapped
+        existing = ledger["events"].get(ev["event_id"])
+        if existing and existing.get("status") == "recapped":
             continue
         out.append(ev)
 
@@ -270,17 +341,31 @@ def main() -> int:
     s.add_argument("event_id")
     s.add_argument("--status", required=True, choices=sorted(VALID_STATUSES))
     s.add_argument("--file")
+    s.add_argument("--recap-file", dest="recap_file",
+                   help="Path to the recap markdown file")
+    s.add_argument("--recap-summary", dest="recap_summary",
+                   help="2-3 sentence digest of the meeting for EOD/weekly")
     s.set_defaults(func=cmd_mark)
 
     s = sub.add_parser("is-briefed", help="Exit 0 if event has a sent/refreshed brief")
     s.add_argument("event_id")
     s.set_defaults(func=cmd_is_briefed)
 
+    s = sub.add_parser("is-recapped", help="Exit 0 if event has been recapped")
+    s.add_argument("event_id")
+    s.set_defaults(func=cmd_is_recapped)
+
     s = sub.add_parser("pending", help="Filter piped event JSON for needs-briefing-now")
     s.add_argument("--within-min", type=int, default=60)
     s.add_argument("--refresh", action="store_true",
                    help="Include events already briefed (for explicit refresh sweeps)")
     s.set_defaults(func=cmd_pending)
+
+    s = sub.add_parser("recap-pending",
+                       help="Filter piped event JSON for needs-recap-now")
+    s.add_argument("--max-age-min", type=int, default=60,
+                   help="Max minutes since meeting ended (default 60)")
+    s.set_defaults(func=cmd_recap_pending)
 
     s = sub.add_parser("list", help="Dump ledger entries")
     s.add_argument("--date", help="Filter by YYYY-MM-DD")

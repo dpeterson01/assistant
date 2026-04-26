@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#09090b">
-<title>Daily Briefing</title>
+<title>Mission Control</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
   tailwind.config = {
@@ -68,7 +68,7 @@
         <span class="text-white font-bold text-[13px]">D</span>
       </div>
       <div class="min-w-0">
-        <div class="text-[13px] font-semibold text-zinc-100 leading-tight truncate" id="header-title">Daily Briefing</div>
+        <div class="text-[13px] font-semibold text-zinc-100 leading-tight truncate" id="header-title">Mission Control</div>
         <div class="text-[11px] text-zinc-500 leading-tight tabular-nums" id="header-date"></div>
       </div>
     </div>
@@ -86,6 +86,15 @@
     <div class="mx-auto max-w-7xl px-4 sm:px-6 py-3 text-xs" id="status-content"></div>
   </div>
 </header>
+
+<!-- Stale data banner — shown when briefing is from a prior day -->
+<div id="stale-banner" class="hidden bg-amber-900/30 border-b border-amber-600/20">
+  <div class="mx-auto max-w-7xl px-4 sm:px-6 py-2 flex items-center gap-3 text-xs">
+    <span class="text-amber-400">⚠️ Showing data from <span id="stale-date" class="font-semibold"></span>. No briefing has been generated for today yet.</span>
+    <span class="flex-1"></span>
+    <button onclick="manualRefresh()" class="px-3 py-1 rounded-md bg-amber-600/30 text-amber-300 hover:bg-amber-600/50 font-medium transition-colors">Regenerate Briefing</button>
+  </div>
+</div>
 
 <main class="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
   <div id="app">
@@ -125,9 +134,53 @@ async function load() {
 
 async function manualRefresh() {
   const btn = document.getElementById('refresh-btn');
-  btn.classList.add('animate-spin');
-  await load();
-  setTimeout(() => btn.classList.remove('animate-spin'), 400);
+  const staleBanner = document.getElementById('stale-banner');
+  const isStale = !staleBanner.classList.contains('hidden');
+
+  if (isStale) {
+    // Stale data: trigger full regeneration
+    btn.classList.add('animate-spin');
+    try {
+      const res = await fetch(`${API}/api/regenerate`, { method: 'POST' });
+      if (res.status === 409) {
+        // Already regenerating, just show status
+        showRegenBanner();
+      } else if (res.ok) {
+        showRegenBanner();
+      } else {
+        console.error('Regenerate failed:', await res.text());
+        btn.classList.remove('animate-spin');
+      }
+    } catch (err) {
+      console.error('Regenerate error:', err);
+      btn.classList.remove('animate-spin');
+    }
+  } else {
+    // Fresh data: just re-fetch JSON
+    btn.classList.add('animate-spin');
+    await load();
+    setTimeout(() => btn.classList.remove('animate-spin'), 400);
+  }
+}
+
+function showRegenBanner() {
+  const banner = document.getElementById('stale-banner');
+  const bannerInner = banner.querySelector('span:first-child');
+  if (bannerInner) {
+    bannerInner.innerHTML = '🔄 <span class="font-semibold">Regenerating briefing...</span> This takes a few minutes. The dashboard will update automatically when ready.';
+  }
+  banner.classList.remove('hidden', 'bg-amber-900/30', 'border-amber-600/20');
+  banner.classList.add('bg-ios-blue/10', 'border-ios-blue/20');
+  // Hide the refresh button in the banner
+  const bannerBtn = banner.querySelector('button');
+  if (bannerBtn) bannerBtn.classList.add('hidden');
+  // Keep header refresh spinning
+  document.getElementById('refresh-btn').classList.add('animate-spin');
+}
+
+function hideRegenBanner() {
+  document.getElementById('refresh-btn').classList.remove('animate-spin');
+  // Banner will be reset on next render()
 }
 
 function toggleStatus() {
@@ -202,15 +255,27 @@ function nowMinutes() { const d = new Date(); return d.getHours() * 60 + d.getMi
 
 function render() {
   const d = briefing;
-  document.getElementById('header-title').textContent = 'Morning Brief';
-  document.getElementById('header-date').textContent = formatDate(d.date);
+  document.getElementById('header-title').textContent = 'Mission Control';
+  const today = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; })();
+  const briefingDate = d.date || today;
+  const isStale = briefingDate !== today;
+  document.getElementById('header-date').textContent = formatDate(today);
+  // Stale data banner
+  const staleBanner = document.getElementById('stale-banner');
+  window._briefingStale = isStale;
+  if (isStale) {
+    document.getElementById('stale-date').textContent = formatDate(briefingDate);
+    staleBanner.classList.remove('hidden');
+  } else {
+    staleBanner.classList.add('hidden');
+  }
   document.getElementById('header-dayfit').innerHTML = renderDayFitPill(d.dayFit);
   renderStatusButton();
 
   const allInbox = (d.inbox || []).filter(i => i.status === 'open');
   const draftableCount = allInbox.filter(i => (i.draftConfidence || 0) > 0).length;
   const openTasks   = (d.tasks || []).filter(t => t.status !== 'done' && t.status !== 'dismissed');
-  const meetings    = d.meetings || [];
+  const meetings    = isStale ? [] : (d.meetings || []);
   const acc = d.accountability || {};
 
   // --- Deduplication: remove items from tasks/carryOver that already appear in inbox ---
@@ -221,7 +286,7 @@ function render() {
     const t = (item.text || '').toLowerCase().substring(0, 30);
     return t.length > 10 && inboxTexts.has(t);
   }
-  const dedupedCarryOver = (d.carryOver || []).filter(i => !isInInbox(i));
+  const dedupedCarryOver = (d.carryOver || []).filter(i => !isInInbox(i) && i.status !== 'done' && i.status !== 'dismissed');
   const dedupedTasks = openTasks.filter(i => !isInInbox(i));
 
   // --- Build urgency map from accountability data ---
@@ -345,7 +410,10 @@ function renderDayFitHero(df) {
 
 function renderSchedule(meetings) {
   if (!meetings.length) {
-    return sectionShell('Today\'s schedule', `${meetings.length}`, emptyState('No meetings today', 'Enjoy the focus time.'));
+    const msg = window._briefingStale
+      ? emptyState('No briefing for today', 'Run /morning-briefing to generate today\'s schedule.')
+      : emptyState('No meetings today', 'Enjoy the focus time.');
+    return sectionShell('Today\'s schedule', `${meetings.length}`, msg);
   }
 
   const nowMin = nowMinutes();
@@ -472,15 +540,17 @@ function toggleLowPriority() {
 }
 
 function renderTodaysFocus(carryOver, openTasks) {
-  const all = [...carryOver, ...openTasks];
+  const openCarry = carryOver.filter(i => i.status !== 'done' && i.status !== 'dismissed');
+  const openNew = openTasks.filter(i => i.status !== 'done' && i.status !== 'dismissed');
+  const all = [...openCarry, ...openNew];
   if (!all.length) {
     return sectionShell("Today's Focus", '0', emptyState('All clear', 'Nothing in focus today.'));
   }
   const inner = `
-    ${carryOver.length ? `<div class="mb-2 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Carry over</div>` : ''}
-    ${carryOver.length ? `<div class="space-y-2 mb-4">${carryOver.map(i => renderItem(i, 'carryOver')).join('')}</div>` : ''}
-    ${openTasks.length ? `<div class="mb-2 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">New</div>` : ''}
-    ${openTasks.length ? `<div class="space-y-2">${openTasks.map(i => renderItem(i, 'tasks')).join('')}</div>` : ''}
+    ${openCarry.length ? `<div class="mb-2 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Carry over</div>` : ''}
+    ${openCarry.length ? `<div class="space-y-2 mb-4">${openCarry.map(i => renderItem(i, 'carryOver')).join('')}</div>` : ''}
+    ${openNew.length ? `<div class="mb-2 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">New</div>` : ''}
+    ${openNew.length ? `<div class="space-y-2">${openNew.map(i => renderItem(i, 'tasks')).join('')}</div>` : ''}
   `;
   return sectionShell("Today's Focus", `${all.length}`, inner);
 }
@@ -598,7 +668,8 @@ function renderCommitments(acc) {
           <span>Draft</span>
         </button>`;
 
-    const completeBtn = `<button onclick="completeAccItem('${serverType}', ${serverIdx})" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/10 hairline bg-white/[0.03] text-zinc-300 hover:bg-ios-green/15 hover:border-ios-green/30 hover:text-ios-green transition-colors" title="Mark complete">
+    const completeFn = isWaiting ? `dismissWaiting(${idx})` : `completeAccItem('${serverType}', ${serverIdx})`;
+    const completeBtn = `<button onclick="${completeFn}" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/10 hairline bg-white/[0.03] text-zinc-300 hover:bg-ios-green/15 hover:border-ios-green/30 hover:text-ios-green transition-colors" title="Mark complete">
       <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       <span>Done</span>
     </button>`;
@@ -655,7 +726,7 @@ function renderCommitments(acc) {
         <span class="text-2xl font-semibold tabular-nums text-zinc-100 font-display leading-none">${waitingCount}</span>
         <span class="text-[12px] text-zinc-500">open follow-ups${staleCount ? ` · <span class="text-ios-red">${staleCount} stale</span>` : ''}</span>
       </div>
-      <div class="mt-2 text-[11px] text-zinc-600">Tracked in <span class="font-mono text-zinc-500">/memories/waiting-on-others.md</span></div>`;
+      <div class="mt-2 text-[11px] text-zinc-600">Tracked in <span class="font-mono text-zinc-500">assistant.db</span></div>`;
 
   const inner = `
     <div class="mb-2 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
@@ -703,6 +774,7 @@ function renderUpcoming(upcoming) {
 function renderItem(item, section) {
   const isDone = item.status === 'done';
   if (item.status === 'dismissed') return '';
+  if (isDone) return '';
 
   const conf = item.draftConfidence || 0;
   const canDraft = section === 'inbox';
@@ -1150,6 +1222,22 @@ function connectSSE() {
       } catch (err) { console.error('SSE refetch failed', err); }
     });
     sse.addEventListener('ping', () => { lastEventAt = Date.now(); });
+    sse.addEventListener('regenerating', () => {
+      lastEventAt = Date.now();
+      showRegenBanner();
+    });
+    sse.addEventListener('regenerate-done', async (e) => {
+      lastEventAt = Date.now();
+      hideRegenBanner();
+      const d = JSON.parse(e.data);
+      if (d.ok) {
+        // Re-fetch the fresh briefing
+        try {
+          const res = await fetch(`${API}/api/briefing`);
+          if (res.ok) { briefing = await res.json(); render(); }
+        } catch (err) { console.error('Post-regen fetch failed', err); }
+      }
+    });
     sse.onerror = () => {
       // EventSource will auto-retry; nothing to do unless the page is hidden.
       // The fallback poll below covers prolonged dead connections.

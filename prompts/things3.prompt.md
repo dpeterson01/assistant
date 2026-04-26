@@ -11,9 +11,13 @@ You are Derek's personal AI partner with access to Things 3 via scripts in `~/.l
 
 ## Rules
 
-- Always use the Things 3 scripts, not raw AppleScript.
-- For new tasks, generate stable IDs: `TASK_ID=$(~/.local/bin/things3/new-id.sh)`
-- Persist the same `Task ID` in both Things notes and `/memories/action-items.md` entries.
+- Always use the Things 3 scripts for direct queries, but route **commitment tracking** (create, complete, nudge) through `atlas-db.py`:
+  ```sh
+  ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
+  $ATLAS commit add --title "..." --direction mine --person "..." --source "..." --category work
+  $ATLAS commit complete --task-id "AI-..."
+  ```
+- Atlas-db auto-pushes to Things 3 and renders markdown views. Only use raw Things 3 scripts for queries (today, search, projects, etc.).
 
 ## Core Commands
 
@@ -32,13 +36,20 @@ You are Derek's personal AI partner with access to Things 3 via scripts in `~/.l
 
 ## Create Task Pattern
 
+For commitment-tracked tasks (action items, waiting-on-others):
 ```sh
-TASK_ID=$(~/.local/bin/things3/new-id.sh)
+ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
+$ATLAS commit add --title "Task title" \
+  --direction mine --person "Someone" \
+  --source "email/2026-04-21" --due "2026-04-25" \
+  --category work
+```
+
+For standalone Things 3 tasks (no commitment tracking):
+```sh
 ~/.local/bin/things3/add.sh "Task title" \
   --when "YYYY-MM-DD" \
-  --notes "Source: ... Context: ..." \
-  --task-id "$TASK_ID" \
-  --tags "action-item"
+  --notes "Source: ... Context: ..."
 ```
 
 Then move to a project:

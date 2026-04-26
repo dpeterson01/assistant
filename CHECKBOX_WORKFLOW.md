@@ -90,13 +90,13 @@ Every task created now has a stable ID embedded in its notes:
 
 ### When Creating a New Task
 ```sh
-TASK_ID=$(~/.local/bin/things3/new-id.sh)
-~/.local/bin/things3/add.sh "Task title" --task-id "$TASK_ID" --notes "Source: ..."
+ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
+$ATLAS commit add --title "Task title" --direction mine --person "Someone" --source "briefing" --due "YYYY-MM-DD" --category work
 ```
 
 ### Completing by Task ID
 ```sh
-~/.local/bin/things3/complete.sh --task-id "AI-20260421-101530"
+$ATLAS commit complete --task-id "AI-20260421-101530"
 ```
 
 ## How the Checkpoint System Works

@@ -9,7 +9,7 @@ BRIEFING_DIR="$HOME/projects/personal/briefings"
 ASSISTANT_DIR="$HOME/projects/personal/assistant"
 ACTION_ITEMS="$HOME/projects/personal/context/action-items.md"
 CHECKPOINT_HELPER="$ASSISTANT_DIR/automation/checkpoint-helper.py"
-COMPLETE_SCRIPT="$ASSISTANT_DIR/things3/complete.sh"
+ATLAS="python3 $ASSISTANT_DIR/scripts/atlas-db.py"
 
 # Determine today's briefing file
 TODAY=$(date +%Y-%m-%d)
@@ -62,8 +62,8 @@ while IFS= read -r ITEM_TEXT; do
   TASK_ID=$(echo "$ITEM_TEXT" | grep -oP 'Task ID: \K(AI-[0-9]{8}-[0-9]{6})')
   
   if [[ -n "$TASK_ID" ]]; then
-    # Complete in Things 3 by Task ID
-    if "$COMPLETE_SCRIPT" --task-id "$TASK_ID" >/dev/null 2>&1; then
+    # Complete via atlas-db (auto-pushes to Things 3 and re-renders markdown)
+    if $ATLAS commit complete --task-id "$TASK_ID" >/dev/null 2>&1; then
       echo "  ✓ $ITEM_TEXT"
       ((COMPLETED_COUNT++))
     else

@@ -35,7 +35,36 @@ This detects newly-checked items, completes matching Things 3 tasks by Task ID, 
 
 **Progress**: If a step is taking multiple tool calls without progress, skip it with a note and move on.
 
-Read `/memories/identity.md`, `/memories/priorities.md`, `/memories/action-items.md`, and `/memories/waiting-on-others.md` first. Hold these in context for the entire briefing. Do not re-read them in later steps.
+## Data Architecture
+
+The source of truth for commitments (action items + waiting-on-others), meetings, and interactions is **assistant.db** (SQLite). All reads and writes go through `atlas-db.py`:
+
+```sh
+ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
+```
+
+**At the start of every agent run**, pull Things 3 completions into the DB:
+```sh
+$ATLAS sync-things3
+```
+
+**Query examples** (all return JSON):
+- `$ATLAS commit list --direction mine --status active` (my open action items)
+- `$ATLAS commit list --direction theirs --status active` (what others owe Derek)
+- `$ATLAS commit overdue` (all overdue items, both directions)
+- `$ATLAS commit search --query "Heather"` (cross-cutting search)
+
+**Mutations** (all auto-render `assistant/context/action-items.md` and `assistant/context/waiting-on-others.md`):
+- `$ATLAS commit add --title "..." --direction mine --person "..." --source "..." --due "..." --category work` (auto-generates Task ID, auto-pushes to Things 3)
+- `$ATLAS commit complete --task-id AI-...` (marks done in DB + Things 3, re-renders markdown)
+- `$ATLAS commit nudge --task-id AI-... --channel email` (records nudge timestamp)
+- `$ATLAS meeting add --event-id ID --title "..." --start ISO` (claim a meeting for briefing)
+- `$ATLAS meeting mark --event-id ID --status sent --file PATH` (update brief status)
+- `$ATLAS meeting recap --event-id ID --summary "..." --recap-file PATH` (store recap)
+
+**Do NOT manually edit** `assistant/context/action-items.md` or `assistant/context/waiting-on-others.md`. They are generated views.
+
+Read `/memories/identity.md` and `/memories/priorities.md` first. Then run `$ATLAS sync-things3` and query the DB for commitments. Hold these in context for the entire briefing.
 
 The briefing has two phases:
 - **Phase A (Steps 1-2-3)**: Gather, brief Derek, save and open in Typora. Get Derek reading ASAP.
@@ -84,6 +113,26 @@ Read today's journals if they exist (the generate script may have already create
 Run both in terminal:
 - `~/.local/bin/things3/today.sh` (today's task list)
 - `~/.local/bin/things3/upcoming.sh` (next 7 days)
+
+### Church workstreams
+Church is an active life context. Check for church-related activity and include it in the briefing when relevant.
+
+**Data sources** (check all, in parallel with other Step 1 sources):
+- **Things 3**: `~/.local/bin/things3/by-tag.sh church` and search for church project tasks: `~/.local/bin/things3/search.sh "church\|parish\|confirmation\|RCIA"`
+- **Priorities**: The "Church" section in `/memories/priorities.md` lists active church commitments
+- **Personal email**: Search personal Outlook (drp80@outlook.com) for recent church-related emails. Use `mcp_hmbl-mail_outlook_search` with query "church OR parish OR Father Francisco OR confirmation OR RCIA" limited to last 7 days.
+- **iMessages**: On weekends, check for messages from church contacts (Father Francisco, Brenda Alford, Holli Sullivan, or anyone else in the church context). Use `mcp_mac-messages_tool_fuzzy_search_messages` with relevant names.
+- **Personal journal**: Today's personal journal (if it exists) may contain church-related entries from the overnight generate script.
+
+**Include in briefing when**:
+- There are open church tasks in Things 3 (always surface)
+- Church items in priorities.md have approaching deadlines or are overdue
+- Overnight email/iMessage activity involves church contacts
+- A church event or meeting is on the calendar today
+
+**Briefing placement**: Church items appear in the appropriate sections (carry-over, tasks, accountability) alongside work and personal items. Tag them with "🏛️" prefix so Derek can scan. On weekends, promote church items higher since work items are typically lower priority.
+
+**Things 3 routing**: Church tasks go to the appropriate Church project (Track 1-4). See the Things 3 skill for project names.
 
 ### Upcoming birthdays
 Run in terminal:
@@ -146,9 +195,9 @@ In addition to the inline briefing assembled above, write a deeper standalone br
 - Someone in the meeting owes Derek something overdue (per `waiting-on-others.md`)
 
 For each high-stakes meeting:
-1. Run `python3 assistant/scripts/meeting-brief-ledger.py claim "<event_id>" --start "<iso_start>" --title "<title>" --external <count>`. If exit is non-zero, the rolling sweep already produced a brief — skip and reference its path in the inline daily brief.
-2. Otherwise, generate the per-meeting brief using the same structure as `/meeting-brief` (see `assistant/prompts/meeting-brief.prompt.md` for the template) and write it to the path that `claim` printed.
-3. Mark `mark <event_id> --status sent --file <path>`.
+1. Run `$ATLAS meeting add --event-id "<event_id>" --title "<title>" --start "<iso_start>" --end "<iso_end>" --attendees "<names>" --external <count>`. If the event already exists with `brief_status=sent` or `refreshed`, the rolling sweep already produced a brief — skip and reference its path in the inline daily brief.
+2. Otherwise, generate the per-meeting brief using the same structure as `/meeting-brief` (see `assistant/prompts/meeting-brief.prompt.md` for the template) and write it to the path that the brief generator uses.
+3. Run `$ATLAS meeting mark --event-id "<event_id>" --status sent --file <path>`.
 4. In the inline daily brief's `## Today's meetings` section, add a `📄 Deep brief:` link line beneath the inline summary pointing to the per-meeting file (relative path from repo root).
 
 Routine standups, office hours, and large-distribution meetings stay inline-only — do not write a per-meeting file for them.
@@ -282,8 +331,8 @@ For low-signal recurring meetings (standups, office hours), compress to one line
 For meetings with prep needed, prefix with `- [ ]` checkbox so Derek can check it off once prepped.
 
 ### Accountability check
-- **My overdue items**: From `/memories/action-items.md`, items past due or due today. Prefix each with `- [ ]` checkbox. Be direct.
-- **Waiting on others**: From `/memories/waiting-on-others.md`, **Active section only**. Exclude all items under the Resolved heading (marked `[x]`). For each active item:
+- **My overdue items**: Run `$ATLAS commit overdue` to get all overdue items. Surface items where direction=mine. Prefix each with `- [ ]` checkbox. Be direct.
+- **Waiting on others**: Run `$ATLAS commit list --direction theirs --status active` to get active items others owe Derek. For each active item:
   - If they're in a meeting today: `- [ ]` "Bring up [item] with [person] in [meeting name]"
   - If overdue and not recently nudged: "Consider running `/nudge [person]` to follow up"
   - Count: "X items pending from others, Y overdue"
@@ -399,7 +448,7 @@ Each meeting must include:
 
 ### Tasks section
 Populate from Things 3 Today items. Each task:
-- `id`: Use Things 3 task ID (from `new-id.sh`) prefixed with `t-` for non-AI-prefixed IDs, or the `AI-` ID directly
+- `id`: Use the `AI-` Task ID from `$ATLAS commit add` output, or Things 3 task ID prefixed with `t-` for non-AI-prefixed IDs
 - `text`: Task title
 - `project`: Things 3 project name
 - `status`: `"open"`
@@ -408,7 +457,7 @@ Populate from Things 3 Today items. Each task:
 ### Important rules
 - Every checkbox item in the .md briefing MUST have a corresponding entry in the JSON. The `id` is the link between them.
 - Items that were already done when gathering data (e.g., completed overnight) should have `"status": "done"` and no `syncPending` flag.
-- **Reconcile accountability with source of truth**: `accountability.waitingOn` must only include items from the **Active** section of `/memories/waiting-on-others.md`. Never include items from the Resolved section. If a previous briefing's JSON contains a waiting-on item that has since been resolved in the source of truth, drop it.
+- **Reconcile accountability with source of truth**: `accountability.waitingOn` must only include items from `$ATLAS commit list --direction theirs --status active`. Never include completed items. If a previous briefing's JSON contains a waiting-on item that has since been completed in the DB, drop it.
 - **Include every triaged inbox item** in the `inbox` array regardless of priority (high, medium, low). The dashboard collapses low-priority items behind a toggle. The legacy `inboxLowCount` field still reports the count for backward compatibility but is no longer the source of truth.
 - The JSON file is the source of truth for the dashboard. The .md file is the human-readable format for Typora.
 
@@ -431,58 +480,48 @@ Every action item identified during triage becomes a Things 3 task. No exception
 ### Sources that generate tasks
 1. 🔴 HIGH communications (email, Teams) with an action for Derek
 2. 🟡 MEDIUM communications with a clear, specific ask
-3. Carry-forward items from yesterday's journal not yet in Things 3
+3. Carry-forward items from yesterday's journal not yet in the DB
 4. Meeting prep tasks (from Step 2 meeting briefs)
-5. New items added to `action-items.md`
 
 ### Batch deduplication
-Before adding tasks, run a single search for all candidate keywords at once to minimize shell calls:
+Before adding tasks, search the DB for existing matches:
 ```sh
-~/.local/bin/things3/search.sh "keyword1\|keyword2\|keyword3"
+$ATLAS commit search --query "keyword"
 ```
-Skip any candidate that already has a matching task.
+Skip any candidate that already has a matching commitment.
 
 ### Add missing tasks (batch when possible)
-For each task to add, mint a stable task ID first:
+For each task to add, use atlas-db which auto-generates a Task ID, pushes to Things 3, and re-renders markdown:
 ```sh
-TASK_ID=$(~/.local/bin/things3/new-id.sh)
-~/.local/bin/things3/add.sh "Task title" --when "YYYY-MM-DD" --notes "Source: [email/Teams] from [person]. Context: [1 sentence]." --task-id "$TASK_ID" --tags "action-item"
+$ATLAS commit add --title "Task title" --direction mine --person "Person" --source "email/Teams from [person]" --due "YYYY-MM-DD" --category work
 ```
-Then move to the correct project:
-```sh
-~/.local/bin/things3/move.sh --search "Task title" "Project Name"
-```
-Include `Task ID: $TASK_ID` in any related memory/action-item entry so completion can be matched deterministically.
-
-**Important**: Include the Task ID in the briefing checkbox text so `/check-briefing` can complete the task:
+The output JSON includes the `task_id` and `things3_uuid`. Use the `task_id` in the briefing checkbox text so `/check-briefing` can complete the task deterministically:
 ```markdown
 - [ ] Review ADO report from Tanvi (Task ID: AI-20260421-082145)
 ```
-When Derek checks this box and runs `/check-briefing`, the system finds the Things 3 task by ID and completes it automatically.
 
-Every task must live in a project. See the Things 3 skill (`/things3`) for full project routing. Quick reference:
-- **Work**: Agent Skills, Learn Platform Operations, Operational, People & Growth, Process improvements
-- **Personal**: Family & Admin, Household Projects, Insurance, Vehicles
-- **HMBL**: Wind-Down
-- **Church**: Track 1-4 (see skill for full names)
-
-- Set `--when` to the deadline if known, otherwise today
-- For HIGH items with tight deadlines, add `--tags "action-item,urgent"`
-
-### Complete done tasks
-If yesterday's journals or overnight data show something was completed that's still open in Things 3:
+To add items for the waiting-on-others direction:
 ```sh
-~/.local/bin/things3/complete.sh --search "task keyword"
+$ATLAS commit add --title "What they owe" --direction theirs --person "Person Name" --source "meeting/2026-04-24" --due "ASAP" --channel email --category work
 ```
 
-### Reassess tags (batch)
-After adding/completing tasks, reassess tags on all Today tasks in a single pass:
+The `--category` flag on `commit add` maps to Things 3 areas automatically (work→Work, personal→Personal, church→Church, hmbl→HMBL).
 
-1. **`urgent`**: Apply to tasks due today, overdue, or HIGH-triage items with same-day deadlines. Remove from tasks no longer time-sensitive.
-2. **`action-item`**: Apply to all tasks that exist in `/memories/action-items.md`. Remove if the item was completed or removed from action-items.
-3. **`blocked`**: Apply to tasks where Derek is waiting on someone else (cross-reference `/memories/waiting-on-others.md`). Remove when the blocker resolves.
+### Complete done tasks
+If yesterday's journals or overnight data show something was completed that's still active in the DB:
+```sh
+$ATLAS commit complete --task-id "AI-..."
+```
+This marks it done in the DB, pushes the completion to Things 3, and re-renders markdown.
 
-Use `~/.local/bin/things3/update.sh <id> --tags "tag1,tag2"` to set tags. To find task IDs: `~/.local/bin/things3/search.sh "keyword"`.
+### Reassess tags (optional)
+After adding/completing tasks, tags on Things 3 tasks may need updating. Use the Things 3 scripts directly for tag management:
+
+1. **`urgent`**: Apply to tasks due today or overdue. Check: `$ATLAS commit overdue` for overdue items.
+2. **`action-item`**: Apply to all tasks that exist in the DB with direction=mine.
+3. **`blocked`**: Apply to tasks where Derek is waiting on someone else. Check: `$ATLAS commit list --direction theirs --status active`.
+
+Use `~/.local/bin/things3/update.sh <id> --tags "tag1,tag2"` for tag updates. To find task IDs: `~/.local/bin/things3/search.sh "keyword"`.
 
 Remove stale tags from completed or resolved items. Tags should reflect the current state, not yesterday's.
 
@@ -497,19 +536,9 @@ Present: "Added X tasks, completed Y tasks, updated tags on Z tasks" with the li
 - Remove items that were completed yesterday
 - Only change what's clearly warranted
 
-**Update `/memories/action-items.md`:**
-- Add any new items (mine) discovered from overnight emails/Teams
-- Include `Task ID: AI-...` for each new item that was created in Things 3
-- Mark completed items (move to Completed section with date)
-- Prune the Completed section to last 7 days only
-- Flag overdue items by adding "(OVERDUE)" to the line
+**Action items and waiting-on-others are updated automatically** by the `$ATLAS commit add/complete/nudge` commands in Step 4. Every mutation re-renders `assistant/context/action-items.md` and `assistant/context/waiting-on-others.md`. Do NOT manually edit these files.
 
-**Update `/memories/waiting-on-others.md`:**
-- Add any new commitments others made in overnight emails/Teams
-- Mark resolved items (move to Resolved section with date)
-- Prune the Resolved section to last 14 days
-- Flag overdue items by updating Status to "overdue"
-- Flag stale items (5+ business days, never nudged) by updating Status to "stale"
+**If you discover new overdue items** (items in the DB with past due dates that haven't been flagged), the rendered markdown already marks them with "(OVERDUE)" automatically.
 
 ## Step 6: Surface conflicts or suggestions
 
@@ -542,7 +571,7 @@ Hard-won lessons. Check here before debugging.
 | Issue | Fix |
 |-------|-----|
 | WorkIQ call returns partial or empty data | Retry ONCE. If still empty, proceed without it and note "⚠️ WorkIQ unavailable" in briefing. Never block the whole routine. |
-| Things 3 `search.sh` matches wrong task (substring match) | Use `--task-id` with the `AI-` prefixed ID when available. Fall back to keyword search only when no ID exists. |
+| Things 3 `search.sh` matches wrong task (substring match) | Use `$ATLAS commit complete --task-id AI-...` which matches by exact Task ID in the DB. Only fall back to Things 3 keyword search when no ID exists. |
 | Terminal command hangs with timeout=0 | Always set explicit timeouts: 10s for quick ops, 30s for batch ops. Never use timeout=0. |
 | JSON and markdown briefings drift out of sync | Every checkbox item in the .md MUST have a matching entry in the .json. The `id` field is the link. Generate both from the same data in Step 3/3b. |
 | Triage creates tasks for FYI emails with no actual ask | Apply the 5-point action item extraction tests (explicit ask, announcement filter, meeting prep, group ask, unaccepted offer) before creating any task. |
@@ -551,3 +580,4 @@ Hard-won lessons. Check here before debugging.
 | Parallel tool calls include WorkIQ + shell + MCP in same batch | Correct. These are independent. Do not serialize them. |
 | Contact lookup fails because filename doesn't match display name | Read `index.json` first to get the name-to-file mapping. Match on name, aliases, or email. |
 | Meeting brief ledger `claim` returns non-zero | The rolling sweep already produced a brief. Skip generation and reference the existing path. |
+| atlas-db commit add fails with "task_id already exists" | The item is already tracked. Use `$ATLAS commit search` to find it. |

@@ -9,7 +9,22 @@ argument-hint: "Optional: meeting title, calendar event, or 'last' (defaults to 
 
 You are Derek's AI partner. This prompt produces post-meeting minutes from a transcript, recording, or raw notes, then automatically updates Derek's accountability tracking. It is the backward-looking complement to `/meeting-brief`.
 
-Read `/memories/identity.md`, `/memories/action-items.md`, and `/memories/waiting-on-others.md` first.
+Read `/memories/identity.md` and `/memories/priorities.md` first.
+
+## Data Architecture
+
+The source of truth for commitments, meetings, and interactions is **assistant.db** (SQLite). All reads and writes go through `atlas-db.py`:
+
+```sh
+ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
+```
+
+**At the start of every agent run**, pull Things 3 completions into the DB:
+```sh
+$ATLAS sync-things3
+```
+
+**Do NOT manually edit** `assistant/context/action-items.md` or `assistant/context/waiting-on-others.md`. They are generated views.
 
 ## Execution Rules
 
@@ -132,40 +147,47 @@ Style rules:
 This is the loop-closing step. Move every action item into the right tracking system.
 
 ### For action items owned by Derek
-Add each to `/memories/action-items.md` under `## Active`, format:
-
-```
-- [ ] <action statement> | Owed to: <recipient> | Source: meeting/<YYYY-MM-DD>/<meeting-slug> | Due: <YYYY-MM-DD or timeframe> | Things3: yes
-```
-
-Then create a Things 3 task using the standard pattern from `/morning-briefing.prompt.md` Step 4:
+Add each to the DB. The command auto-generates a Task ID, pushes to Things 3, and re-renders markdown:
 
 ```sh
-TASK_ID=$(~/.local/bin/things3/new-id.sh)
-~/.local/bin/things3/add.sh "<action title>" --when "YYYY-MM-DD" --notes "From <meeting title> on YYYY-MM-DD. Owed to <recipient>. Acceptance: <criteria>." --task-id "$TASK_ID" --tags "action-item,meeting-recap"
+$ATLAS commit add --title "<action title>" --direction mine --person "<recipient>" --source "meeting/YYYY-MM-DD/<meeting-slug>" --due "YYYY-MM-DD" --category work --notes "From <meeting title>. Acceptance: <criteria>."
 ```
 
-Before adding, search Things 3 for an existing task on the same topic to avoid duplicates:
+Before adding, search for an existing item to avoid duplicates:
 ```sh
-~/.local/bin/things3/search.sh "<key keywords>"
+$ATLAS commit search --query "<key keywords>"
 ```
 
 ### For action items owned by others (commitments to Derek)
-Add each to `/memories/waiting-on-others.md`, format per existing entries in that file. Set:
-- **Person**: owner full name
-- **Item**: action statement
-- **Channel**: meeting (default channel for follow-ups will be whatever the original meeting used; default to email or Teams if unsure)
-- **Committed**: meeting date
-- **Due**: stated or inferred deadline
-- **Last nudge**: never
+Add each to the DB:
+```sh
+$ATLAS commit add --title "<what they owe>" --direction theirs --person "<owner>" --source "meeting/YYYY-MM-DD/<meeting-slug>" --due "YYYY-MM-DD" --channel email --category work --notes "Status: pending. Committed in meeting."
+```
 
 ### For decisions
 If a decision changes Derek's priorities or open commitments:
 - Update `/memories/priorities.md` if a top-level priority shifted
-- Mark related items in `/memories/action-items.md` complete or obsolete
+- Complete related items in the DB if a decision made them obsolete:
+  ```sh
+  $ATLAS commit complete --task-id AI-...
+  ```
 
 ### For risks
-If a risk needs Derek's monitoring, create a Things 3 task tagged `risk-watch` with the meeting context.
+If a risk needs Derek's monitoring, create a task tagged `risk-watch`:
+```sh
+$ATLAS commit add --title "Monitor: <risk>" --direction mine --person "self" --source "meeting/YYYY-MM-DD/<meeting-slug>" --due "YYYY-MM-DD" --category work --notes "Risk watch from <meeting>."
+```
+
+### Store the recap in the DB
+After writing the recap file, record it:
+```sh
+$ATLAS meeting recap --event-id "<event-id or meeting-slug>" --summary "<1-line summary>" --recap-file "<path to recap file>"
+```
+
+### Log the interaction
+```sh
+$ATLAS interaction log --person "<organizer>" --type meeting --direction outbound --summary "<meeting title> recap captured"
+```
 
 ## Step 5: Surface the loop closure to Derek
 
@@ -179,7 +201,7 @@ Present a tight summary:
 > **Risks flagged** (N, if any)
 > **Open questions** (N, if any)
 >
-> **Things 3 changes**: X new tasks added (with IDs), Y duplicates skipped.
+> **Things 3 changes**: X new tasks added (auto-pushed via atlas-db), Y duplicates skipped.
 >
 > **Suggested next moves**:
 > - If there are HIGH-stakes action items due in the next 2 days, suggest acting on them now

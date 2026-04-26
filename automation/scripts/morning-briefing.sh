@@ -20,7 +20,7 @@ echo "=== Morning Briefing: $(date '+%Y-%m-%d %H:%M:%S') ==="
 # Time-of-day guard: only run between 5:00 AM and 10:00 AM
 # Prevents RunAtLoad from re-triggering the briefing if Mac restarts mid-day
 CURRENT_HOUR=$(date +%H)
-if [[ $CURRENT_HOUR -lt 5 || $CURRENT_HOUR -ge 10 ]]; then
+if [[ -z "${ATLAS_FORCE_REGEN:-}" && ($CURRENT_HOUR -lt 5 || $CURRENT_HOUR -ge 10) ]]; then
   echo "Skipping: outside morning window (current hour: $CURRENT_HOUR, allowed: 5-9 AM)"
   exit 0
 fi
@@ -43,9 +43,9 @@ if ! command -v copilot &>/dev/null; then
     exit 1
 fi
 
-# Check if already ran today
+# Check if already ran today (skip if ATLAS_FORCE_REGEN is set, e.g. from dashboard refresh)
 BRIEFING_FILE="$HOME/projects/personal/assistant/briefings/${DATE}_daily_brief.md"
-if [[ -f "$BRIEFING_FILE" ]]; then
+if [[ -z "${ATLAS_FORCE_REGEN:-}" && -f "$BRIEFING_FILE" ]]; then
     echo "Briefing already exists for today. Skipping."
     osascript -e 'display notification "Briefing already exists for today." with title "Atlas"'
     exit 0

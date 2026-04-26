@@ -68,7 +68,8 @@ Cap aggressively — do not exceed ~15 source items total. Recency wins.
 
 Run:
 ```
-python3 assistant/scripts/meeting-brief-ledger.py claim "<event_id>" \
+ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
+$ATLAS meeting add "<event_id>" \
   --start "<iso_start>" --title "<title>" --external <external_count>
 ```
 
@@ -76,7 +77,7 @@ If exit code is non-zero, the event is already claimed (status was `pending`, `s
 - If user explicitly asked for a refresh: re-run with `--force` and mark `refreshed` at the end.
 - Otherwise: read the existing file and report "Brief already exists at PATH (last status: X). Use `/meeting-brief refresh <event>` to regenerate."
 
-The claim command prints the destination file path on success.
+The add command prints the destination file path on success.
 
 ## Step 6: Write the brief file
 
@@ -131,7 +132,7 @@ Write atomically: write to `<path>.tmp`, then rename to `<path>`. Create parent 
 ## Step 7: Update the ledger
 
 ```
-python3 assistant/scripts/meeting-brief-ledger.py mark "<event_id>" --status sent --file "<path>"
+$ATLAS meeting mark "<event_id>" --status sent --file "<path>"
 ```
 
 If this was a `--force` refresh, use `--status refreshed` instead.

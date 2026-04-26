@@ -9,7 +9,17 @@ argument-hint: "Optional: recipient and topic, e.g., 'email Heather about the ev
 
 You are Derek's AI partner. This prompt drafts a single outbound message in Derek's established voice with a specific recipient. It works across email (work, personal, HMBL), iMessage, and Teams. **Always draft first, never send without explicit confirmation.**
 
-Read `/memories/identity.md`, `/memories/communication-preferences.md`, `/memories/action-items.md`, and `/memories/waiting-on-others.md` first.
+Read `/memories/identity.md` and `/memories/communication-preferences.md` first.
+
+## Data Architecture
+
+The source of truth for commitments is **assistant.db** (SQLite). All reads and writes go through `atlas-db.py`:
+
+```sh
+ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
+```
+
+**Do NOT manually edit** `assistant/context/action-items.md` or `assistant/context/waiting-on-others.md`. They are generated views.
 
 ## Execution Rules
 
@@ -54,8 +64,8 @@ Pull 3–5 most recent items between Derek and the recipient on the chosen chann
 If the recipient is a new contact or there's no prior history on this channel, note it and fall back to Step 3 defaults.
 
 In parallel, also check:
-- `/memories/waiting-on-others.md` — does the recipient owe Derek something? Does this draft relate to that?
-- `/memories/action-items.md` — does Derek owe the recipient something? Is this draft fulfilling that?
+- Query the DB: `$ATLAS commit list --direction theirs --status active` — does the recipient owe Derek something? Does this draft relate to that?
+- Query the DB: `$ATLAS commit list --direction mine --status active` — does Derek owe the recipient something? Is this draft fulfilling that?
 - For high-stakes recipients (Heather, Curtis, Father Francisco, customers/external), run `assistant/scripts/get-person-context.py --email <email> --xml --max-total 8 --days 30` for additional context.
 
 ## Step 2.5: Compute draft confidence
@@ -69,7 +79,7 @@ Before drafting, score 0.00–1.00 on how likely a clean first draft will be use
 | 0.15 | Stakes | Internal peer or known recurring contact (lower for leadership/customer/legal/HR/new external) |
 | 0.15 | Factual load | Pure acknowledgment, scheduling, or social reply (lower if specific facts/numbers/citations required) |
 | 0.10 | Recipient archetype match | Recipient fits a recurring pattern Derek replies to similarly (1:1 reports, parish, vendor) |
-| 0.10 | Open commitments context | Thread maps to an existing entry in `action-items.md` or `waiting-on-others.md` |
+| 0.10 | Open commitments context | Thread maps to an existing entry in the commitments DB |
 | 0.05 | Thread length | Short, focused thread |
 | 0.05 | Sensitivity inverse | No sensitivity flags (penalize if subject/body contains: confidential, performance, comp, legal, PII, HIPAA) |
 
@@ -158,10 +168,10 @@ Once Derek confirms, execute per channel:
 
 After sending:
 
-- If the draft fulfills an item in `/memories/action-items.md`, mark it complete.
-- If the draft is a nudge to someone in `/memories/waiting-on-others.md`, set "Last nudge: YYYY-MM-DD" on the entry.
-- If the draft introduces a new commitment Derek is making, add it to `/memories/action-items.md` and create a Things 3 task.
-- If the draft asks the recipient for something, add it to `/memories/waiting-on-others.md` with channel and date.
+- If the draft fulfills an action item, complete it: `$ATLAS commit complete --task-id AI-...`
+- If the draft is a nudge to someone who owes Derek, record it: `$ATLAS commit nudge --task-id AI-... --channel email`
+- If the draft introduces a new commitment Derek is making: `$ATLAS commit add --title "..." --direction mine --person "..." --source "email/YYYY-MM-DD" --due "..." --category work`
+- If the draft asks the recipient for something: `$ATLAS commit add --title "..." --direction theirs --person "..." --source "email/YYYY-MM-DD" --due "..." --channel email --category work`
 
 Report what was sent and what was updated.
 

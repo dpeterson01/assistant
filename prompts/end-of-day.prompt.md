@@ -22,7 +22,33 @@ You are Derek's AI partner. This prompt captures the day, writes journals, syncs
 
 **Progress**: If a step is taking multiple tool calls without progress, skip it with a note and move on.
 
-Read `/memories/identity.md`, `/memories/priorities.md`, `/memories/action-items.md`, and `/memories/waiting-on-others.md` first (they have paths, context, and open items).
+## Data Architecture
+
+The source of truth for commitments (action items + waiting-on-others), meetings, and interactions is **assistant.db** (SQLite). All reads and writes go through `atlas-db.py`:
+
+```sh
+ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
+```
+
+**At the start of every agent run**, pull Things 3 completions into the DB:
+```sh
+$ATLAS sync-things3
+```
+
+**Key commands:**
+- `$ATLAS commit list --direction mine --status active` (my open action items)
+- `$ATLAS commit list --direction theirs --status active` (what others owe Derek)
+- `$ATLAS commit overdue` (all overdue items)
+- `$ATLAS commit add --title "..." --direction mine --person "..." --source "..." --due "..." --category work` (auto-generates Task ID, pushes to Things 3, re-renders markdown)
+- `$ATLAS commit complete --task-id AI-...` (marks done in DB + Things 3, re-renders)
+- `$ATLAS commit nudge --task-id AI-... --channel email` (records nudge)
+- `$ATLAS meeting list --date YYYY-MM-DD` (today's tracked meetings)
+- `$ATLAS meeting recap --event-id ID --summary "..." --recap-file PATH` (store recap)
+- `$ATLAS interaction log --person "..." --type meeting --direction outbound --summary "..."` (log interaction)
+
+**Do NOT manually edit** `assistant/context/action-items.md` or `assistant/context/waiting-on-others.md`. They are generated views.
+
+Read `/memories/identity.md` and `/memories/priorities.md` first. Then run `$ATLAS sync-things3` and query the DB for current commitments.
 
 ## Step 0: Reconcile today's dashboard state
 
@@ -51,11 +77,19 @@ If neither the dashboard nor the briefing file exists, continue to Step 1 anyway
 - `~/.local/bin/things3/completed-today.sh` (what got done)
 - `~/.local/bin/things3/today.sh` (what's still open)
 
-**Work context** — Use `mcp_workiq_ask_work_iq`:
+**Work context** — Meetings: recap-first approach. Check for existing recap files before querying WorkIQ:
 
-> Give me a detailed breakdown of all my meetings, emails, and Teams messages for today (YYYY-MM-DD).
+1. **Read today's meeting recaps** (produced by the meeting-recap-sweep automation):
+   ```sh
+   $ATLAS meeting list --date "$(date +%Y-%m-%d)"
+   ```
+   For each entry with `recap_status=recapped`, read the `recap_file`. These contain structured decisions, action items, chat insights, and attendee context — richer than what WorkIQ will reconstruct. Use `recap_summary` from the meeting record for the journal's meeting section.
+
+2. **Fall back to WorkIQ** only for meetings that don't have recaps (status is not `recapped`, or not in ledger at all). Use `mcp_workiq_ask_work_iq`:
+
+> Give me a detailed breakdown of meetings, emails, and Teams messages for today (YYYY-MM-DD) that are NOT covered by these meetings: [list titles of already-recapped meetings].
 >
-> Format:
+> For unrecapped meetings, format as:
 > ### Meetings
 > - **Name** (time, duration) | Attendees: [names] | Summary: [1-2 sentences] | Decisions: [brief or None] | Action items: [brief or None] | Recording: Yes/No/Unknown | Transcript: Yes/No/Unknown
 > - If a meeting had a recording or transcript, include the **Copilot meeting recap** or **intelligent recap summary** if available. Capture: key topics discussed, action items assigned (with owners), decisions made, and any follow-ups mentioned.
@@ -206,7 +240,7 @@ Review all meetings, emails, and Teams conversations from today. For each, ident
 - Source (which meeting/email/conversation)
 - Best channel to reach them (email/Teams/iMessage)
 
-Cross-reference against `/memories/action-items.md` and `/memories/waiting-on-others.md` to avoid duplicates.
+Cross-reference against the DB using `$ATLAS commit search --query "keyword"` to avoid duplicates.
 
 ## Step 3b: Contacts enrichment
 
@@ -254,17 +288,22 @@ curl -s -X POST http://localhost:3141/api/complete-task/<ITEM_ID> \
   -H 'Content-Type: application/json' \
   -d '{"source": "agent:eod"}'
 ```
-The 15-min sync job (`briefing-sync.sh`) will propagate these to Things 3 and action-items.md. Only call `things3/complete.sh` directly if the dashboard API is down (fallback).
-
-**Add new tasks**: For each of my action items from Step 3 that doesn't already exist in Things 3:
+The 15-min sync job (`briefing-sync.sh`) will propagate these to Things 3 and action-items.md. Also complete in atlas-db:
 ```sh
-~/.local/bin/things3/search.sh "keyword"  # check for duplicates first
-TASK_ID=$(~/.local/bin/things3/new-id.sh)
-~/.local/bin/things3/add.sh "Task title" --when "YYYY-MM-DD" --notes "Source: meeting/email name. Owed to: person. Context: brief." --task-id "$TASK_ID" --tags "action-item"
+$ATLAS commit complete --task-id "AI-..."
 ```
-Use `--deadline` if there's a hard deadline. Use `--project` if it maps to an existing project.
-Use `--when "tomorrow"` for items that should surface tomorrow. Use a specific date for items with deadlines.
-Persist the same `Task ID` in `/memories/action-items.md` for deterministic completion later.
+This updates the DB, pushes completion to Things 3, and re-renders the markdown views.
+
+**Add new tasks**: For each of my action items from Step 3 that doesn't already exist:
+```sh
+$ATLAS commit add --title "Task title" --direction mine --person "Person" --source "meeting/email name" --due "YYYY-MM-DD" --category work --notes "Context: brief."
+```
+This auto-generates a Task ID, pushes to Things 3, and re-renders markdown. Use `--due "ASAP"` for items with no hard deadline.
+
+For items others committed to (waiting-on-others):
+```sh
+$ATLAS commit add --title "What they owe" --direction theirs --person "Person" --source "meeting/YYYY-MM-DD" --due "ASAP" --channel email --category work --notes "Status: pending"
+```
 
 Also PATCH the dashboard so new items appear there:
 ```sh
@@ -292,6 +331,8 @@ After writing journals and syncing tasks, give Derek a spoken summary:
 
 ## Step 6: Update tracking files
 
+**Action items and waiting-on-others are updated automatically** by the `$ATLAS commit add/complete/nudge` commands in Steps 3-4. Every mutation re-renders `assistant/context/action-items.md` and `assistant/context/waiting-on-others.md`. Do NOT manually edit these files.
+
 **Update `/memories/priorities.md`:**
 - New action items from meetings
 - Completed items to remove
@@ -299,19 +340,6 @@ After writing journals and syncing tasks, give Derek a spoken summary:
 - Tomorrow's meetings (update the meeting list)
 
 For tomorrow's meetings, query WorkIQ: "What meetings do I have scheduled for tomorrow (YYYY-MM-DD)? List each with time, title, and attendees."
-
-**Update `/memories/action-items.md`:**
-- Add all new "My Items" from Step 3 with format: `- [ ] Description | Owed to: Name | Source: meeting/date | Due: date | Things3: yes | Task ID: AI-...`
-- Mark overdue items with "(OVERDUE)"
-- Prune Completed entries older than 7 days
-- Do NOT move completed items to the "Completed" section here. The 15-min sync job (`briefing-sync.sh`) handles that continuously. Moving items in both places causes merge conflicts.
-
-**Update `/memories/waiting-on-others.md`:**
-- Add all new commitments from Step 3 with format: `- [ ] **Person** | What they owe | Source: meeting/date | Due: date or ASAP | Last nudge: never | Channel: email/Teams/iMessage | Status: pending`
-- Move resolved items to "Resolved" section with date
-- Prune Resolved entries older than 14 days
-- Update Status to "overdue" for past-due items
-- Update Status to "stale" for items 5+ business days old with no nudge
 
 ## Step 7: Session marker
 
@@ -337,8 +365,8 @@ Hard-won lessons. Check here before debugging.
 | Work journal accidentally includes iMessage or personal data | Hard boundary. Never include iMessage content, personal email, or non-Microsoft data in the work journal. If an iMessage relates to work, capture only the work-relevant fact without attributing the source. |
 | Checkpoint `save-state` called before completions are pushed | Always complete Things 3 tasks BEFORE calling `save-state`. Order matters for idempotency. |
 | action-items.md prune deletes items completed less than 7 days ago | Only prune Completed entries older than 7 days. waiting-on-others.md Resolved entries prune at 14 days. |
-| Dashboard API unreachable at EOD | Fall back to checkpoint-helper.py for the markdown briefing file. Complete tasks directly via `things3/complete.sh`. Note the fallback in the reflection. |
-| Race condition: EOD + sync job both completing the same item | Route completions through the dashboard API (`POST /api/complete-task/:id`). The sync job reads `syncPending` from JSON and won't double-complete. Direct `things3/complete.sh` bypasses this and can race. |
+| Dashboard API unreachable at EOD | Fall back to checkpoint-helper.py for the markdown briefing file. Complete tasks via `$ATLAS commit complete --task-id AI-...`. Note the fallback in the reflection. |
+| Race condition: EOD + sync job both completing the same item | Route completions through the dashboard API (`POST /api/complete-task/:id`). The sync job reads `syncPending` from JSON and won't double-complete. Direct `$ATLAS commit complete` is idempotent but prefer the API path. |
 | Source field missing on dashboard writes | Always include `source: "agent:eod"` on complete-task and PATCH calls. The source field powers the completion stats breakdown in Step 5. |
 | EOD and sync job both editing action-items.md | EOD only adds new items and updates overdue flags. The sync job handles moving completed items. This avoids merge conflicts. |
 | Wins prompt gets no response from Derek | Default to "Execution day, no major shifts" for Learned/Shifted. Still present the 3 candidate wins for confirmation. |

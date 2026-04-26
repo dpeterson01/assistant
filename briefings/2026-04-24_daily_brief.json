@@ -1,8 +1,8 @@
 {
   "date": "2026-04-24",
   "generatedAt": "2026-04-24T08:08:00-07:00",
-  "lastUpdated": "2026-04-25T01:14:02.486Z",
-  "updateCount": 7,
+  "lastUpdated": "2026-04-26T01:47:24.149Z",
+  "updateCount": 9,
   "checkpointId": "AI-20260424-080800",
   "dayFit": {
     "score": 85,
@@ -155,9 +155,9 @@
       "addedAt": "2026-04-24T08:08:00-07:00",
       "draftConfidence": 0.9,
       "draftReason": "Simple scheduling reply, high voice corpus match",
-      "updatedAt": "2026-04-24T22:17:48.229Z",
+      "updatedAt": "2026-04-26T01:47:24.149Z",
       "syncPending": false,
-      "syncedAt": "2026-04-24T15:17:48.206502",
+      "syncedAt": "2026-04-25T18:47:24.138724",
       "receivedAt": "2026-04-24T07:42:00-07:00",
       "chatName": "Daniel Stafford",
       "teamsDeepLink": "https://teams.microsoft.com/l/message/19:29158e26-9dd7-465d-a88c-4da198182d72_ba572e89-33ca-4fec-b942-481decb85915@unq.gbl.spaces/1777046052015?context=%7B%22contextType%22:%22chat%22%7D"
@@ -287,8 +287,8 @@
       "text": "GoDaddy: domains cancel in 5 days",
       "detail": "HMBL email from Apr 14. May already be past deadline. Check if mccallum.pro domains need renewal.",
       "priority": "medium",
-      "status": "open",
-      "source": "email",
+      "status": "done",
+      "source": "ui",
       "channel": "hmbl",
       "sender": "GoDaddy",
       "emailId": "AAMkAGZhZGIwMWVkLTQ0YmQtNDdjMy1iODIzLWUyODY2OGU4Y2M0MwBGAAAAAADJ0fdG4l0RRIObRqka7hTrBwAe-HamDcloS4bOrT7hukDSAAAAAAEMAAAe-HamDcloS4bOrT7hukDSAASSMudlAAA=",
@@ -297,7 +297,10 @@
       "draftConfidence": null,
       "draftReason": "Decision needed, not email reply",
       "receivedAt": "2026-04-14T18:55:27Z",
-      "chatName": null
+      "chatName": null,
+      "updatedAt": "2026-04-26T00:25:59.587Z",
+      "syncPending": false,
+      "syncedAt": "2026-04-25T17:25:59.553249"
     }
   ],
   "inboxLowCount": 18,
@@ -374,8 +377,8 @@
       "status": "open",
       "addedAt": "2026-04-24T08:08:00-07:00",
       "syncPending": false,
-      "syncedAt": "2026-04-24T15:17:48.206502",
-      "updatedAt": "2026-04-24T22:17:48.229Z"
+      "syncedAt": "2026-04-25T18:47:24.138724",
+      "updatedAt": "2026-04-26T01:47:24.149Z"
     },
     {
       "id": "isabella-access",

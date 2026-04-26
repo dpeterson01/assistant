@@ -63,8 +63,22 @@
       "agent": "meeting-brief",
       "script": "scripts/meeting-sweep.sh",
       "plist": "com.atlas.meeting-sweep",
-      "enabled": false,
+      "enabled": true,
       "enable_instructions": "1) Confirm /meeting-brief prompt resolves an event end-to-end interactively (run `/meeting-brief next` once). 2) Create a launchd plist at ~/Library/LaunchAgents/com.atlas.meeting-sweep.plist with StartInterval=900 and KeepAlive=false. 3) launchctl load -w ~/Library/LaunchAgents/com.atlas.meeting-sweep.plist. 4) Set `enabled: true` here.",
+      "last_run": null,
+      "last_status": null
+    },
+    {
+      "id": "meeting-recap-sweep",
+      "name": "Rolling Meeting Recap Sweep",
+      "description": "Every 15 min during work hours: recap meetings that ended today but haven't been recapped yet. Pulls Copilot meeting summary + meeting chat. 60-min window after meeting end. Per-event ledger at assistant/state/meeting-briefs.json.",
+      "type": "automated",
+      "schedule": "M-F every 15 min, 7 AM - 7 PM",
+      "agent": "meeting-recap-auto",
+      "script": "scripts/meeting-recap-sweep.sh",
+      "plist": "com.atlas.meeting-recap-sweep",
+      "enabled": true,
+      "enable_instructions": "1) Confirm /meeting-recap-auto prompt resolves a past meeting end-to-end interactively first. 2) Create a launchd plist at ~/Library/LaunchAgents/com.atlas.meeting-recap-sweep.plist with StartInterval=900 and KeepAlive=false. 3) launchctl load -w ~/Library/LaunchAgents/com.atlas.meeting-recap-sweep.plist. 4) Set `enabled: true` here.",
       "last_run": null,
       "last_status": null
     },

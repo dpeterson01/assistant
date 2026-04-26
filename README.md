@@ -34,13 +34,13 @@ No need to switch between briefing, Things 3, and email—just check the box and
 
 ## Stable Task IDs
 
-New task creation now supports durable IDs for deterministic matching across briefing, Things 3, email, and Teams.
+All commitment tracking goes through `atlas-db.py`, which auto-syncs to Things 3 and renders markdown views.
 
 ```sh
-TASK_ID=$(~/.local/bin/things3/new-id.sh)
-~/.local/bin/things3/add.sh "Task title" --task-id "$TASK_ID" --notes "Source: ..."
-~/.local/bin/things3/search.sh --task-id "$TASK_ID"
-~/.local/bin/things3/complete.sh --task-id "$TASK_ID"
+ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
+$ATLAS commit add --title "Task title" --direction mine --person "Someone" --source "email/2026-04-21" --due "2026-04-25" --category work
+$ATLAS commit search "Task title"
+$ATLAS commit complete --task-id "AI-20260421-101530"
 ```
 
 ## Setup

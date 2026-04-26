@@ -3,7 +3,7 @@
 # Triggered by launchd every 15 minutes during work hours
 # Identifies high-stakes upcoming meetings (next 60 min) that have not yet been
 # briefed and runs the /meeting-brief Copilot agent for each. Stays cheap by
-# delegating dedupe + filtering to meeting-brief-ledger.py.
+# delegating dedupe + filtering to atlas-db.py.
 #
 # Per-event brief content is written by the agent. This script's job is:
 #   1. Pull upcoming events from the calendar
@@ -19,7 +19,7 @@ AUTOMATION_DIR="$REPO_ROOT/assistant/automation"
 SCRIPTS_DIR="$REPO_ROOT/assistant/scripts"
 LOG_DIR="$AUTOMATION_DIR/logs"
 LOG_FILE="$LOG_DIR/meeting-sweep-${DATE}.log"
-LEDGER="$SCRIPTS_DIR/meeting-brief-ledger.py"
+ATLAS="$SCRIPTS_DIR/atlas-db.py"
 
 mkdir -p "$LOG_DIR"
 exec > >(tee -a "$LOG_FILE") 2>&1
@@ -41,6 +41,23 @@ fi
 if ! command -v copilot &>/dev/null; then
   echo "ERROR: copilot CLI not found in PATH"
   exit 1
+fi
+
+# --- Input validation (guardrails) ---
+
+# Check atlas-db script exists
+if [[ ! -f "$ATLAS" ]]; then
+  echo "ERROR: atlas-db script not found at $ATLAS"
+  exit 1
+fi
+
+# Check assistant.db isn't corrupt (quick integrity test)
+DB_FILE="$REPO_ROOT/assistant/state/assistant.db"
+if [[ -f "$DB_FILE" ]]; then
+  if ! python3 -c "import sqlite3; c=sqlite3.connect('$DB_FILE'); c.execute('PRAGMA integrity_check')" 2>/dev/null; then
+    echo "WARNING: assistant.db may be corrupt. Backing up."
+    cp "$DB_FILE" "${DB_FILE}.corrupt.$(date +%s)"
+  fi
 fi
 
 # Lookahead window for meetings worth pre-briefing (minutes from now).
@@ -76,7 +93,7 @@ if [[ -z "$EVENTS_JSON" ]]; then
 fi
 
 # Step 2: Filter via the ledger.
-PENDING=$(echo "$EVENTS_JSON" | python3 "$LEDGER" pending --within-min "$LOOKAHEAD_MIN")
+PENDING=$(echo "$EVENTS_JSON" | python3 "$ATLAS" meeting pending --within-min "$LOOKAHEAD_MIN")
 PENDING_COUNT=$(echo "$PENDING" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))")
 
 echo "Pending high-stakes events to brief: $PENDING_COUNT"
@@ -96,7 +113,7 @@ for ev in json.load(sys.stdin):
 
   if perl -e 'alarm 240; exec @ARGV' -- copilot \
     --agent=meeting-brief \
-    -p "Generate a meeting brief for event_id=${EVENT_ID}. Title is \"${TITLE}\", starts at ${START}. Use the meeting-brief-ledger.py claim+mark workflow. Write the per-meeting file and notify on completion." \
+    -p "Generate a meeting brief for event_id=${EVENT_ID}. Title is \"${TITLE}\", starts at ${START}. Use atlas-db.py meeting add+mark workflow. Write the per-meeting file and notify on completion." \
     --allow-tool='shell' \
     --allow-tool='write' \
     --allow-tool='workiq' \
@@ -108,7 +125,7 @@ for ev in json.load(sys.stdin):
     osascript -e "display notification \"Brief ready: ${SHORT_TITLE}\" with title \"Atlas\" sound name \"Glass\"" || true
   else
     echo "ERROR: brief generation failed for $TITLE"
-    python3 "$LEDGER" mark "$EVENT_ID" --status failed || true
+    python3 "$ATLAS" meeting mark "$EVENT_ID" --status failed || true
     osascript -e "display notification \"Brief FAILED: ${TITLE}\" with title \"Atlas\" sound name \"Sosumi\"" || true
   fi
 done

@@ -41,17 +41,12 @@ For each newly-checked item:
    - If found, use it for deterministic matching
    - If not found, note the item text for logging
 
-2. **Complete in Things 3**
+2. **Complete via atlas-db**
    ```bash
-   assistant/things3/complete.sh --task-id "AI-..."
+   ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
+   $ATLAS commit complete --task-id "AI-..."
    ```
-   This marks the task complete in Things 3 database.
-
-3. **Update action-items.md**
-   - Find the matching line in `context/action-items.md`
-   - Change `- [ ]` to `- [x]`
-   - Add completion timestamp: `| Completed: $(date +%Y-%m-%d)`
-   - Move it to the "## Completed" section if it exists
+   This marks the task done in the DB, pushes the completion to Things 3, and re-renders the markdown views (action-items.md and waiting-on-others.md) automatically.
 
 ### Step 4: Report Results
 

@@ -19,22 +19,43 @@ mkdir -p "$LOG_DIR"
 exec > >(tee -a "$LOG_FILE") 2>&1
 echo "=== Briefing Sync: $(date '+%Y-%m-%d %H:%M:%S') ==="
 
-# Time-of-day guard: 7 AM - 7 PM weekdays only
+# Time-of-day guard: weekdays 7 AM - 7 PM, weekends 8 AM - 10 PM
 CURRENT_HOUR=$(date +%H)
 DAY_OF_WEEK=$(date +%u)  # 1=Mon, 7=Sun
 if [[ $DAY_OF_WEEK -ge 6 ]]; then
-  echo "Skipping: weekend"
-  exit 0
-fi
-if [[ $CURRENT_HOUR -lt 7 || $CURRENT_HOUR -ge 19 ]]; then
-  echo "Skipping: outside work hours (${CURRENT_HOUR}h)"
-  exit 0
+  # Weekends: relaxed hours
+  if [[ $CURRENT_HOUR -lt 8 || $CURRENT_HOUR -ge 22 ]]; then
+    echo "Skipping: outside weekend hours (${CURRENT_HOUR}h)"
+    exit 0
+  fi
+else
+  # Weekdays
+  if [[ $CURRENT_HOUR -lt 7 || $CURRENT_HOUR -ge 19 ]]; then
+    echo "Skipping: outside work hours (${CURRENT_HOUR}h)"
+    exit 0
+  fi
 fi
 
 # Check if dashboard server is running
 if ! curl -sf "$DASHBOARD_URL/api/briefing" > /dev/null 2>&1; then
   echo "Dashboard not running. Skipping sync."
   exit 0
+fi
+
+# ──────────────────────────────────────────────
+# PHASE 0: EMAIL CLEANUP — filter spam/marketing from journals
+# ──────────────────────────────────────────────
+
+echo "--- Phase 0: Email cleanup ---"
+FILTER_SCRIPT="$HOME/projects/personal/assistant/filter-scripts/filter-spam-emails.py"
+if [[ -f "$FILTER_SCRIPT" ]]; then
+  if python3 "$FILTER_SCRIPT" --apply 2>&1; then
+    echo "  ✓ Email cleanup complete"
+  else
+    echo "  ✗ Email cleanup failed (exit $?), continuing"
+  fi
+else
+  echo "  - Filter script not found, skipping"
 fi
 
 # ──────────────────────────────────────────────
