@@ -2,6 +2,7 @@ const API = '';
 let briefing = null;
 let healthData = null;
 let showLowPriority = false;
+let activeFilter = 'all';
 
 // ============================================================
 // LOAD
@@ -115,6 +116,62 @@ function shortDateTime(iso) { if (!iso) return ''; const d=new Date(iso); return
 function escapeHtml(str) { const div=document.createElement('div'); div.textContent=str||''; return div.innerHTML; }
 function openWindow(url) { window.open(url, '_blank', 'noopener,width=1200,height=800'); }
 
+// ============================================================
+// CATEGORY FILTER
+// ============================================================
+
+const categoryTint = cat => ({
+  work:     'bg-ios-blue/15 text-ios-blue border-ios-blue/30',
+  personal: 'bg-ios-green/15 text-ios-green border-ios-green/30',
+  church:   'bg-ios-indigo/15 text-ios-indigo border-ios-indigo/30',
+  hmbl:     'bg-ios-teal/15 text-ios-teal border-ios-teal/30',
+}[cat] || 'bg-white/10 text-zinc-300 border-white/15');
+
+const categoryLabel = cat => ({
+  work: 'Work', personal: 'Personal', church: 'Church', hmbl: 'HMBL',
+}[cat] || cat.charAt(0).toUpperCase() + cat.slice(1));
+
+function getCategories() {
+  if (!briefing) return [];
+  const cats = new Set();
+  for (const section of ['carryOver', 'inbox', 'tasks']) {
+    for (const item of briefing[section] || []) {
+      if (item.category) cats.add(item.category);
+    }
+  }
+  for (const item of briefing?.accountability?.waitingOn || []) {
+    if (item.category) cats.add(item.category);
+  }
+  // Stable order: work, personal, church, hmbl, then any extras
+  const order = ['work', 'personal', 'church', 'hmbl'];
+  return [...order.filter(c => cats.has(c)), ...[...cats].filter(c => !order.includes(c)).sort()];
+}
+
+function setFilter(cat) {
+  activeFilter = cat;
+  render();
+}
+
+function filterByCategory(items) {
+  if (activeFilter === 'all') return items;
+  return items.filter(i => i.category === activeFilter);
+}
+
+function renderFilterBar() {
+  const cats = getCategories();
+  if (cats.length < 2) return '';
+  const allActive = activeFilter === 'all';
+  const allPill = `<button onclick="setFilter('all')" class="px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors ${allActive ? 'bg-white/15 text-zinc-100 border-white/20' : 'bg-transparent text-zinc-500 border-white/5 hover:text-zinc-300 hover:border-white/10'}">${allActive ? `All` : 'All'}</button>`;
+  const catPills = cats.map(cat => {
+    const isActive = activeFilter === cat;
+    const count = [...(briefing.carryOver||[]), ...(briefing.inbox||[]), ...(briefing.tasks||[])].filter(i => i.category === cat && i.status !== 'done' && i.status !== 'dismissed').length;
+    return `<button onclick="setFilter('${cat}')" class="px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors ${isActive ? categoryTint(cat) : 'bg-transparent text-zinc-500 border-white/5 hover:text-zinc-300 hover:border-white/10'}">
+      ${categoryLabel(cat)}${count ? ` <span class="tabular-nums opacity-60">${count}</span>` : ''}
+    </button>`;
+  }).join('');
+  return `<div class="flex flex-wrap items-center gap-2 mb-5">${allPill}${catPills}</div>`;
+}
+
 function getSourceUrl(item) {
   if (!item) return null;
   const ch = item.channel, eid = item.emailId;
@@ -171,6 +228,10 @@ function render() {
   const meetings    = isStale ? [] : (d.meetings || []);
   const acc = d.accountability || {};
 
+  // --- Category filtering ---
+  const filteredInbox = filterByCategory(allInbox);
+  const filteredTasks = filterByCategory(openTasks);
+
   // --- Deduplication: remove items from tasks/carryOver that already appear in inbox ---
   const inboxTexts = new Set(allInbox.map(i => (i.text || '').toLowerCase().substring(0, 30)));
   const inboxIds = new Set(allInbox.map(i => i.id).filter(Boolean));
@@ -179,8 +240,8 @@ function render() {
     const t = (item.text || '').toLowerCase().substring(0, 30);
     return t.length > 10 && inboxTexts.has(t);
   }
-  const dedupedCarryOver = (d.carryOver || []).filter(i => !isInInbox(i) && i.status !== 'done' && i.status !== 'dismissed');
-  const dedupedTasks = openTasks.filter(i => !isInInbox(i));
+  const dedupedCarryOver = filterByCategory((d.carryOver || []).filter(i => !isInInbox(i) && i.status !== 'done' && i.status !== 'dismissed'));
+  const dedupedTasks = filteredTasks.filter(i => !isInInbox(i));
 
   // --- Build urgency map from accountability data ---
   // Maps normalized text prefixes to urgency type for badge display
@@ -215,12 +276,15 @@ function render() {
     <!-- Day Fit hero (mobile only on small, full on all) -->
     ${renderDayFitHero(d.dayFit)}
 
+    <!-- Category filter -->
+    ${renderFilterBar()}
+
     <!-- Stats grid -->
     <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
       ${statCard('Meetings today',  meetings.length, meetings.filter(m=>m.highStakes).length ? `${meetings.filter(m=>m.highStakes).length} high stakes` : 'all clear', 'ios-blue', iconCalendar())}
-      ${statCard('Inbox shown',     allInbox.length, d.inboxLowCount ? `+${d.inboxLowCount} low hidden` : 'all shown', 'ios-orange', iconInbox())}
+      ${statCard('Inbox shown',     filteredInbox.length, d.inboxLowCount ? `+${d.inboxLowCount} low hidden` : 'all shown', 'ios-orange', iconInbox())}
       ${statCard("Today's focus",   focusCount, dedupedCarryOver.length ? `${dedupedCarryOver.length} carry over` : 'fresh start', 'ios-green', iconCheck())}
-      ${statCard('Draftable',       draftableCount, draftableCount ? 'with confidence ≥40%' : 'nothing draftable', 'ios-indigo', iconPen())}
+      ${statCard('Draftable',       filteredInbox.filter(i => (i.draftConfidence || 0) > 0).length, filteredInbox.filter(i => (i.draftConfidence || 0) > 0).length ? 'with confidence ≥40%' : 'nothing draftable', 'ios-indigo', iconPen())}
     </section>
 
     <!-- Two-column layout on desktop -->
@@ -228,7 +292,7 @@ function render() {
       <!-- LEFT (main column, spans 3) -->
       <div class="lg:col-span-3 space-y-6 min-w-0">
         ${renderSchedule(meetings)}
-        ${renderInbox(allInbox, d.inboxLowCount)}
+        ${renderInbox(filteredInbox, activeFilter === 'all' ? d.inboxLowCount : 0)}
         ${renderTodaysFocus(focusCarryOver, focusTasks)}
       </div>
 
@@ -453,8 +517,9 @@ function renderCommitments(acc) {
   const overdue = acc.overdue || [];
   const approaching = acc.approaching || [];
   const waitingList = Array.isArray(acc.waitingOn) ? acc.waitingOn : [];
-  const waitingCount = acc.waitingOnOthers || waitingList.length || 0;
-  const staleCount = acc.stale || waitingList.filter(w => w.stale).length || 0;
+  const filteredWaiting = activeFilter === 'all' ? waitingList : waitingList.filter(w => w.category === activeFilter);
+  const waitingCount = activeFilter === 'all' ? (acc.waitingOnOthers || waitingList.length || 0) : filteredWaiting.length;
+  const staleCount = activeFilter === 'all' ? (acc.stale || waitingList.filter(w => w.stale).length || 0) : filteredWaiting.filter(w => w.stale).length;
 
   // --- Helper: parse a legacy string item into a structured object ---
   function parseStringItem(s, urgencyType) {
@@ -596,21 +661,24 @@ function renderCommitments(acc) {
   }
 
   // Sort waiting list: stale first, then by daysOpen desc
-  const waitingSorted = waitingList
-    .map((w, i) => ({ ...w, _idx: i }))
+  const waitingIdxMap = new Map(waitingList.map((w, i) => [w, i]));
+  const waitingSorted = filteredWaiting
+    .map(w => ({ ...w, _idx: waitingIdxMap.get(w) ?? 0 }))
     .sort((a, b) => {
       if (a.stale !== b.stale) return a.stale ? -1 : 1;
       return (b.daysOpen || 0) - (a.daysOpen || 0);
     });
 
   // Merge overdue + approaching into a single "I Owe" list, sorted: overdue first, then approaching
+  // These are unstructured strings without category data — always show them regardless of filter
   const iOweItems = [
     ...overdue.map((s, i) => ({ ...parseStringItem(s, 'overdue'), _origType: 'overdue', _origIdx: i })),
     ...approaching.map((s, i) => ({ ...parseStringItem(s, 'approaching'), _origType: 'approaching', _origIdx: i }))
   ];
+  const filteredIOwe = iOweItems;
 
-  const iOweBlock = iOweItems.length
-    ? `<div class="space-y-1.5">${iOweItems.map((item, idx) => accCard(item, idx, 'owe')).join('')}</div>`
+  const iOweBlock = filteredIOwe.length
+    ? `<div class="space-y-1.5">${filteredIOwe.map((item, idx) => accCard(item, idx, 'owe')).join('')}</div>`
     : `<div class="text-[12px] text-zinc-600 italic">All clear. No outstanding commitments.</div>`;
 
   const waitingBlock = waitingSorted.length
@@ -624,8 +692,8 @@ function renderCommitments(acc) {
   const inner = `
     <div class="mb-2 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider flex items-center gap-2">
       <span>I owe</span>
-      <span class="tabular-nums text-zinc-600">${iOweItems.length}</span>
-      ${overdue.length ? `<span class="ml-auto text-[10px] font-semibold text-ios-red">${overdue.length} overdue</span>` : ''}
+      <span class="tabular-nums text-zinc-600">${filteredIOwe.length}</span>
+      ${filteredIOwe.filter(i => i._urgency === 'overdue').length ? `<span class="ml-auto text-[10px] font-semibold text-ios-red">${filteredIOwe.filter(i => i._urgency === 'overdue').length} overdue</span>` : ''}
     </div>
     <div class="space-y-1.5 mb-5">
       ${iOweBlock}
@@ -638,7 +706,7 @@ function renderCommitments(acc) {
     </div>
     ${waitingBlock}
   `;
-  return sectionShell('Commitments', `${iOweItems.length + waitingCount}`, inner);
+  return sectionShell('Commitments', `${filteredIOwe.length + waitingCount}`, inner);
 }
 
 function renderUpcoming(upcoming) {
@@ -687,6 +755,7 @@ function renderItem(item, section) {
        </button>` : '';
 
   const priorityBadge = item.priority ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded ring-1 ${priorityTint(item.priority)}">${item.priority}</span>` : '';
+  const catBadge = item.category && activeFilter === 'all' ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border ${categoryTint(item.category)}">${categoryLabel(item.category)}</span>` : '';
   const urgencyBadge = item._urgency === 'overdue'
     ? '<span class="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ios-red/15 text-ios-red ring-1 ring-ios-red/20">overdue</span>'
     : item._urgency === 'approaching'
@@ -727,6 +796,7 @@ function renderItem(item, section) {
         <div class="flex flex-wrap items-center gap-1.5">
           <span class="text-[14px] text-zinc-100 ${isDone ? 'line-through text-zinc-500' : ''}">${item.text}</span>
           ${priorityBadge}
+          ${catBadge}
           ${urgencyBadge}
         </div>
         ${item.detail ? `<div class="mt-1 text-[12px] text-zinc-400 leading-snug">${item.detail}</div>` : ''}
