@@ -163,8 +163,18 @@ Determine today's date. Write or update journals by context.
 [Derek's answer from Step 1b. If "just execution," write "Execution day, no major shifts." Otherwise capture the insight in 1-2 sentences.]
 
 ## Meetings
-[from WorkIQ: each meeting with attendees, summary, decisions, action items, recording/transcript info]
-[For meetings with Copilot recaps or transcripts, include the key topics, decisions, action items with owners, and follow-ups from the recap]
+[List each meeting chronologically. For meetings with recap files, pull structured data directly from the recap — this is higher-fidelity than WorkIQ summaries.]
+
+### <Meeting Title> (time, duration)
+**Summary**: [from recap or WorkIQ]
+**Decisions**: [from recap's ## Decisions section, or from WorkIQ]
+**Follow-ups**:
+- [Action items from recap's ## Action Items — include owner, due date, and acceptance criteria]
+- [Open questions from recap's ## Open Questions — these often become tomorrow's tasks]
+- [Parking lot items from recap's ## Parking Lot — note when they'll be revisited]
+**Risks/Blockers**: [from recap's ## Risks & Blockers, or None]
+
+[For meetings without recaps, use WorkIQ data with the same structure but note "(via WorkIQ)" after the title]
 
 ## What I Did
 [completed work tasks from Things 3 + any accomplishments from WorkIQ/user input]
@@ -315,9 +325,10 @@ After writing journals and syncing tasks, give Derek a spoken summary:
 
 **What happened**: 2-3 sentence narrative of the day.
 **Wins**: Restate the 3 wins from the journal (already confirmed, don't re-ask).
+**Meeting follow-ups**: Summarize all follow-ups extracted from today's meeting recaps. Group by owner: "Derek owes X items" and "Waiting on Y items from others." Call out any open questions that need answers before tomorrow's meetings.
 **Stuck**: Anything blocked or unresolved.
 **Dashboard stats**: From Step 0, report completion breakdown by source (e.g., "12 items completed: 5 via dashboard UI, 4 via agent, 3 via sync job"). If dashboard was unreachable, note fallback to checkpoint processing.
-**Tomorrow**: 2-3 suggested priorities based on open threads + calendar.
+**Tomorrow**: 2-3 suggested priorities based on open threads + calendar + unresolved follow-ups from today's meetings.
 
 ## Step 6: Update tracking files
 
