@@ -233,10 +233,19 @@ Below the banner, list the criteria that failed in one line each (e.g., "❌ Lun
 If score is 🔴, suggest 1–2 specific moves to recover (decline X, push Y to tomorrow, batch async). Keep it to one line per suggestion.
 
 ### What carried over from yesterday
+
+Assemble carryOver candidates from:
 - Unresolved threads and action items from yesterday's journals
 - Items in action-items.md that are overdue or due today
+- Open items from prior briefings that haven't been resolved
 
-**Display**: Prefix each with `- [ ]` checkbox so Derek can check them as he tackles them throughout the day.
+**Hard filter (mandatory before display):** Query the DB for all recently completed items:
+```sh
+$ATLAS commit list --status completed
+```
+Remove any candidate whose title matches a completed commitment. This prevents items completed mid-day (after the briefing was written but before EOD) from reappearing the next morning via journal or prior-briefing references. Do not skip this step even if the tool call fails; if it fails, note "⚠️ Could not verify completions, carryOver may include resolved items" at the top of this section.
+
+**Display**: Prefix each surviving item with `- [ ]` checkbox so Derek can check them as he tackles them throughout the day.
 
 ### What came in overnight (triaged)
 Present communications grouped by importance tier. For each item show the tier emoji, source (email/Teams), sender, age if older than overnight, and 1-sentence summary.
@@ -318,6 +327,8 @@ Build the JSON from the same data gathered in Steps 1-2. Follow the schema defin
 - Meeting fields and high-stakes criteria
 - Accountability structure
 - Reconciliation rules (every .md checkbox must have a matching JSON entry)
+
+The `carryOver` array must only contain items that survived the hard filter in Step 2 (i.e., not present in the DB as completed). Do not re-derive carryOver from raw sources for the JSON; use the same filtered list.
 
 Then continue to Phase B while Derek reads.
 
@@ -439,4 +450,5 @@ Hard-won lessons. Check here before debugging.
 | Contact lookup fails because filename doesn't match display name | Read `index.json` first to get the name-to-file mapping. Match on name, aliases, or email. |
 | Meeting brief ledger `claim` returns non-zero | The rolling sweep already produced a brief. Skip generation and reference the existing path. |
 | atlas-db commit add fails with "task_id already exists" | The item is already tracked. Use `$ATLAS commit search` to find it. |
+| Completed item reappears in next day's carryOver | Journals and prior briefings are static artifacts. An item completed mid-day still appears as unchecked in those files. Always run `$ATLAS commit list --status completed` and filter carryOver candidates against it before display. |
 | Briefing shows wrong day-of-week (e.g. Sunday instead of Monday) | LLMs cannot reliably compute day-of-week from date strings. Always run `date '+%A %B %d, %Y'` in a terminal as the first step. Never derive it yourself. |

@@ -43,6 +43,7 @@ Required on all items:
 - `detail`: 1-2 sentence context (optional, can be empty string)
 - `priority`: `"high"` | `"medium"` | `"low"`
 - `status`: `"open"` (always for newly generated items)
+- `category`: `"work"` | `"personal"` | `"church"` | `"hmbl"` — required on every item. Determines which filter pill the item appears under. Use `"work"` for anything Microsoft/job-related, `"personal"` for personal life, `"church"` for parish/faith, `"hmbl"` for HMBL business.
 - `addedAt`: ISO-8601 timestamp
 
 ## Deep Link Fields (carryOver AND inbox)
@@ -101,7 +102,7 @@ Populate from Things 3 Today items:
   "overdue": ["string items"],
   "approaching": ["string items"],
   "waitingOn": [
-    { "person": "name", "item": "short summary", "detail": "context", "stale": true, "daysOpen": 5 }
+    { "person": "name", "item": "short summary", "detail": "context", "channel": "email|Teams|gmail|hmbl", "stale": true, "daysOpen": 5 }
   ],
   "waitingOnOthers": 12,
   "stale": 3
@@ -112,6 +113,6 @@ Populate from Things 3 Today items:
 
 - Every checkbox item in .md MUST have a matching entry in JSON. The `id` field links them.
 - Already-done items: `"status": "done"`, no `syncPending` flag.
-- `accountability.waitingOn` must only include items from `$ATLAS commit list --direction theirs --status active`. Never include completed items.
+- `accountability.waitingOn` must only include items from `$ATLAS commit list --direction theirs --status active`. Never include completed items. Preserve the `channel` field from atlas-db output (e.g. "email", "Teams") so the dashboard can deep-link to the correct platform.
 - Include every triaged inbox item regardless of priority. Dashboard collapses low-priority behind a toggle.
 - JSON is source of truth for dashboard. .md is human-readable for Typora.

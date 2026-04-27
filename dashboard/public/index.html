@@ -41,6 +41,61 @@
 <!-- Undo toast container (fixed bottom-center) -->
 <div id="undo-container" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
+<!-- Draft modal overlay -->
+<div id="draft-modal-overlay" class="hidden fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm transition-opacity" onclick="closeDraftModal()"></div>
+<div id="draft-modal" class="hidden fixed inset-x-4 top-[5vh] bottom-[5vh] sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 sm:w-full sm:max-w-2xl z-[61] flex flex-col rounded-2xl bg-zinc-900 border border-white/10 hairline shadow-2xl shadow-black/50 overflow-hidden animate-fade-in">
+  <!-- Modal header -->
+  <header class="flex items-center gap-3 px-5 py-3 border-b border-white/5 hairline shrink-0">
+    <div class="flex-1 min-w-0">
+      <div class="text-[13px] font-semibold text-zinc-100 truncate" id="dm-subject"></div>
+      <div class="flex items-center gap-2 mt-0.5">
+        <span class="text-[11px] text-zinc-400" id="dm-sender"></span>
+        <span class="text-[11px] text-zinc-600" id="dm-time"></span>
+        <span class="text-[10px] font-medium px-1.5 py-0.5 rounded" id="dm-channel-badge"></span>
+      </div>
+    </div>
+    <button onclick="closeDraftModal()" class="shrink-0 w-8 h-8 inline-flex items-center justify-center rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-white/5 transition-colors" title="Close">
+      <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </header>
+
+  <!-- Scrollable content -->
+  <div class="flex-1 overflow-y-auto min-h-0">
+    <!-- Original message -->
+    <div class="px-5 py-4 border-b border-white/5 hairline">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Original Message</div>
+      <div id="dm-original" class="text-[13px] text-zinc-300 leading-relaxed whitespace-pre-wrap max-h-[40vh] overflow-y-auto">
+        <span class="spinner"></span> Loading message...
+      </div>
+    </div>
+
+    <!-- Draft reply -->
+    <div class="px-5 py-4">
+      <div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Draft Reply</div>
+      <div id="dm-draft-loading" class="text-[13px] text-zinc-400">
+        <span class="spinner"></span> Generating draft...
+      </div>
+      <textarea id="dm-draft-textarea" class="hidden w-full min-h-[160px] bg-zinc-950/60 border border-white/10 hairline rounded-lg p-3 text-[13px] text-zinc-100 leading-relaxed font-sans resize-y focus:outline-none focus:border-ios-indigo/50 transition-colors"></textarea>
+    </div>
+  </div>
+
+  <!-- Action bar -->
+  <footer class="shrink-0 px-5 py-3 border-t border-white/5 hairline bg-zinc-900/80 flex flex-wrap items-center gap-2">
+    <button id="dm-btn-save" class="btn-primary" disabled onclick="saveDraftAndOpen()">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      Save Draft & Open
+    </button>
+    <button id="dm-btn-copy" class="btn-secondary" disabled onclick="copyDraft()">Copy</button>
+    <button id="dm-btn-regen" class="btn-secondary" disabled onclick="regenDraft()">
+      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+      Regenerate
+    </button>
+    <span class="flex-1"></span>
+    <span id="dm-status" class="text-[11px] text-zinc-500"></span>
+    <button class="btn-secondary" onclick="closeDraftModal()">Discard</button>
+  </footer>
+</div>
+
 <!-- Sticky top bar -->
 <header id="topbar" class="sticky top-0 z-40 frost bg-zinc-950/70 border-b border-white/5 hairline">
   <div class="mx-auto max-w-7xl px-4 sm:px-6 h-14 flex items-center gap-3">

@@ -476,6 +476,160 @@ app.post('/api/undo/:id', (req, res) => {
   }
 });
 
+// --- Message fetch helper ---
+
+function runCopilotFetchMessage(item) {
+  return new Promise((resolve, reject) => {
+    const channel = item.channel || 'email';
+    const emailId = item.emailId || '';
+    const sender = item.sender || 'unknown';
+    const subject = item.text || '';
+
+    // Build a targeted prompt to read the original message
+    const prompt = [
+      `Fetch the full body of the message from ${sender} with subject "${subject}".`,
+      emailId ? `Email ID: ${emailId}.` : '',
+      `Channel: ${channel}.`,
+      `Return ONLY the raw message body text. No metadata, no subject line, no commentary.`,
+      `If you cannot fetch it, return the text: FETCH_FAILED`,
+    ].filter(Boolean).join(' ');
+
+    const toolMap = {
+      'outlook-work': 'outlook',
+      'outlook-personal': 'outlook',
+      email: 'outlook',
+      gmail: 'gmail',
+      hmbl: 'hmbl-mail',
+    };
+    const mailTool = toolMap[channel] || 'outlook';
+
+    execFile('copilot', [
+      '-p', prompt,
+      `--allow-tool=${mailTool}`,
+      '--allow-tool=memory',
+      '--allow-tool=shell(cat)',
+      '--deny-tool=shell(rm)',
+      '--deny-tool=shell(git push)',
+    ], { timeout: 60_000, cwd: join(__dirname, '..') }, (err, stdout, _stderr) => {
+      if (err) return reject(err);
+      const body = stdout.trim();
+      if (body === 'FETCH_FAILED' || !body) {
+        return reject(new Error('Could not fetch original message'));
+      }
+      resolve(body);
+    });
+  });
+}
+
+// GET /api/message/:itemId — fetch the original message body
+app.get('/api/message/:itemId', async (req, res) => {
+  if (!isValidItemId(req.params.itemId)) return res.status(400).json({ error: 'Invalid item id' });
+
+  const data = readBriefing();
+  if (!data) return res.status(404).json({ error: 'No briefing found' });
+
+  let item;
+  for (const section of ['inbox', 'carryOver', 'tasks']) {
+    item = (data[section] || []).find(i => i.id === req.params.itemId);
+    if (item) break;
+  }
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+
+  try {
+    const body = await runCopilotFetchMessage(item);
+    trackHealth('GET /api/message', true);
+    res.json({
+      ok: true,
+      itemId: req.params.itemId,
+      sender: item.sender || '',
+      subject: item.text || '',
+      channel: item.channel || 'email',
+      receivedAt: item.receivedAt || item.addedAt || '',
+      body,
+    });
+  } catch (err) {
+    trackHealth('GET /api/message', false, err.message);
+    // Return item metadata even on fetch failure so the modal can show context
+    res.status(200).json({
+      ok: false,
+      itemId: req.params.itemId,
+      sender: item.sender || '',
+      subject: item.text || '',
+      channel: item.channel || 'email',
+      receivedAt: item.receivedAt || item.addedAt || '',
+      detail: item.detail || '',
+      body: null,
+      error: err.message,
+    });
+  }
+});
+
+// --- Save-draft helper ---
+
+function runCopilotSaveDraft(channel, to, subject, body) {
+  return new Promise((resolve, reject) => {
+    const toolMap = {
+      'outlook-work': 'outlook',
+      'outlook-personal': 'outlook',
+      email: 'outlook',
+      gmail: 'gmail',
+      hmbl: 'hmbl-mail',
+    };
+    const mailTool = toolMap[channel] || 'outlook';
+
+    const prompt = [
+      `Save the following as a draft email.`,
+      `To: ${to}. Subject: Re: ${subject}.`,
+      `Channel: ${channel}.`,
+      `Body:\n${body}`,
+      `\nUse the ${mailTool}_draft_email tool to save it. Return ONLY the word "SAVED" if successful, or "FAILED: reason" if not.`,
+    ].join(' ');
+
+    execFile('copilot', [
+      '-p', prompt,
+      `--allow-tool=${mailTool}`,
+      '--allow-tool=memory',
+      '--deny-tool=shell(rm)',
+      '--deny-tool=shell(git push)',
+    ], { timeout: 60_000, cwd: join(__dirname, '..') }, (err, stdout, _stderr) => {
+      if (err) return reject(err);
+      const result = stdout.trim();
+      if (result.startsWith('FAILED')) return reject(new Error(result));
+      resolve(result);
+    });
+  });
+}
+
+// POST /api/save-draft — save a composed reply as a draft in the mail client
+app.post('/api/save-draft', async (req, res) => {
+  const { itemId, body: draftBody } = req.body;
+  if (!itemId || !draftBody) return res.status(400).json({ error: 'itemId and body required' });
+  if (!isValidItemId(itemId)) return res.status(400).json({ error: 'Invalid item id' });
+
+  const data = readBriefing();
+  if (!data) return res.status(404).json({ error: 'No briefing found' });
+
+  let item;
+  for (const section of ['inbox', 'carryOver', 'tasks']) {
+    item = (data[section] || []).find(i => i.id === itemId);
+    if (item) break;
+  }
+  if (!item) return res.status(404).json({ error: 'Item not found' });
+
+  const channel = item.channel || 'email';
+  const to = item.sender || '';
+  const subject = item.text || '';
+
+  try {
+    await runCopilotSaveDraft(channel, to, subject, sanitizeString(draftBody, 5000));
+    trackHealth('POST /api/save-draft', true);
+    res.json({ ok: true, itemId, status: 'saved' });
+  } catch (err) {
+    trackHealth('POST /api/save-draft', false, err.message);
+    res.status(500).json({ ok: false, itemId, error: err.message, status: 'failed' });
+  }
+});
+
 // --- Draft helpers ---
 
 function runCopilotDraft(item) {

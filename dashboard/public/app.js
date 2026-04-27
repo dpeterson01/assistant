@@ -85,35 +85,35 @@ function toggleStatus() {
 // HELPERS
 // ============================================================
 
-const channelMap = { 'outlook-work':'Outlook', 'outlook-personal':'Outlook (personal)', 'gmail':'Gmail', 'hmbl':'HMBL', 'teams':'Teams' };
+const channelMap = { 'outlook-work': 'Outlook', 'outlook-personal': 'Outlook (personal)', 'gmail': 'Gmail', 'hmbl': 'HMBL', 'teams': 'Teams' };
 const channelLabel = ch => channelMap[ch] || ch || '';
 
 const channelTint = ch => ({
-  'outlook-work':'bg-ios-blue/15 text-ios-blue',
-  'outlook-personal':'bg-ios-indigo/15 text-ios-indigo',
-  'gmail':'bg-ios-red/15 text-ios-red',
-  'hmbl':'bg-ios-teal/15 text-ios-teal',
-  'teams':'bg-ios-indigo/15 text-ios-indigo',
+  'outlook-work': 'bg-ios-blue/15 text-ios-blue',
+  'outlook-personal': 'bg-ios-indigo/15 text-ios-indigo',
+  'gmail': 'bg-ios-red/15 text-ios-red',
+  'hmbl': 'bg-ios-teal/15 text-ios-teal',
+  'teams': 'bg-ios-indigo/15 text-ios-indigo',
 }[ch] || 'bg-white/10 text-zinc-300');
 
 const priorityTint = p => ({
-  high:   'bg-ios-red/15 text-ios-red ring-ios-red/20',
+  high: 'bg-ios-red/15 text-ios-red ring-ios-red/20',
   medium: 'bg-ios-yellow/15 text-ios-yellow ring-ios-yellow/20',
-  low:    'bg-ios-green/15 text-ios-green ring-ios-green/20',
+  low: 'bg-ios-green/15 text-ios-green ring-ios-green/20',
 }[p] || 'bg-white/5 text-zinc-400 ring-white/10');
 
 const dayFitPalette = lvl => ({
-  red:    { bg:'bg-ios-red/10',    border:'border-ios-red/20',    text:'text-ios-red',    glow:'shadow-ios-red/10' },
-  yellow: { bg:'bg-ios-yellow/10', border:'border-ios-yellow/20', text:'text-ios-yellow', glow:'shadow-ios-yellow/10' },
-  green:  { bg:'bg-ios-green/10',  border:'border-ios-green/20',  text:'text-ios-green',  glow:'shadow-ios-green/10' },
-}[lvl] || { bg:'bg-white/5', border:'border-white/10', text:'text-zinc-300', glow:'' });
+  red: { bg: 'bg-ios-red/10', border: 'border-ios-red/20', text: 'text-ios-red', glow: 'shadow-ios-red/10' },
+  yellow: { bg: 'bg-ios-yellow/10', border: 'border-ios-yellow/20', text: 'text-ios-yellow', glow: 'shadow-ios-yellow/10' },
+  green: { bg: 'bg-ios-green/10', border: 'border-ios-green/20', text: 'text-ios-green', glow: 'shadow-ios-green/10' },
+}[lvl] || { bg: 'bg-white/5', border: 'border-white/10', text: 'text-zinc-300', glow: '' });
 
-function formatDate(s) { if (!s) return ''; const d=new Date(s+'T12:00:00'); return d.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}); }
-function shortDate(s) { if (!s) return ''; const d=new Date(s+'T12:00:00'); return d.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}); }
-function shortTime(iso) { if (!iso) return ''; return new Date(iso).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }
-function shortDateTime(iso) { if (!iso) return ''; const d=new Date(iso); return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' · '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}); }
+function formatDate(s) { if (!s) return ''; const d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }); }
+function shortDate(s) { if (!s) return ''; const d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); }
+function shortTime(iso) { if (!iso) return ''; return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
+function shortDateTime(iso) { if (!iso) return ''; const d = new Date(iso); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
 
-function escapeHtml(str) { const div=document.createElement('div'); div.textContent=str||''; return div.innerHTML; }
+function escapeHtml(str) { const div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML; }
 function openWindow(url) { window.open(url, '_blank', 'noopener,width=1200,height=800'); }
 
 // ============================================================
@@ -121,10 +121,10 @@ function openWindow(url) { window.open(url, '_blank', 'noopener,width=1200,heigh
 // ============================================================
 
 const categoryTint = cat => ({
-  work:     'bg-ios-blue/15 text-ios-blue border-ios-blue/30',
+  work: 'bg-ios-blue/15 text-ios-blue border-ios-blue/30',
   personal: 'bg-ios-green/15 text-ios-green border-ios-green/30',
-  church:   'bg-ios-indigo/15 text-ios-indigo border-ios-indigo/30',
-  hmbl:     'bg-ios-teal/15 text-ios-teal border-ios-teal/30',
+  church: 'bg-ios-indigo/15 text-ios-indigo border-ios-indigo/30',
+  hmbl: 'bg-ios-teal/15 text-ios-teal border-ios-teal/30',
 }[cat] || 'bg-white/10 text-zinc-300 border-white/15');
 
 const categoryLabel = cat => ({
@@ -164,7 +164,7 @@ function renderFilterBar() {
   const allPill = `<button onclick="setFilter('all')" class="px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors ${allActive ? 'bg-white/15 text-zinc-100 border-white/20' : 'bg-transparent text-zinc-500 border-white/5 hover:text-zinc-300 hover:border-white/10'}">${allActive ? `All` : 'All'}</button>`;
   const catPills = cats.map(cat => {
     const isActive = activeFilter === cat;
-    const count = [...(briefing.carryOver||[]), ...(briefing.inbox||[]), ...(briefing.tasks||[])].filter(i => i.category === cat && i.status !== 'done' && i.status !== 'dismissed').length;
+    const count = [...(briefing.carryOver || []), ...(briefing.inbox || []), ...(briefing.tasks || [])].filter(i => i.category === cat && i.status !== 'done' && i.status !== 'dismissed').length;
     return `<button onclick="setFilter('${cat}')" class="px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors ${isActive ? categoryTint(cat) : 'bg-transparent text-zinc-500 border-white/5 hover:text-zinc-300 hover:border-white/10'}">
       ${categoryLabel(cat)}${count ? ` <span class="tabular-nums opacity-60">${count}</span>` : ''}
     </button>`;
@@ -206,7 +206,7 @@ function nowMinutes() { const d = new Date(); return d.getHours() * 60 + d.getMi
 function render() {
   const d = briefing;
   document.getElementById('header-title').textContent = 'Mission Control';
-  const today = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`; })();
+  const today = (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`; })();
   const briefingDate = d.date || today;
   const isStale = briefingDate !== today;
   document.getElementById('header-date').textContent = formatDate(today);
@@ -224,8 +224,8 @@ function render() {
 
   const allInbox = (d.inbox || []).filter(i => i.status === 'open');
   const draftableCount = allInbox.filter(i => (i.draftConfidence || 0) > 0).length;
-  const openTasks   = (d.tasks || []).filter(t => t.status !== 'done' && t.status !== 'dismissed');
-  const meetings    = isStale ? [] : (d.meetings || []);
+  const openTasks = (d.tasks || []).filter(t => t.status !== 'done' && t.status !== 'dismissed');
+  const meetings = isStale ? [] : (d.meetings || []);
   const acc = d.accountability || {};
 
   // --- Category filtering ---
@@ -281,10 +281,10 @@ function render() {
 
     <!-- Stats grid -->
     <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-      ${statCard('Meetings today',  meetings.length, meetings.filter(m=>m.highStakes).length ? `${meetings.filter(m=>m.highStakes).length} high stakes` : 'all clear', 'ios-blue', iconCalendar())}
-      ${statCard('Inbox shown',     filteredInbox.length, d.inboxLowCount ? `+${d.inboxLowCount} low hidden` : 'all shown', 'ios-orange', iconInbox())}
-      ${statCard("Today's focus",   focusCount, dedupedCarryOver.length ? `${dedupedCarryOver.length} carry over` : 'fresh start', 'ios-green', iconCheck())}
-      ${statCard('Draftable',       filteredInbox.filter(i => (i.draftConfidence || 0) > 0).length, filteredInbox.filter(i => (i.draftConfidence || 0) > 0).length ? 'with confidence ≥40%' : 'nothing draftable', 'ios-indigo', iconPen())}
+      ${statCard('Meetings today', meetings.length, meetings.filter(m => m.highStakes).length ? `${meetings.filter(m => m.highStakes).length} high stakes` : 'all clear', 'ios-blue', iconCalendar())}
+      ${statCard('Inbox shown', filteredInbox.length, d.inboxLowCount ? `+${d.inboxLowCount} low hidden` : 'all shown', 'ios-orange', iconInbox())}
+      ${statCard("Today's focus", focusCount, dedupedCarryOver.length ? `${dedupedCarryOver.length} carry over` : 'fresh start', 'ios-green', iconCheck())}
+      ${statCard('Draftable', filteredInbox.filter(i => (i.draftConfidence || 0) > 0).length, filteredInbox.filter(i => (i.draftConfidence || 0) > 0).length ? 'with confidence ≥40%' : 'nothing draftable', 'ios-indigo', iconPen())}
     </section>
 
     <!-- Two-column layout on desktop -->
@@ -334,7 +334,7 @@ function renderDayFitPill(df) {
   if (!df) return '';
   const p = dayFitPalette(df.level);
   return `<div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full ${p.bg} ${p.border} border hairline">
-    <span class="w-1.5 h-1.5 rounded-full ${p.text.replace('text-','bg-')} animate-pulse-dot"></span>
+    <span class="w-1.5 h-1.5 rounded-full ${p.text.replace('text-', 'bg-')} animate-pulse-dot"></span>
     <span class="text-[12px] font-semibold ${p.text} tabular-nums">${df.score}/100</span>
   </div>`;
 }
@@ -389,14 +389,14 @@ function renderSchedule(meetings) {
     const m = x.m;
     const tags = [];
     if (m.highStakes) tags.push(`<span class="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-ios-yellow/15 text-ios-yellow uppercase tracking-wider">High stakes</span>`);
-    if (m.optional)   tags.push(`<span class="text-[11px] text-zinc-500">optional</span>`);
-    if (m.tentative)  tags.push(`<span class="text-[11px] text-zinc-500">tentative</span>`);
-    if (m.attended)   tags.push(`<span class="inline-flex items-center gap-1 text-[11px] text-ios-green">✓ attended</span>`);
+    if (m.optional) tags.push(`<span class="text-[11px] text-zinc-500">optional</span>`);
+    if (m.tentative) tags.push(`<span class="text-[11px] text-zinc-500">tentative</span>`);
+    if (m.attended) tags.push(`<span class="inline-flex items-center gap-1 text-[11px] text-ios-green">✓ attended</span>`);
 
     const dotColor = x.isNow ? 'bg-ios-green ring-4 ring-ios-green/20 animate-pulse-dot'
-                   : x.isPast ? 'bg-zinc-700'
-                   : idx === nextUpIdx ? 'bg-ios-blue ring-4 ring-ios-blue/15'
-                   : 'bg-zinc-600';
+      : x.isPast ? 'bg-zinc-700'
+        : idx === nextUpIdx ? 'bg-ios-blue ring-4 ring-ios-blue/15'
+          : 'bg-zinc-600';
 
     const titleTone = x.isPast ? 'text-zinc-500' : 'text-zinc-100';
     const liveBadge = x.isNow ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-ios-green/15 text-ios-green uppercase tracking-wider"><span class="w-1 h-1 rounded-full bg-ios-green animate-pulse-dot"></span>Now</span>` : '';
@@ -425,8 +425,8 @@ function renderSchedule(meetings) {
         ${m.conflict ? `<div class="text-ios-red font-medium flex items-center gap-1.5"><span>⚠</span>${m.conflict}</div>` : ''}
         ${m.whyItMatters ? `<p class="text-zinc-400">${m.whyItMatters}</p>` : ''}
         ${m.attendees?.length ? `<div class="text-[11px] text-zinc-500"><span class="text-zinc-600">Attendees · </span>${m.attendees.join(', ')}</div>` : ''}
-        ${m.signals?.length ? `<div><div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">Signals</div><ul class="space-y-1 text-zinc-300">${m.signals.map(s=>`<li class="flex gap-2"><span class="text-zinc-600">·</span><span>${s}</span></li>`).join('')}</ul></div>` : ''}
-        ${m.raiseThis?.length ? `<div><div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">Raise</div><ul class="space-y-1 text-zinc-300">${m.raiseThis.map(s=>`<li class="flex gap-2"><span class="text-ios-yellow">→</span><span>${s}</span></li>`).join('')}</ul></div>` : ''}
+        ${m.signals?.length ? `<div><div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">Signals</div><ul class="space-y-1 text-zinc-300">${m.signals.map(s => `<li class="flex gap-2"><span class="text-zinc-600">·</span><span>${s}</span></li>`).join('')}</ul></div>` : ''}
+        ${m.raiseThis?.length ? `<div><div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">Raise</div><ul class="space-y-1 text-zinc-300">${m.raiseThis.map(s => `<li class="flex gap-2"><span class="text-ios-yellow">→</span><span>${s}</span></li>`).join('')}</ul></div>` : ''}
         ${m.prep ? `<div class="rounded-lg bg-white/5 border border-white/5 hairline px-3 py-2"><span class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Prep · </span><span class="text-zinc-200">${m.prep}</span></div>` : ''}
       </div>
     </details>`;
@@ -437,13 +437,13 @@ function renderSchedule(meetings) {
     <div class="divide-y divide-white/5">${list}</div>
   </div>`;
 
-  return sectionShell("Today's schedule", `${meetings.length}`, inner, { padded: false });
+  return sectionShell("Today's schedule", `${meetings.length}`, inner, { padded: false, collapsible: true });
 }
 
 function renderInbox(items, lowCount) {
-  const high   = items.filter(i => i.priority === 'high');
+  const high = items.filter(i => i.priority === 'high');
   const medium = items.filter(i => i.priority === 'medium');
-  const low    = items.filter(i => i.priority === 'low');
+  const low = items.filter(i => i.priority === 'low');
   const totalLow = low.length || lowCount || 0;
 
   if (!items.length && !totalLow) {
@@ -451,7 +451,7 @@ function renderInbox(items, lowCount) {
   }
 
   // Sort top items by draftConfidence desc within priority bucket
-  const byConf = arr => [...arr].sort((a,b) => (b.draftConfidence||0) - (a.draftConfidence||0));
+  const byConf = arr => [...arr].sort((a, b) => (b.draftConfidence || 0) - (a.draftConfidence || 0));
   const top = [...byConf(high), ...byConf(medium)];
   const lowSorted = byConf(low);
 
@@ -557,23 +557,33 @@ function renderCommitments(acc) {
       if (url) {
         const ch = match.channel || '';
         const label = ch.startsWith('outlook') ? 'Outlook'
-                    : ch === 'teams' ? 'Teams'
-                    : ch === 'gmail' ? 'Gmail'
-                    : ch === 'hmbl' ? 'HMBL'
-                    : 'Source';
+          : ch === 'teams' ? 'Teams'
+            : ch === 'gmail' ? 'Gmail'
+              : ch === 'hmbl' ? 'HMBL'
+                : 'Source';
         return { url, label };
       }
     }
 
-    // Fallback: infer from text and build a search URL
-    const blob = (item.text || '') + ' ' + (item.detail || '') + ' ' + (item.channel || '');
-    const lower = blob.toLowerCase();
+    // Use item.channel (from atlas-db) to route to the correct platform
+    const ch = (item.channel || '').toLowerCase();
     const personEnc = encodeURIComponent(item.person || '');
-    if (lower.includes('email') || lower.includes('outlook')) {
-      return { url: `https://outlook.office365.com/mail/0/search?q=${personEnc || encodeURIComponent(item.text || '')}`, label: 'Outlook' };
+    const searchTerm = personEnc || encodeURIComponent(item.text || item.item || '');
+    if (ch === 'teams') {
+      return { url: `https://teams.microsoft.com/_#/search?q=${searchTerm}`, label: 'Teams' };
     }
+    if (ch === 'gmail') {
+      return { url: `https://mail.google.com/mail/u/0/#search/${searchTerm}`, label: 'Gmail' };
+    }
+    if (ch === 'hmbl' || ch.startsWith('outlook') || ch === 'email') {
+      return { url: `https://outlook.office365.com/mail/0/search?q=${searchTerm}`, label: 'Outlook' };
+    }
+
+    // Last resort: infer from text content
+    const blob = (item.text || '') + ' ' + (item.detail || '');
+    const lower = blob.toLowerCase();
     if (lower.includes('teams')) {
-      return { url: `https://teams.microsoft.com/_#/search?q=${personEnc || encodeURIComponent(item.text || '')}`, label: 'Teams' };
+      return { url: `https://teams.microsoft.com/_#/search?q=${searchTerm}`, label: 'Teams' };
     }
     if (person) {
       return { url: `https://outlook.office365.com/mail/0/search?q=${personEnc}`, label: 'Outlook' };
@@ -589,9 +599,9 @@ function renderCommitments(acc) {
     const isOverdue = urgency === 'overdue';
     const isApproaching = urgency === 'approaching';
     const borderClass = isOverdue ? 'bg-ios-red/5 border-ios-red/15'
-                      : isApproaching ? 'bg-ios-yellow/5 border-ios-yellow/15'
-                      : item.stale ? 'bg-ios-red/5 border-ios-red/15'
-                      : 'bg-white/[0.03] border-white/5';
+      : isApproaching ? 'bg-ios-yellow/5 border-ios-yellow/15'
+        : item.stale ? 'bg-ios-red/5 border-ios-red/15'
+          : 'bg-white/[0.03] border-white/5';
 
     const title = isWaiting ? escapeHtml(item.person) : escapeHtml(item.text || '');
     const titleColor = (isOverdue || item.stale) ? 'text-ios-red' : 'text-zinc-100';
@@ -603,8 +613,8 @@ function renderCommitments(acc) {
     const urgencyBadge = isOverdue
       ? '<span class="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ios-red/15 text-ios-red ring-1 ring-ios-red/20">overdue</span>'
       : isApproaching
-      ? '<span class="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ios-yellow/15 text-ios-yellow ring-1 ring-ios-yellow/20">due soon</span>'
-      : '';
+        ? '<span class="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ios-yellow/15 text-ios-yellow ring-1 ring-ios-yellow/20">due soon</span>'
+        : '';
 
     const src = itemSourceLink(item);
     const sourceBtn = src ? `<a href="#" onclick="openWindow('${src.url}');return false" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/10 hairline bg-white/[0.03] text-zinc-300 hover:bg-ios-blue/15 hover:border-ios-blue/30 hover:text-ios-blue transition-colors" title="Open in ${src.label}">
@@ -740,18 +750,18 @@ function renderItem(item, section) {
   const conf = item.draftConfidence || 0;
   const canDraft = section === 'inbox';
   const confColor = conf >= 0.85 ? 'text-ios-green'
-                  : conf >= 0.70 ? 'text-ios-blue'
-                  : conf >= 0.50 ? 'text-ios-yellow'
-                  : 'text-ios-orange';
+    : conf >= 0.70 ? 'text-ios-blue'
+      : conf >= 0.50 ? 'text-ios-yellow'
+        : 'text-ios-orange';
   const confLabel = conf >= 0.85 ? 'high'
-                  : conf >= 0.70 ? 'good'
-                  : conf >= 0.50 ? 'fair'
-                  : 'low';
+    : conf >= 0.70 ? 'good'
+      : conf >= 0.50 ? 'fair'
+        : 'low';
   const draftBtn = canDraft
-    ? `<button onclick="draftOne('${item.id}')" class="shrink-0 inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-semibold border border-white/10 hairline bg-white/[0.03] text-zinc-200 hover:bg-ios-indigo/15 hover:border-ios-indigo/30 hover:text-ios-indigo transition-colors" title="${conf > 0 ? confLabel + ' confidence — ' + Math.round(conf*100) + '%' : 'Generate draft reply'}">
+    ? `<button onclick="draftOne('${item.id}')" class="shrink-0 inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-semibold border border-white/10 hairline bg-white/[0.03] text-zinc-200 hover:bg-ios-indigo/15 hover:border-ios-indigo/30 hover:text-ios-indigo transition-colors" title="${conf > 0 ? confLabel + ' confidence — ' + Math.round(conf * 100) + '%' : 'Generate draft reply'}">
          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
          <span>Draft</span>
-         ${conf > 0 ? `<span class="${confColor} tabular-nums">${Math.round(conf*100)}%</span>` : ''}
+         ${conf > 0 ? `<span class="${confColor} tabular-nums">${Math.round(conf * 100)}%</span>` : ''}
        </button>` : '';
 
   const priorityBadge = item.priority ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded ring-1 ${priorityTint(item.priority)}">${item.priority}</span>` : '';
@@ -759,8 +769,8 @@ function renderItem(item, section) {
   const urgencyBadge = item._urgency === 'overdue'
     ? '<span class="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ios-red/15 text-ios-red ring-1 ring-ios-red/20">overdue</span>'
     : item._urgency === 'approaching'
-    ? '<span class="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ios-yellow/15 text-ios-yellow ring-1 ring-ios-yellow/20">due soon</span>'
-    : '';
+      ? '<span class="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ios-yellow/15 text-ios-yellow ring-1 ring-ios-yellow/20">due soon</span>'
+      : '';
   const sender = item.sender ? `<span class="text-[11px] text-zinc-500">${escapeHtml(item.sender)}</span>` : '';
   const receivedAt = (item.receivedAt || item.addedAt) && section === 'inbox'
     ? `<span class="text-[11px] text-zinc-600">·</span><span class="text-[11px] text-zinc-500 tabular-nums">${shortDateTime(item.receivedAt || item.addedAt)}</span>` : '';
@@ -809,7 +819,6 @@ function renderItem(item, section) {
           ${isInbox ? doneBtn : ''}
           ${dismissBtn}
         </div>
-        <div class="hidden mt-2 p-3 rounded-lg bg-zinc-950/60 border border-white/5 hairline text-[13px] text-zinc-200 whitespace-pre-wrap" id="draft-result-${item.id}"></div>
       </div>
     </div>
   </div>`;
@@ -821,6 +830,22 @@ function renderItem(item, section) {
 
 function sectionShell(title, count, body, opts = {}) {
   const padded = opts.padded !== false;
+  if (opts.collapsible) {
+    const openAttr = opts.defaultOpen ? ' open' : '';
+    return `
+    <section class="rounded-2xl bg-zinc-900/40 border border-white/5 hairline overflow-hidden animate-fade-in">
+      <details${openAttr} class="group/sec">
+        <summary class="flex items-center justify-between px-4 sm:px-5 py-3 cursor-pointer select-none">
+          <div class="flex items-center gap-2">
+            <span class="text-zinc-600 text-[10px] transition-transform group-open/sec:rotate-90">▸</span>
+            <h2 class="text-[13px] font-semibold text-zinc-200 tracking-tight">${title}</h2>
+            <span class="text-[11px] text-zinc-600 tabular-nums">${count}</span>
+          </div>
+        </summary>
+        <div class="border-t border-white/5 hairline ${padded ? 'p-4 sm:p-5' : 'p-2 sm:p-3'}">${body}</div>
+      </details>
+    </section>`;
+  }
   return `
   <section class="rounded-2xl bg-zinc-900/40 border border-white/5 hairline overflow-hidden animate-fade-in">
     <header class="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-white/5 hairline">
@@ -855,7 +880,7 @@ function renderStatusButton() {
   dot.className = 'w-2 h-2 rounded-full ' + (healthData.allOk ? 'bg-ios-green' : 'bg-ios-red');
   const rows = Object.entries(healthData.endpoints).map(([name, ep]) => {
     const dotCls = ep.ok ? 'bg-ios-green' : 'bg-ios-red';
-    const time = ep.at ? new Date(ep.at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',second:'2-digit'}) : '';
+    const time = ep.at ? new Date(ep.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : '';
     const detail = ep.detail ? `<span class="text-[11px] text-ios-red ml-1">${escapeHtml(ep.detail)}</span>` : '';
     return `<div class="flex items-center gap-2 py-1.5 border-b border-white/5 hairline last:border-0">
       <span class="w-1.5 h-1.5 rounded-full ${dotCls}"></span>
@@ -877,12 +902,12 @@ function toggleItem(id) {
     card.classList.add('opacity-50');
     const checkBtn = card.querySelector('button[aria-label="Complete"]');
     if (checkBtn) {
-      checkBtn.classList.remove('border-zinc-600','text-transparent');
-      checkBtn.classList.add('bg-ios-green','border-ios-green','text-white');
+      checkBtn.classList.remove('border-zinc-600', 'text-transparent');
+      checkBtn.classList.add('bg-ios-green', 'border-ios-green', 'text-white');
     }
     setTimeout(() => { card.style.opacity = '0'; setTimeout(() => { card.style.display = 'none'; }, 400); }, 2500);
   }
-  for (const section of ['carryOver','inbox','tasks']) {
+  for (const section of ['carryOver', 'inbox', 'tasks']) {
     const list = briefing[section];
     if (!list) continue;
     const item = list.find(i => i.id === id);
@@ -890,14 +915,14 @@ function toggleItem(id) {
   }
   actionInFlight++;
   fetch(`${API}/api/complete-task/${encodeURIComponent(id)}`, {
-    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({source:'ui'})
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'ui' })
   }).then(() => { syncAfterActions(); showUndoToast(id, 'Completed'); }).catch(e => { console.error('complete failed', e); syncAfterActions(); });
 }
 
 function dismissItem(id) {
   const card = document.querySelector(`[data-id="${id}"]`);
   if (card) { card.style.opacity = '0'; setTimeout(() => { card.style.display = 'none'; }, 400); }
-  for (const section of ['carryOver','inbox','tasks']) {
+  for (const section of ['carryOver', 'inbox', 'tasks']) {
     const list = briefing[section];
     if (!list) continue;
     const item = list.find(i => i.id === id);
@@ -905,7 +930,7 @@ function dismissItem(id) {
   }
   actionInFlight++;
   fetch(`${API}/api/dismiss/${encodeURIComponent(id)}`, {
-    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({source:'ui'})
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ source: 'ui' })
   }).then(() => { syncAfterActions(); showUndoToast(id, 'Dismissed'); }).catch(e => { console.error('dismiss failed', e); syncAfterActions(); });
 }
 
@@ -932,12 +957,12 @@ async function undoItem(id, toastEl) {
   if (toastEl) toastEl.remove();
   try {
     const res = await fetch(`${API}/api/undo/${encodeURIComponent(id)}`, {
-      method: 'POST', headers: {'Content-Type':'application/json'}
+      method: 'POST', headers: { 'Content-Type': 'application/json' }
     });
     const result = await res.json();
     if (res.ok) {
       // Restore local state and re-render
-      for (const section of ['carryOver','inbox','tasks']) {
+      for (const section of ['carryOver', 'inbox', 'tasks']) {
         const list = briefing[section];
         if (!list) continue;
         const item = list.find(i => i.id === id);
@@ -947,26 +972,215 @@ async function undoItem(id, toastEl) {
     } else {
       console.warn('Undo failed:', result.error);
     }
-  } catch(e) { console.error('Undo error:', e); }
+  } catch (e) { console.error('Undo error:', e); }
 }
 
 async function draftOne(id) {
-  const el = document.getElementById(`draft-result-${id}`);
-  if (!el) return;
-  el.classList.remove('hidden');
-  el.innerHTML = '<span class="spinner"></span> Generating draft...';
+  openDraftModal(id);
+}
+
+// ============================================================
+// DRAFT MODAL
+// ============================================================
+
+let _modalItemId = null;
+let _modalItem = null;
+
+function openDraftModal(itemId) {
+  _modalItemId = itemId;
+
+  // Find the item in briefing data
+  _modalItem = null;
+  for (const section of ['inbox', 'carryOver', 'tasks']) {
+    const found = (briefing[section] || []).find(i => i.id === itemId);
+    if (found) { _modalItem = found; break; }
+  }
+
+  // Populate header
+  const subjectEl = document.getElementById('dm-subject');
+  const senderEl = document.getElementById('dm-sender');
+  const timeEl = document.getElementById('dm-time');
+  const badge = document.getElementById('dm-channel-badge');
+  subjectEl.textContent = _modalItem?.text || 'Message';
+  senderEl.textContent = _modalItem?.sender || '';
+  const ts = _modalItem?.receivedAt || _modalItem?.addedAt;
+  timeEl.textContent = ts ? shortDateTime(ts) : '';
+
+  const ch = _modalItem?.channel || 'email';
+  badge.textContent = channelLabel(ch);
+  badge.className = `text-[10px] font-medium px-1.5 py-0.5 rounded ${channelTint(ch)}`;
+
+  // Reset content areas
+  const origEl = document.getElementById('dm-original');
+  origEl.innerHTML = '<span class="spinner"></span> Loading message...';
+
+  const loadingEl = document.getElementById('dm-draft-loading');
+  const textareaEl = document.getElementById('dm-draft-textarea');
+  loadingEl.classList.remove('hidden');
+  loadingEl.innerHTML = '<span class="spinner"></span> Generating draft...';
+  textareaEl.classList.add('hidden');
+  textareaEl.value = '';
+
+  // Reset action buttons
+  document.getElementById('dm-btn-save').disabled = true;
+  document.getElementById('dm-btn-copy').disabled = true;
+  document.getElementById('dm-btn-regen').disabled = true;
+  document.getElementById('dm-status').textContent = '';
+
+  // Update save button label based on channel
+  const saveBtn = document.getElementById('dm-btn-save');
+  const saveLabelMap = {
+    'outlook-work': 'Save Draft & Open Outlook',
+    'outlook-personal': 'Save Draft & Open Outlook',
+    email: 'Save Draft & Open Outlook',
+    gmail: 'Save Draft & Open Gmail',
+    hmbl: 'Save Draft & Open HMBL',
+    teams: 'Copy to Clipboard',
+  };
+  saveBtn.innerHTML = `
+    <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+    ${saveLabelMap[ch] || 'Save Draft'}`;
+
+  // Show modal
+  document.getElementById('draft-modal-overlay').classList.remove('hidden');
+  document.getElementById('draft-modal').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+
+  // Fire both requests in parallel
+  fetchOriginalMessage(itemId);
+  fetchDraftReply(itemId);
+}
+
+function closeDraftModal() {
+  document.getElementById('draft-modal-overlay').classList.add('hidden');
+  document.getElementById('draft-modal').classList.add('hidden');
+  document.body.style.overflow = '';
+  _modalItemId = null;
+  _modalItem = null;
+}
+
+// Keyboard: Esc to close
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && _modalItemId) closeDraftModal();
+});
+
+async function fetchOriginalMessage(itemId) {
+  const origEl = document.getElementById('dm-original');
+  try {
+    const res = await fetch(`${API}/api/message/${encodeURIComponent(itemId)}`);
+    const data = await res.json();
+    if (data.ok && data.body) {
+      origEl.textContent = data.body;
+    } else {
+      // Fallback: show the detail from the briefing item
+      const fallback = _modalItem?.detail || 'Could not load original message.';
+      origEl.innerHTML = `<div class="text-zinc-500 italic text-[12px] mb-2">Original message not available. Showing briefing summary:</div><div>${escapeHtml(fallback)}</div>`;
+    }
+  } catch (e) {
+    const fallback = _modalItem?.detail || 'Could not load original message.';
+    origEl.innerHTML = `<div class="text-zinc-500 italic text-[12px] mb-2">Original message not available. Showing briefing summary:</div><div>${escapeHtml(fallback)}</div>`;
+  }
+}
+
+async function fetchDraftReply(itemId) {
+  const loadingEl = document.getElementById('dm-draft-loading');
+  const textareaEl = document.getElementById('dm-draft-textarea');
   try {
     const res = await fetch(`${API}/api/draft-reply`, {
-      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({itemId:id})
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId }),
     });
     const data = await res.json();
-    el.innerHTML = `${escapeHtml(data.draft)}
-      <div class="mt-3 flex gap-2">
-        <button class="btn-primary" disabled title="Save to Drafts (coming soon)">Save to Drafts</button>
-        <button class="btn-secondary" onclick="this.closest('[id^=draft-result-]').classList.add('hidden')">Discard</button>
-      </div>`;
+    if (!res.ok || !data.ok || !data.draft) {
+      throw new Error(data.error || 'No draft returned');
+    }
+    loadingEl.classList.add('hidden');
+    textareaEl.classList.remove('hidden');
+    textareaEl.value = data.draft;
+
+    // Enable action buttons
+    document.getElementById('dm-btn-save').disabled = false;
+    document.getElementById('dm-btn-copy').disabled = false;
+    document.getElementById('dm-btn-regen').disabled = false;
   } catch (e) {
-    el.innerHTML = `<span class="text-ios-red">Draft failed: ${e.message}</span>`;
+    loadingEl.innerHTML = `<span class="text-ios-red">Draft failed: ${escapeHtml(e.message)}</span>`;
+    document.getElementById('dm-btn-regen').disabled = false;
+  }
+}
+
+async function regenDraft() {
+  if (!_modalItemId) return;
+  const loadingEl = document.getElementById('dm-draft-loading');
+  const textareaEl = document.getElementById('dm-draft-textarea');
+  loadingEl.classList.remove('hidden');
+  loadingEl.innerHTML = '<span class="spinner"></span> Regenerating...';
+  textareaEl.classList.add('hidden');
+  document.getElementById('dm-btn-save').disabled = true;
+  document.getElementById('dm-btn-copy').disabled = true;
+  document.getElementById('dm-btn-regen').disabled = true;
+  document.getElementById('dm-status').textContent = '';
+  await fetchDraftReply(_modalItemId);
+}
+
+async function copyDraft() {
+  const textarea = document.getElementById('dm-draft-textarea');
+  const status = document.getElementById('dm-status');
+  try {
+    await navigator.clipboard.writeText(textarea.value);
+    status.textContent = 'Copied to clipboard';
+    setTimeout(() => { if (status.textContent === 'Copied to clipboard') status.textContent = ''; }, 2500);
+  } catch (e) {
+    status.textContent = 'Copy failed';
+  }
+}
+
+async function saveDraftAndOpen() {
+  if (!_modalItemId || !_modalItem) return;
+  const textarea = document.getElementById('dm-draft-textarea');
+  const saveBtn = document.getElementById('dm-btn-save');
+  const status = document.getElementById('dm-status');
+  const draftBody = textarea.value.trim();
+  if (!draftBody) { status.textContent = 'Draft is empty'; return; }
+
+  const ch = _modalItem.channel || 'email';
+
+  // For Teams: just copy to clipboard and open deep link
+  if (ch === 'teams') {
+    await navigator.clipboard.writeText(draftBody);
+    const sourceUrl = getSourceUrl(_modalItem);
+    if (sourceUrl) openWindow(sourceUrl);
+    status.textContent = 'Copied. Opening Teams...';
+    return;
+  }
+
+  // For mail channels: save via server
+  saveBtn.disabled = true;
+  status.textContent = 'Saving draft...';
+
+  try {
+    const res = await fetch(`${API}/api/save-draft`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ itemId: _modalItemId, body: draftBody }),
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'Save failed');
+    status.innerHTML = '<span class="text-ios-green">Draft saved! Opening mail client...</span>';
+
+    // Open the mail client to the drafts folder
+    const draftUrls = {
+      'outlook-work': 'https://outlook.office365.com/mail/drafts',
+      'outlook-personal': 'https://outlook.live.com/mail/drafts',
+      email: 'https://outlook.office365.com/mail/drafts',
+      gmail: 'https://mail.google.com/#drafts',
+      hmbl: 'https://outlook.office365.com/mail/drafts',
+    };
+    const url = draftUrls[ch] || draftUrls.email;
+    setTimeout(() => openWindow(url), 500);
+  } catch (e) {
+    status.innerHTML = `<span class="text-ios-red">Save failed: ${escapeHtml(e.message)}</span>`;
+    saveBtn.disabled = false;
   }
 }
 
@@ -1010,7 +1224,7 @@ async function nudgeOne(idx) {
   el.innerHTML = '<span class="spinner"></span> Drafting nudge...';
   try {
     const res = await fetch(`${API}/api/draft-nudge`, {
-      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({index: idx})
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ index: idx })
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'draft failed');
@@ -1075,7 +1289,7 @@ async function dismissWaiting(idx) {
   actionInFlight++;
   try {
     const res = await fetch(`${API}/api/dismiss-waiting`, {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ person: removed.person, item: removed.item, source: 'ui' })
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -1102,7 +1316,7 @@ function completeAccItem(type, idx) {
   setTimeout(() => render(), 400);
   actionInFlight++;
   fetch(`${API}/api/complete-accountability`, {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type, index: idx, source: 'ui' })
   }).then(() => syncAfterActions()).catch(e => { console.error('complete-accountability failed', e); syncAfterActions(); });
 }
@@ -1116,7 +1330,7 @@ function dismissAccItem(type, idx) {
   setTimeout(() => render(), 400);
   actionInFlight++;
   fetch(`${API}/api/dismiss-accountability`, {
-    method: 'POST', headers: {'Content-Type': 'application/json'},
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ type, index: idx, source: 'ui' })
   }).then(() => syncAfterActions()).catch(e => { console.error('dismiss-accountability failed', e); syncAfterActions(); });
 }
@@ -1132,7 +1346,7 @@ async function draftAccItem(type, idx) {
     const text = typeof item === 'string' ? item : (item?.text || item?.item || '');
     const person = typeof item === 'object' ? (item?.person || '') : '';
     const res = await fetch(`${API}/api/draft-reply`, {
-      method: 'POST', headers: {'Content-Type': 'application/json'},
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ accType: type, accIndex: idx, text, person })
     });
     const data = await res.json();
@@ -1152,9 +1366,9 @@ async function draftAccItem(type, idx) {
 // ============================================================
 
 function iconCalendar() { return `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`; }
-function iconInbox()    { return `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>`; }
-function iconCheck()    { return `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`; }
-function iconPen()      { return `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`; }
+function iconInbox() { return `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>`; }
+function iconCheck() { return `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>`; }
+function iconPen() { return `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`; }
 
 // ============================================================
 // BUTTON STYLES (defined as Tailwind classes via custom selectors)

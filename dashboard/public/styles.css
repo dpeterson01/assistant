@@ -34,3 +34,6 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
   from { width: 100%; }
   to { width: 0%; }
 }
+/* Draft modal */
+#draft-modal-overlay:not(.hidden) { animation: fadeIn .15s ease-out; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
