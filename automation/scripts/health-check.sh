@@ -263,8 +263,12 @@ JOB_NAMES+=("Pod Assignments")
 JOB_SCHEDULES+=("10:00 AM M-F")
 JOB_FREQUENCIES+=("Weekdays")
 POD_LOG="$HOME/.local/share/pod-assignments/refresh.log"
+POD_MARKER="$HOME/.local/share/pod-assignments/needs-mcp-refresh"
 JOB_LAST_SUCCESS+=("$(last_success_single "$POD_LOG" "refresh starting")")
-if [[ -f "$POD_LOG" ]] && grep -q "$TODAY" "$POD_LOG" 2>/dev/null; then
+if [[ -f "$POD_MARKER" ]]; then
+    # PAT expired/missing, script wrote a fallback marker
+    JOB_TODAY_STATUS+=("pat-expired")
+elif [[ -f "$POD_LOG" ]] && grep -q "$TODAY" "$POD_LOG" 2>/dev/null; then
     # Check stderr for errors
     POD_ERR="$HOME/.local/share/pod-assignments/launchd-stderr.log"
     if [[ -f "$POD_ERR" ]] && [[ -s "$POD_ERR" ]] && tail -5 "$POD_ERR" 2>/dev/null | grep -qi "error\|traceback"; then

@@ -397,6 +397,50 @@ Remove stale tags from completed or resolved items. Tags should reflect the curr
 ### Report
 Present: "Added X tasks, completed Y tasks, updated tags on Z tasks" with the list.
 
+## Step 4b: Pod assignments MCP fallback
+
+Check if the pod assignments script left a marker requesting MCP fallback:
+
+```sh
+cat ~/.local/share/pod-assignments/needs-mcp-refresh 2>/dev/null
+```
+
+**If the marker file exists**, the ADO PAT is expired or missing and the launchd script couldn't refresh pod data. Use ADO MCP tools to do it instead:
+
+1. **Query work items** via `mcp_microsoft_azu_wit_query_by_wiql`:
+   - Organization: `ceapex`
+   - Project: `Engineering`
+   - WIQL: `SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = 'Engineering' AND [System.WorkItemType] IN ('Objective', 'Initiative', 'Epic') AND NOT [System.State] IN ('Removed', 'Closed') ORDER BY [Microsoft.VSTS.Scheduling.TargetDate]`
+
+2. **Batch-fetch work item details** via `mcp_microsoft_azu_wit_get_work_items_batch_by_ids`:
+   - Use the IDs returned from step 1
+   - Fields: `System.Id, System.WorkItemType, System.Title, System.State, Microsoft.VSTS.Scheduling.StartDate, Custom.DevReadyDate, Microsoft.VSTS.Scheduling.TargetDate, Custom.RequiredDate, System.AssignedTo, Custom.DefinitionPod, Custom.Pod, Custom.EngineeringSWAGTotal, Custom.Statussummary, System.Parent`
+   - Batch in groups of 200 if needed
+
+3. **Save raw data and run generate.py**:
+   ```sh
+   REPORTS_DIR="$HOME/projects/work/ecosystems-product/05_teams/reports/pods"
+   VENV_DIR="/tmp/xlsx-env"
+   # Save raw_data.json from MCP response (write the JSON array of work items)
+   # Save initiatives.json (filter to Initiative type items)
+   # Rotate prior outputs
+   [[ -f "$REPORTS_DIR/pod-assignments.xlsx" ]] && mv "$REPORTS_DIR/pod-assignments.xlsx" "$REPORTS_DIR/pod-assignments-previous.xlsx"
+   [[ -f "$REPORTS_DIR/pod-insights.md" ]] && mv "$REPORTS_DIR/pod-insights.md" "$REPORTS_DIR/pod-insights-previous.md"
+   # Ensure venv exists
+   [[ ! -d "$VENV_DIR" ]] && python3 -m venv "$VENV_DIR" && "$VENV_DIR/bin/pip" install openpyxl -q
+   # Run generate.py
+   cd "$HOME/projects/work/ecosystems-product" && "$VENV_DIR/bin/python" "$REPORTS_DIR/generate.py"
+   ```
+
+4. **Remove the marker** after successful refresh:
+   ```sh
+   rm -f ~/.local/share/pod-assignments/needs-mcp-refresh
+   ```
+
+5. **Note in briefing**: Add "✅ Pod assignments refreshed via MCP (PAT expired)" in the Phase B report.
+
+**If no marker file exists**, skip this step entirely. The launchd script handled it.
+
 ## Step 5: Update files
 
 **Update `/memories/priorities.md`:**

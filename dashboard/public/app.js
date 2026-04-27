@@ -897,10 +897,12 @@ function renderStatusButton() {
     return;
   }
 
-  // Overall dot: green only if both API endpoints and automation jobs are healthy
+  // Overall dot: green if healthy, yellow if warnings only, red if errors
   const apiOk = !hasEndpoints || healthData.allOk;
-  const jobsOk = !hasJobs || automationHealth.allOk;
-  dot.className = 'w-2 h-2 rounded-full ' + (apiOk && jobsOk ? 'bg-ios-green' : 'bg-ios-red');
+  const hasErrors = hasJobs && automationHealth.jobs.some(j => jobDotColor(j) === 'bg-ios-red');
+  const hasWarnings = hasJobs && automationHealth.jobs.some(j => jobDotColor(j) === 'bg-ios-yellow');
+  const overallColor = (!apiOk || hasErrors) ? 'bg-ios-red' : hasWarnings ? 'bg-ios-yellow' : 'bg-ios-green';
+  dot.className = 'w-2 h-2 rounded-full ' + overallColor;
 
   let html = '';
 
@@ -915,27 +917,31 @@ function renderStatusButton() {
     html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1 text-right">Today</div>`;
     for (const job of automationHealth.jobs) {
       const statusMap = {
-        ok:      { dot: 'bg-ios-green', label: 'OK' },
-        ran:     { dot: 'bg-ios-yellow', label: 'RAN' },
-        error:   { dot: 'bg-ios-red', label: 'ERR' },
-        'no-log': { dot: 'bg-zinc-600', label: '---' },
+        ok:          { label: 'OK' },
+        ran:         { label: 'RAN' },
+        error:       { label: 'ERR' },
+        'pat-expired': { label: 'PAT' },
+        'no-log':    { label: '---' },
       };
       const s = statusMap[job.today] || statusMap['no-log'];
+      const dotColor = jobDotColor(job);
       const lastOk = formatLastSuccess(job.last_success);
       html += `<div class="flex items-center gap-2 py-1 border-t border-white/5">
-        <span class="w-1.5 h-1.5 rounded-full ${s.dot} shrink-0"></span>
+        <span class="w-1.5 h-1.5 rounded-full ${dotColor} shrink-0"></span>
         <span class="text-zinc-300 truncate">${escapeHtml(job.name)}</span>
       </div>`;
       html += `<div class="py-1 border-t border-white/5 text-zinc-500 text-[11px] whitespace-nowrap">${escapeHtml(job.schedule)}</div>`;
       html += `<div class="py-1 border-t border-white/5 text-zinc-500 text-[11px] whitespace-nowrap">${escapeHtml(job.frequency)}</div>`;
       html += `<div class="py-1 border-t border-white/5 text-zinc-400 text-right text-[11px] tabular-nums whitespace-nowrap">${lastOk}</div>`;
-      html += `<div class="py-1 border-t border-white/5 text-right"><span class="text-[10px] font-medium ${s.dot === 'bg-ios-red' ? 'text-ios-red' : s.dot === 'bg-ios-yellow' ? 'text-ios-yellow' : s.dot === 'bg-ios-green' ? 'text-ios-green' : 'text-zinc-500'}">${s.label}</span></div>`;
+      html += `<div class="py-1 border-t border-white/5 text-right"><span class="text-[10px] font-medium ${dotColor === 'bg-ios-red' ? 'text-ios-red' : dotColor === 'bg-ios-yellow' ? 'text-ios-yellow' : dotColor === 'bg-ios-green' ? 'text-ios-green' : 'text-zinc-500'}">${s.label}</span></div>`;
     }
     html += `</div>`;
-    const okCount = automationHealth.jobs.filter(j => j.today === 'ok').length;
-    const errCount = automationHealth.jobs.filter(j => j.today === 'error').length;
-    const pending = automationHealth.jobs.filter(j => j.today === 'no-log').length;
+    const okCount = automationHealth.jobs.filter(j => jobDotColor(j) === 'bg-ios-green').length;
+    const warnCount = automationHealth.jobs.filter(j => jobDotColor(j) === 'bg-ios-yellow').length;
+    const errCount = automationHealth.jobs.filter(j => jobDotColor(j) === 'bg-ios-red').length;
+    const pending = automationHealth.jobs.filter(j => jobDotColor(j) === 'bg-zinc-600').length;
     html += `<div class="text-[11px] text-zinc-500 mt-1 mb-3">${okCount} healthy`;
+    if (warnCount) html += ` &middot; <span class="text-ios-yellow">${warnCount} warning${warnCount > 1 ? 's' : ''}</span>`;
     if (errCount) html += ` &middot; <span class="text-ios-red">${errCount} error${errCount > 1 ? 's' : ''}</span>`;
     if (pending) html += ` &middot; ${pending} pending`;
     html += `</div>`;
@@ -959,6 +965,30 @@ function renderStatusButton() {
   }
 
   content.innerHTML = html;
+}
+
+// Dot = did the last *planned* run complete successfully?
+// Green: ok or ran (completed, even with transient errors). Also green for
+// no-log jobs whose last_success is within the expected cadence window.
+// Red: error (last run failed). Yellow: never for dots (reserved for labels).
+function jobDotColor(job) {
+  if (job.today === 'ok' || job.today === 'ran') return 'bg-ios-green';
+  if (job.today === 'error') return 'bg-ios-red';
+  if (job.today === 'pat-expired') return 'bg-ios-yellow';
+  // no-log: job hasn't run today. Check if last_success is within cadence.
+  if (!job.last_success || job.last_success === 'never') return 'bg-zinc-600';
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const last = new Date(job.last_success + 'T00:00:00');
+  const ageDays = Math.round((today - last) / 86400000);
+  // Max acceptable age based on frequency
+  const freq = (job.frequency || '').toLowerCase();
+  let maxAge = 1;
+  if (freq === 'weekly') maxAge = 7;
+  else if (freq === 'weekdays') maxAge = today.getDay() === 0 ? 2 : today.getDay() === 1 ? 3 : 1;
+  else if (freq === 'persistent') maxAge = 1;
+  else maxAge = 1; // daily, Nx/day
+  return ageDays <= maxAge ? 'bg-ios-green' : 'bg-ios-red';
 }
 
 function formatLastSuccess(dateStr) {
