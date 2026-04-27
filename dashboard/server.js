@@ -84,6 +84,27 @@ app.get('/api/health', (_req, res) => {
   res.json({ allOk, lastChecked: now(), endpoints: health, queueDepth: sideEffectQueue.length, regenerating: !!regenProc });
 });
 
+// GET /api/automation-health — scheduled job status from health-check.sh
+app.get('/api/automation-health', (_req, res) => {
+  const script = join(__dirname, '..', 'automation', 'scripts', 'health-check.sh');
+  execFile('/bin/zsh', [script, '--json'], { timeout: 15_000 }, (err, stdout, _stderr) => {
+    if (err) {
+      trackHealth('GET /api/automation-health', false, err.message);
+      return res.status(500).json({ error: err.message });
+    }
+    try {
+      const jobs = JSON.parse(stdout);
+      const allOk = jobs.every(j => j.today === 'ok' || j.today === 'no-log' || j.today === 'ran');
+      const errors = jobs.filter(j => j.today === 'error').length;
+      trackHealth('GET /api/automation-health', true);
+      res.json({ allOk, errors, jobs, checkedAt: now() });
+    } catch (parseErr) {
+      trackHealth('GET /api/automation-health', false, 'JSON parse error');
+      res.status(500).json({ error: 'Failed to parse health-check output' });
+    }
+  });
+});
+
 // --- Regenerate briefing: runs the full morning-briefing agent ---
 // POST /api/regenerate — kicks off morning-briefing.sh in the background.
 // Returns immediately. The SSE stream pushes a 'regenerating' event so the

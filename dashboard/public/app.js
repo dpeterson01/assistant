@@ -1,6 +1,7 @@
 const API = '';
 let briefing = null;
 let healthData = null;
+let automationHealth = null;
 let showLowPriority = false;
 let activeFilter = 'all';
 
@@ -10,8 +11,12 @@ let activeFilter = 'all';
 
 async function loadHealth() {
   try {
-    const res = await fetch(`${API}/api/health`);
-    if (res.ok) healthData = await res.json();
+    const [hRes, aRes] = await Promise.all([
+      fetch(`${API}/api/health`),
+      fetch(`${API}/api/automation-health`),
+    ]);
+    if (hRes.ok) healthData = await hRes.json();
+    if (aRes.ok) automationHealth = await aRes.json();
   } catch (e) { /* silent */ }
 }
 
@@ -882,24 +887,88 @@ function emptyState(title, sub) {
 function renderStatusButton() {
   const dot = document.getElementById('status-dot');
   const content = document.getElementById('status-content');
-  if (!healthData || !healthData.endpoints || !Object.keys(healthData.endpoints).length) {
+
+  const hasEndpoints = healthData?.endpoints && Object.keys(healthData.endpoints).length;
+  const hasJobs = automationHealth?.jobs?.length;
+
+  if (!hasEndpoints && !hasJobs) {
     dot.className = 'w-2 h-2 rounded-full bg-zinc-600';
-    content.innerHTML = '<div class="text-zinc-500">Endpoint health is tracked after the first API call to each endpoint.</div>';
+    content.innerHTML = '<div class="text-zinc-500">Health data loading...</div>';
     return;
   }
-  dot.className = 'w-2 h-2 rounded-full ' + (healthData.allOk ? 'bg-ios-green' : 'bg-ios-red');
-  const rows = Object.entries(healthData.endpoints).map(([name, ep]) => {
-    const dotCls = ep.ok ? 'bg-ios-green' : 'bg-ios-red';
-    const time = ep.at ? new Date(ep.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : '';
-    const detail = ep.detail ? `<span class="text-[11px] text-ios-red ml-1">${escapeHtml(ep.detail)}</span>` : '';
-    return `<div class="flex items-center gap-2 py-1.5 border-b border-white/5 hairline last:border-0">
-      <span class="w-1.5 h-1.5 rounded-full ${dotCls}"></span>
-      <span class="flex-1 text-zinc-300">${escapeHtml(name)}</span>
-      ${detail}
-      <span class="text-[11px] text-zinc-500 tabular-nums">${time}</span>
-    </div>`;
-  }).join('');
-  content.innerHTML = rows;
+
+  // Overall dot: green only if both API endpoints and automation jobs are healthy
+  const apiOk = !hasEndpoints || healthData.allOk;
+  const jobsOk = !hasJobs || automationHealth.allOk;
+  dot.className = 'w-2 h-2 rounded-full ' + (apiOk && jobsOk ? 'bg-ios-green' : 'bg-ios-red');
+
+  let html = '';
+
+  // --- Automation Jobs section ---
+  if (hasJobs) {
+    html += `<div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Scheduled Jobs</div>`;
+    html += `<div class="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-0 text-[12px] mb-1">`;
+    html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1">Job</div>`;
+    html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1 text-right">Last OK</div>`;
+    html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1 text-right">Today</div>`;
+    for (const job of automationHealth.jobs) {
+      const statusMap = {
+        ok:      { dot: 'bg-ios-green', label: 'OK' },
+        ran:     { dot: 'bg-ios-yellow', label: 'RAN' },
+        error:   { dot: 'bg-ios-red', label: 'ERR' },
+        'no-log': { dot: 'bg-zinc-600', label: '---' },
+      };
+      const s = statusMap[job.today] || statusMap['no-log'];
+      const lastOk = formatLastSuccess(job.last_success);
+      html += `<div class="flex items-center gap-2 py-1 border-t border-white/5">
+        <span class="w-1.5 h-1.5 rounded-full ${s.dot} shrink-0"></span>
+        <span class="text-zinc-300 truncate">${escapeHtml(job.name)}</span>
+      </div>`;
+      html += `<div class="py-1 border-t border-white/5 text-zinc-400 text-right text-[11px] tabular-nums whitespace-nowrap" title="${escapeHtml(job.schedule)}">${lastOk}</div>`;
+      html += `<div class="py-1 border-t border-white/5 text-right"><span class="text-[10px] font-medium ${s.dot === 'bg-ios-red' ? 'text-ios-red' : s.dot === 'bg-ios-yellow' ? 'text-ios-yellow' : s.dot === 'bg-ios-green' ? 'text-ios-green' : 'text-zinc-500'}">${s.label}</span></div>`;
+    }
+    html += `</div>`;
+    const okCount = automationHealth.jobs.filter(j => j.today === 'ok').length;
+    const errCount = automationHealth.jobs.filter(j => j.today === 'error').length;
+    const pending = automationHealth.jobs.filter(j => j.today === 'no-log').length;
+    html += `<div class="text-[11px] text-zinc-500 mt-1 mb-3">${okCount} healthy`;
+    if (errCount) html += ` &middot; <span class="text-ios-red">${errCount} error${errCount > 1 ? 's' : ''}</span>`;
+    if (pending) html += ` &middot; ${pending} pending`;
+    html += `</div>`;
+  }
+
+  // --- API Endpoints section ---
+  if (hasEndpoints) {
+    html += `<div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">API Endpoints</div>`;
+    const rows = Object.entries(healthData.endpoints).map(([name, ep]) => {
+      const dotCls = ep.ok ? 'bg-ios-green' : 'bg-ios-red';
+      const time = ep.at ? new Date(ep.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit' }) : '';
+      const detail = ep.detail ? `<span class="text-[11px] text-ios-red ml-1">${escapeHtml(ep.detail)}</span>` : '';
+      return `<div class="flex items-center gap-2 py-1.5 border-b border-white/5 hairline last:border-0">
+        <span class="w-1.5 h-1.5 rounded-full ${dotCls}"></span>
+        <span class="flex-1 text-zinc-300">${escapeHtml(name)}</span>
+        ${detail}
+        <span class="text-[11px] text-zinc-500 tabular-nums">${time}</span>
+      </div>`;
+    }).join('');
+    html += rows;
+  }
+
+  content.innerHTML = html;
+}
+
+function formatLastSuccess(dateStr) {
+  if (!dateStr || dateStr === 'never' || dateStr.startsWith('none')) return dateStr || 'never';
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diff = Math.round((today - target) / 86400000);
+    if (diff === 0) return 'today';
+    if (diff === 1) return 'yesterday';
+    return `${diff}d ago`;
+  } catch { return dateStr; }
 }
 
 // ============================================================
