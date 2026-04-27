@@ -907,8 +907,10 @@ function renderStatusButton() {
   // --- Automation Jobs section ---
   if (hasJobs) {
     html += `<div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Scheduled Jobs</div>`;
-    html += `<div class="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-0 text-[12px] mb-1">`;
+    html += `<div class="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 gap-y-0 text-[12px] mb-1">`;
     html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1">Job</div>`;
+    html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1">Schedule</div>`;
+    html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1">Freq</div>`;
     html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1 text-right">Last OK</div>`;
     html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1 text-right">Today</div>`;
     for (const job of automationHealth.jobs) {
@@ -924,7 +926,9 @@ function renderStatusButton() {
         <span class="w-1.5 h-1.5 rounded-full ${s.dot} shrink-0"></span>
         <span class="text-zinc-300 truncate">${escapeHtml(job.name)}</span>
       </div>`;
-      html += `<div class="py-1 border-t border-white/5 text-zinc-400 text-right text-[11px] tabular-nums whitespace-nowrap" title="${escapeHtml(job.schedule)}">${lastOk}</div>`;
+      html += `<div class="py-1 border-t border-white/5 text-zinc-500 text-[11px] whitespace-nowrap">${escapeHtml(job.schedule)}</div>`;
+      html += `<div class="py-1 border-t border-white/5 text-zinc-500 text-[11px] whitespace-nowrap">${escapeHtml(job.frequency)}</div>`;
+      html += `<div class="py-1 border-t border-white/5 text-zinc-400 text-right text-[11px] tabular-nums whitespace-nowrap">${lastOk}</div>`;
       html += `<div class="py-1 border-t border-white/5 text-right"><span class="text-[10px] font-medium ${s.dot === 'bg-ios-red' ? 'text-ios-red' : s.dot === 'bg-ios-yellow' ? 'text-ios-yellow' : s.dot === 'bg-ios-green' ? 'text-ios-green' : 'text-zinc-500'}">${s.label}</span></div>`;
     }
     html += `</div>`;
