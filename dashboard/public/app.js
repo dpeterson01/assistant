@@ -189,9 +189,15 @@ function getSourceUrl(item) {
   return null;
 }
 
-// Parse a meeting time string like "9:30 AM" → minutes from midnight
+// Parse a meeting time string ("9:30 AM" or ISO "2026-04-27T08:00:00-07:00") → minutes from midnight
 function parseMeetingTime(t) {
   if (!t) return null;
+  // Try ISO timestamp first
+  const iso = new Date(t);
+  if (!isNaN(iso.getTime()) && String(t).includes('T')) {
+    return iso.getHours() * 60 + iso.getMinutes();
+  }
+  // Fallback: "9:30 AM" style
   const m = String(t).match(/(\d{1,2}):?(\d{2})?\s*(AM|PM)?/i);
   if (!m) return null;
   let h = parseInt(m[1], 10);
@@ -200,6 +206,16 @@ function parseMeetingTime(t) {
   if (ap === 'PM' && h < 12) h += 12;
   if (ap === 'AM' && h === 12) h = 0;
   return h * 60 + min;
+}
+
+// Format a meeting time for display: ISO or "9:30 AM" → "8:00 AM"
+function formatMeetingTime(t) {
+  if (!t) return '—';
+  const iso = new Date(t);
+  if (!isNaN(iso.getTime()) && String(t).includes('T')) {
+    return iso.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  }
+  return t;
 }
 
 function nowMinutes() { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
@@ -423,7 +439,7 @@ function renderSchedule(meetings) {
           <span class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full ${dotColor}"></span>
         </div>
         <div class="shrink-0 w-16 sm:w-20 text-right">
-          <div class="text-[12px] font-semibold tabular-nums ${x.isPast ? 'text-zinc-600' : 'text-zinc-200'}">${m.time || '—'}</div>
+          <div class="text-[12px] font-semibold tabular-nums ${x.isPast ? 'text-zinc-600' : 'text-zinc-200'}">${formatMeetingTime(m.time)}</div>
           <div class="text-[10px] text-zinc-600 tabular-nums">${m.duration ? m.duration + 'm' : ''}</div>
         </div>
         <div class="flex-1 min-w-0">
