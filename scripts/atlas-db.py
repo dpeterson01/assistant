@@ -25,7 +25,7 @@ Usage:
   atlas-db.py interaction log --person "..." --type meeting [options]
   atlas-db.py interaction last --person "..."
   atlas-db.py interaction list [--person "..."] [--type email] [--days 30]
-  atlas-db.py sync-things3
+  atlas-db.py sync-things3 [--dry-run] [--since-days N]
   atlas-db.py render
   atlas-db.py import-markdown
   atlas-db.py import-ledger
@@ -341,7 +341,7 @@ def cmd_commit_add(args) -> int:
             things3_ok = push_to_things3(
                 title=args.title, task_id=task_id, direction=args.direction,
                 person=args.person, due=args.due, category=args.category,
-                notes=args.notes
+                channel=args.channel, notes=args.notes
             )
 
         if not args.no_render:
@@ -763,9 +763,60 @@ def cmd_interaction_list(args) -> int:
 
 # ---- sync things 3 ----------------------------------------------------------
 
+# Channel values that map to Things 3 tags
+CHANNEL_TAG_MAP = {
+    "email": "email",
+    "outlook-work": "email",
+    "outlook-personal": "email",
+    "gmail": "email",
+    "hmbl": "email",
+    "teams": "teams",
+    "meeting": "meeting",
+}
+
+# Reverse map: Things 3 area name -> category
+AREA_CATEGORY_MAP = {v: k for k, v in CATEGORY_AREA_MAP.items()}
+
+THINGS3_UPDATE = ASSISTANT_ROOT / "things3" / "update.sh"
+
+
+def decode_things3_date(packed: int | None) -> str | None:
+    """Decode Things 3 packed date integer to YYYY-MM-DD string."""
+    if packed is None:
+        return None
+    year = packed >> 16
+    month = (packed >> 12) & 0xF
+    day = ((packed >> 8) & 0xF) * 2 + (1 if packed & 0x80 else 0)
+    if year < 2000 or month < 1 or month > 12 or day < 1 or day > 31:
+        return None
+    return f"{year:04d}-{month:02d}-{day:02d}"
+
+
+def stamp_things3_task(uuid: str, task_id: str, existing_notes: str | None) -> bool:
+    """Write the atlas task_id back into a Things 3 task's notes via update.sh."""
+    if not THINGS3_UPDATE.exists():
+        sys.stderr.write("things3/update.sh not found, skipping stamp\n")
+        return False
+    tag_line = f"Task ID: {task_id}"
+    if existing_notes:
+        new_notes = f"{existing_notes}\n{tag_line}"
+    else:
+        new_notes = tag_line
+    try:
+        result = subprocess.run(
+            [str(THINGS3_UPDATE), uuid, "--notes", new_notes],
+            capture_output=True, text=True, timeout=10,
+        )
+        return result.returncode == 0
+    except Exception as e:
+        sys.stderr.write(f"things3 stamp failed: {e}\n")
+        return False
+
+
 def push_to_things3(title: str, task_id: str, direction: str,
                     person: str | None, due: str | None,
-                    category: str | None, notes: str | None) -> bool:
+                    category: str | None, channel: str | None,
+                    notes: str | None) -> bool:
     """Push a task to Things 3 via add.sh. Returns True on success."""
     if not THINGS3_ADD.exists():
         sys.stderr.write("things3/add.sh not found, skipping push\n")
@@ -779,6 +830,15 @@ def push_to_things3(title: str, task_id: str, direction: str,
 
     if due and due != "ASAP":
         cmd.extend(["--deadline", due])
+
+    # Build tags: 'waiting' for direction=theirs, source channel tag
+    tags = []
+    if direction == "theirs":
+        tags.append("waiting")
+    if channel and channel.lower() in CHANNEL_TAG_MAP:
+        tags.append(CHANNEL_TAG_MAP[channel.lower()])
+    if tags:
+        cmd.extend(["--tags", ",".join(tags)])
 
     note_parts = []
     if notes:
@@ -802,12 +862,15 @@ def push_to_things3(title: str, task_id: str, direction: str,
 
 
 def cmd_sync_things3(args) -> int:
-    """Pull completions from Things 3 back into assistant.db."""
+    """Two-way sync with Things 3: pull completions AND import new tasks."""
     if not THINGS3_DB.exists():
         sys.stderr.write(f"Things 3 DB not found: {THINGS3_DB}\n")
         return 1
 
-    with open_db() as conn:
+    dry_run = getattr(args, "dry_run", False)
+    since_days = getattr(args, "since_days", None)
+
+    with open_db(readonly=dry_run) as conn:
         ensure_schema(conn)
 
         # Connect to Things 3 DB (read-only)
@@ -816,8 +879,11 @@ def cmd_sync_things3(args) -> int:
         t3.row_factory = sqlite3.Row
 
         synced = 0
+        imported = 0
 
-        # 1. For commitments with things3_uuid: check completion status
+        # --- Phase 1: Pull completions from Things 3 ---
+
+        # 1a. For commitments with things3_uuid: check completion status
         rows = conn.execute(
             "SELECT task_id, things3_uuid FROM commitments "
             "WHERE things3_uuid IS NOT NULL AND status='active'"
@@ -827,14 +893,17 @@ def cmd_sync_things3(args) -> int:
                 "SELECT status FROM TMTask WHERE uuid=?", (r["things3_uuid"],)
             ).fetchone()
             if t3row and t3row["status"] == 3:  # 3 = completed in Things 3
-                conn.execute(
-                    "UPDATE commitments SET status='completed', "
-                    "completed_at=date('now','localtime') WHERE task_id=?",
-                    (r["task_id"],)
-                )
+                if dry_run:
+                    sys.stderr.write(f"  [dry-run] would complete: {r['task_id']}\n")
+                else:
+                    conn.execute(
+                        "UPDATE commitments SET status='completed', "
+                        "completed_at=date('now','localtime') WHERE task_id=?",
+                        (r["task_id"],)
+                    )
                 synced += 1
 
-        # 2. For commitments without things3_uuid: try to match by Task ID in notes
+        # 1b. For commitments without things3_uuid: try to match by Task ID in notes
         rows = conn.execute(
             "SELECT task_id FROM commitments "
             "WHERE things3_uuid IS NULL AND status='active'"
@@ -846,25 +915,105 @@ def cmd_sync_things3(args) -> int:
                 (pattern,)
             ).fetchone()
             if t3row:
-                updates = ["things3_uuid=?"]
-                params: list = [t3row["uuid"]]
-                if t3row["status"] == 3:
-                    updates.append("status='completed'")
-                    updates.append("completed_at=date('now','localtime')")
-                    synced += 1
-                params.append(r["task_id"])
-                conn.execute(
-                    f"UPDATE commitments SET {', '.join(updates)} WHERE task_id=?",
-                    params
-                )
+                if dry_run:
+                    label = "link+complete" if t3row["status"] == 3 else "link"
+                    sys.stderr.write(f"  [dry-run] would {label}: {r['task_id']}\n")
+                    if t3row["status"] == 3:
+                        synced += 1
+                else:
+                    updates = ["things3_uuid=?"]
+                    params: list = [t3row["uuid"]]
+                    if t3row["status"] == 3:
+                        updates.append("status='completed'")
+                        updates.append("completed_at=date('now','localtime')")
+                        synced += 1
+                    params.append(r["task_id"])
+                    conn.execute(
+                        f"UPDATE commitments SET {', '.join(updates)} WHERE task_id=?",
+                        params
+                    )
 
-        conn.commit()
+        # --- Phase 2: Import new tasks from Things 3 ---
+
+        # Get all known Things 3 UUIDs already in commitments
+        known = {row[0] for row in conn.execute(
+            "SELECT things3_uuid FROM commitments WHERE things3_uuid IS NOT NULL"
+        ).fetchall()}
+
+        # Build creation-date filter: Things 3 uses Unix timestamps
+        created_after = ""
+        if since_days is not None:
+            cutoff = datetime.now().timestamp() - (since_days * 86400)
+            created_after = f" AND t.creationDate >= {cutoff}"
+
+        # Query open Things 3 tasks that:
+        #  - are type=0 (todo, not project/heading)
+        #  - are not trashed
+        #  - are open (status=0)
+        #  - don't already have a Task ID in notes
+        new_tasks = t3.execute(
+            "SELECT t.uuid, t.title, t.notes, t.deadline, t.creationDate, "
+            "  COALESCE(a.title, pa.title) AS area_name, "
+            "  COALESCE(p.title, '') AS project_name "
+            "FROM TMTask t "
+            "LEFT JOIN TMTask p ON t.project = p.uuid "
+            "LEFT JOIN TMArea a ON t.area = a.uuid "
+            "LEFT JOIN TMArea pa ON p.area = pa.uuid "
+            "WHERE t.type = 0 AND t.trashed = 0 AND t.status = 0 "
+            "  AND (t.notes IS NULL OR t.notes NOT LIKE '%Task ID: AI-%') "
+            f"{created_after} "
+            "ORDER BY t.creationDate DESC"
+        ).fetchall()
+
+        batch_counter = 0
+        for t in new_tasks:
+            if t["uuid"] in known:
+                continue
+
+            category = AREA_CATEGORY_MAP.get(t["area_name"])
+            deadline = decode_things3_date(t["deadline"])
+            created = datetime.fromtimestamp(t["creationDate"]).strftime("%Y-%m-%d") if t["creationDate"] else "?"
+
+            if dry_run:
+                cat_label = category or "(no area)"
+                sys.stderr.write(
+                    f"  [dry-run] would import: {t['title'][:60]}"
+                    f"  | area={t['area_name'] or '(none)'} -> {cat_label}"
+                    f"  | deadline={deadline or '(none)'}"
+                    f"  | created={created}\n"
+                )
+                imported += 1
+                continue
+
+            # Generate unique task_id with sub-second counter
+            batch_counter += 1
+            task_id = f"AI-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{batch_counter:03d}"
+
+            conn.execute(
+                "INSERT INTO commitments "
+                "(task_id, things3_uuid, title, direction, category, "
+                "due_date, source, status) "
+                "VALUES (?, ?, ?, 'mine', ?, ?, 'things3', 'active')",
+                (task_id, t["uuid"], t["title"], category, deadline)
+            )
+
+            # Stamp the Task ID back into Things 3 notes
+            stamp_things3_task(t["uuid"], task_id, t["notes"])
+            known.add(t["uuid"])
+            imported += 1
+
+        if not dry_run:
+            conn.commit()
         t3.close()
 
-        if synced > 0 and not args.no_render:
+        if not dry_run and (synced > 0 or imported > 0) and not args.no_render:
             do_render(conn)
 
-        print(json.dumps({"synced_completions": synced}))
+        print(json.dumps({
+            "synced_completions": synced,
+            "imported_from_things3": imported,
+            "dry_run": dry_run,
+        }))
     return 0
 
 
@@ -1356,7 +1505,10 @@ def main() -> int:
     s.add_argument("--limit", type=int)
 
     # sync-things3
-    s = sub.add_parser("sync-things3", help="Pull completions from Things 3")
+    s = sub.add_parser("sync-things3", help="Two-way sync: pull completions + import new tasks from Things 3")
+    s.add_argument("--dry-run", action="store_true", help="Preview what would be synced without making changes")
+    s.add_argument("--since-days", type=int, dest="since_days",
+                   help="Only import Things 3 tasks created within N days (default: all)")
     add_render_flag(s)
 
     # render
