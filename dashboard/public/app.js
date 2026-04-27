@@ -456,8 +456,21 @@ function renderSchedule(meetings) {
         ${m.conflict ? `<div class="text-ios-red font-medium flex items-center gap-1.5"><span>⚠</span>${m.conflict}</div>` : ''}
         ${m.whyItMatters ? `<p class="text-zinc-400">${m.whyItMatters}</p>` : ''}
         ${m.attendees?.length ? `<div class="text-[11px] text-zinc-500"><span class="text-zinc-600">Attendees · </span>${m.attendees.join(', ')}</div>` : ''}
-        ${m.signals?.length ? `<div><div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">Signals</div><ul class="space-y-1 text-zinc-300">${m.signals.map(s => `<li class="flex gap-2"><span class="text-zinc-600">·</span><span>${s}</span></li>`).join('')}</ul></div>` : ''}
-        ${m.raiseThis?.length ? `<div><div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">Raise</div><ul class="space-y-1 text-zinc-300">${m.raiseThis.map(s => `<li class="flex gap-2"><span class="text-ios-yellow">→</span><span>${s}</span></li>`).join('')}</ul></div>` : ''}
+        ${m.signals?.length ? `<div><div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">Signals</div><ul class="space-y-1.5 text-zinc-300">${m.signals.map(s => {
+          if (typeof s === 'object' && s.summary) {
+            const src = s.source ? `<span class="text-[10px] font-medium text-zinc-500 uppercase">${s.source}</span>` : '';
+            const who = s.who ? `<span class="text-zinc-400 font-medium">${s.who}</span>` : '';
+            const meta = [src, who].filter(Boolean).join(' · ');
+            return `<li class="flex flex-col gap-0.5"><div class="flex items-center gap-1.5">${meta ? `<span class="text-zinc-600">·</span><span class="text-[11px]">${meta}</span>` : ''}</div><span class="text-zinc-300 leading-snug">${s.summary}</span></li>`;
+          }
+          return `<li class="flex gap-2"><span class="text-zinc-600">·</span><span>${s}</span></li>`;
+        }).join('')}</ul></div>` : ''}
+        ${m.raiseThis?.length ? `<div><div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">Raise</div><ul class="space-y-1.5 text-zinc-300">${m.raiseThis.map(s => {
+          if (typeof s === 'object' && s.detail) {
+            return `<li class="flex flex-col gap-0.5"><div class="flex items-center gap-1.5"><span class="text-ios-yellow">→</span><span class="font-medium text-zinc-200">${s.topic || 'Item'}</span></div><span class="text-zinc-400 text-[12px] leading-snug">${s.detail}</span></li>`;
+          }
+          return `<li class="flex gap-2"><span class="text-ios-yellow">→</span><span>${s}</span></li>`;
+        }).join('')}</ul></div>` : ''}
         ${m.prep ? `<div class="rounded-lg bg-white/5 border border-white/5 hairline px-3 py-2"><span class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Prep · </span><span class="text-zinc-200">${m.prep}</span></div>` : ''}
       </div>` : ''}
     </details>`;
@@ -1598,6 +1611,18 @@ connectSSE();
 
 // Refresh health independently (cheap, gives the dot in the header)
 setInterval(loadHealth, 60_000);
+
+// Full data refresh every 5 minutes — keeps dashboard current throughout the day
+setInterval(async () => {
+  try {
+    await loadHealth();
+    const res = await fetch(`${API}/api/briefing`);
+    if (!res.ok) return;
+    const fresh = await res.json();
+    briefing = fresh;
+    render();
+  } catch { /* silent */ }
+}, 5 * 60_000);
 
 // Safety-net poll: only fires if we haven't heard from the server in 2 minutes.
 setInterval(async () => {

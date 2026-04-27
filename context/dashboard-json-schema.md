@@ -73,10 +73,46 @@ When carrying items forward from previous briefing's inbox to today's carryOver,
 - `attended`: `false` (set to `true` by EOD or sync)
 - `optional`: `true` if Derek is optional, omit otherwise
 - `highStakes`: `true` if meeting qualifies (see criteria below)
-- `signals`: Array of signal strings
-- `raiseThis`: Array of suggested talking points
+- `whyItMatters`: 1-2 sentence synthesis of why this meeting matters today (from signals + open items + agenda). `null` for routine meetings.
+- `signals`: Array of signal objects (see Signal Format below)
+- `raiseThis`: Array of raise objects (see Raise Format below)
 - `prep`: Prep description string, or `null`
 - `conflict`: Conflict description string, or `null`
+
+### Signal Format
+
+Each signal must be a structured object, not a bare string:
+
+```json
+{
+  "source": "email|teams|prior-briefing|action-items|waiting-on|journal|contact",
+  "who": "Person name (or null if systemic)",
+  "summary": "One specific sentence with enough context to act on. Include what happened, what it means, and why it matters for this meeting."
+}
+```
+
+Bad: `"Companion DSB/RAI thread active"`
+Good: `{ "source": "teams", "who": "Collin Schedler", "summary": "Collin posted in the Companion channel asking whether DSB review ownership sits with PM or engineering after the RAI assessment was resubmitted. Needs a decision before the spec ships." }`
+
+Bad: `"You owe: blocked epic follow-up"`
+Good: `{ "source": "action-items", "who": "Hui Xie", "summary": "Derek committed to follow up on Hui's epic (1134xxx) that's blocked pending engineering investigation. Last discussed Apr 21, no update since. Hui will expect a status update." }`
+
+### Raise Format
+
+Each raise item must be a structured object with enough detail to speak from directly:
+
+```json
+{
+  "topic": "Short label (for display)",
+  "detail": "What specifically to say or ask, with enough context that Derek can raise it without looking anything up. Reference specific artifacts, dates, or commitments."
+}
+```
+
+Bad: `"DSB/RAI status and ownership"`
+Good: `{ "topic": "DSB/RAI ownership", "detail": "Ask Collin who owns the DSB review now that RAI was resubmitted on Apr 23. If engineering owns it, confirm Collin will track in the spec. If PM owns it, Derek needs to add it to his queue." }`
+
+Bad: `"Any blockers"`
+Good: `{ "topic": "Experimentation blockers", "detail": "Ask Samir if the A/B test config for Learn search ranking landed in the latest deploy. Last week he said it was blocked on feature flag approval from the platform team." }`
 
 ### High-Stakes Criteria
 

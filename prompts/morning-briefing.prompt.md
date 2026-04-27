@@ -162,14 +162,17 @@ Assemble each meeting briefing with this structure:
 ### [Meeting Title] (time, duration)
 **Attendees**: [names, roles if known]
 **Agenda**: [from invite, or inferred from signals, or "None provided"]
+**Why it matters today**: [1-2 sentences synthesizing all signals into why this meeting is important right now]
 **Signals**:
-- [source] [who] [when]: [1-sentence summary]
+- [source] [who]: [One specific sentence with context. NOT a topic label. Include what happened, what it means, and why it's relevant to this meeting.]
 **Open items with attendees**:
-- [item from action-items/waiting-on-others/prior briefings, or "None"]
+- [item from action-items/waiting-on-others/prior briefings, with specific details: what's owed, by whom, since when, and what "done" looks like. Or "None"]
 **Suggested talking points**:
-- [1-2 specific things Derek should raise based on signals and open items]
+- [Topic]: [What specifically to say or ask, with enough context that Derek can raise it cold without looking anything up. Reference specific artifacts, dates, names, or commitments.]
 **Prep**: [specific action needed, or "None"]
 ```
+
+**Quality bar for signals and talking points**: Every signal and talking point must pass the "could Derek act on this without opening another window?" test. If a signal just names a topic (e.g., "DSB/RAI thread active") without explaining what happened and why it matters, it's too vague. If a talking point just names a subject (e.g., "LiveSite status") without saying what to ask or say, rewrite it.
 
 For recurring standups or office hours with no signals, compress to one line: "**Title** (time) - Recurring, no specific prep."
 
@@ -266,8 +269,8 @@ Log every auto-saved draft to `assistant/data/state/auto-drafts.log` as `YYYY-MM
 Present the full meeting briefings assembled in Step 1, in chronological order. For each meeting show:
 - **Title** (time) with key attendees
 - **Why it matters today**: 1-2 sentences synthesizing the signals, agenda, and open items
-- **Signals**: The most relevant 2-3 signals (skip if routine standup with nothing notable)
-- **Raise this**: Specific things Derek should bring up (from open items, waiting-on-others, or signal context). If an attendee owes Derek something, say so directly.
+- **Signals**: The most relevant 2-3 signals with full context: source, who, and a sentence explaining what happened and why it matters for this meeting. Not topic labels.
+- **Raise this**: Specific things Derek should bring up, written as complete talking points he can use directly. Include what to say/ask, reference specific artifacts or dates, and explain why now. If an attendee owes Derek something, state exactly what, since when, and what "done" looks like.
 - **Prep**: Prefix with `- [ ]` checkbox if Derek needs to prep before this meeting, else "None"
 
 For low-signal recurring meetings (standups, office hours), compress to one line: "**Title** (time) - Recurring, no specific prep."
