@@ -76,8 +76,35 @@ When carrying items forward from previous briefing's inbox to today's carryOver,
 - `whyItMatters`: 1-2 sentence synthesis of why this meeting matters today (from signals + open items + agenda). `null` for routine meetings.
 - `signals`: Array of signal objects (see Signal Format below)
 - `raiseThis`: Array of raise objects (see Raise Format below)
+- `peopleContext`: Array of people-context objects (see People Context Format below). Surface insights from contact files that are relevant *today*.
 - `prep`: Prep description string, or `null`
 - `conflict`: Conflict description string, or `null`
+
+### People Context Format
+
+For each attendee with a contact file, surface any context that matters *for this specific meeting today*. Skip attendees with no notable context. Each entry:
+
+```json
+{
+  "name": "Person name",
+  "items": [
+    { "type": "birthday", "detail": "Birthday is today (Apr 27)" },
+    { "type": "style", "detail": "Prefers data-driven arguments; sensitive to PM overriding engineering decisions" },
+    { "type": "history", "detail": "Last 1:1 Apr 13: discussed ADO queries and agent skills transition. No sync since." },
+    { "type": "watch", "detail": "Tends to volunteer for things without clear acceptance criteria. Pin down deliverables." }
+  ]
+}
+```
+
+Types:
+- `birthday`: Birthday today, tomorrow, or this week. Always include if applicable.
+- `style`: Working style notes relevant to this meeting's topic. Skip generic traits.
+- `history`: Last interaction summary + time gap. Useful for 1:1s and catch-ups.
+- `relationship`: Relationship context (direct report, skip-level, cross-team, external).
+- `watch`: Anything flagged as "watch out for" or a pattern to be aware of.
+- `personal`: Personal details worth acknowledging (e.g., just returned from leave, recently promoted).
+
+Only include items that are actionable for *this meeting*. Don't dump the whole contact file.
 
 ### Signal Format
 

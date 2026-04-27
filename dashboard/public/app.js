@@ -430,7 +430,8 @@ function renderSchedule(meetings) {
     if (m.conflict) summaryMeta.push('⚠ conflict');
     if (m.prep) summaryMeta.push('📋 prep needed');
     if (m.raiseThis?.length) summaryMeta.push(`${m.raiseThis.length} talking pt${m.raiseThis.length !== 1 ? 's' : ''}`);
-    const hasDetails = m.conflict || m.whyItMatters || attendeeCount || m.signals?.length || m.raiseThis?.length || m.prep;
+    if (m.peopleContext?.length) summaryMeta.push(`${m.peopleContext.length} people note${m.peopleContext.length !== 1 ? 's' : ''}`);
+    const hasDetails = m.conflict || m.whyItMatters || attendeeCount || m.signals?.length || m.raiseThis?.length || m.peopleContext?.length || m.prep;
 
     return `
     <details${x.isNow ? ' open' : ''} class="group">
@@ -471,6 +472,14 @@ function renderSchedule(meetings) {
           }
           return `<li class="flex gap-2"><span class="text-ios-yellow">→</span><span>${s}</span></li>`;
         }).join('')}</ul></div>` : ''}
+        ${m.peopleContext?.length ? `<div><div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">People</div><div class="space-y-2">${m.peopleContext.map(p => {
+          const typeIcon = { birthday: '🎂', style: '🎯', history: '📅', relationship: '🔗', watch: '⚠️', personal: '👤' };
+          const items = (p.items || []).map(i => {
+            const icon = typeIcon[i.type] || '·';
+            return `<div class="flex gap-2 text-[12px]"><span class="shrink-0">${icon}</span><span class="text-zinc-400">${i.detail}</span></div>`;
+          }).join('');
+          return `<div><span class="text-zinc-300 text-[12px] font-medium">${p.name}</span>${items}</div>`;
+        }).join('')}</div></div>` : ''}
         ${m.prep ? `<div class="rounded-lg bg-white/5 border border-white/5 hairline px-3 py-2"><span class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Prep · </span><span class="text-zinc-200">${m.prep}</span></div>` : ''}
       </div>` : ''}
     </details>`;
@@ -1612,17 +1621,10 @@ connectSSE();
 // Refresh health independently (cheap, gives the dot in the header)
 setInterval(loadHealth, 60_000);
 
-// Full data refresh every 5 minutes — keeps dashboard current throughout the day
-setInterval(async () => {
-  try {
-    await loadHealth();
-    const res = await fetch(`${API}/api/briefing`);
-    if (!res.ok) return;
-    const fresh = await res.json();
-    briefing = fresh;
-    render();
-  } catch { /* silent */ }
-}, 5 * 60_000);
+// Time-aware re-render every 60s: updates meeting past/now/next badges,
+// relative timestamps, and other time-dependent UI without refetching data.
+// SSE handles data changes; this just keeps the clock-based UI fresh.
+setInterval(() => { if (briefing) render(); }, 60_000);
 
 // Safety-net poll: only fires if we haven't heard from the server in 2 minutes.
 setInterval(async () => {

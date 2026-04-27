@@ -125,7 +125,7 @@ Church is an active life context. Check for church-related activity and include 
 Run in terminal:
 - `~/.local/bin/contacts/birthdays.sh 14` (next 14 days)
 
-Surface any birthdays happening today, tomorrow, or this week. If a birthday contact is also a meeting attendee today, flag it in their meeting briefing.
+Surface any birthdays happening today, tomorrow, or this week. If a birthday contact is also a meeting attendee today, flag it in their meeting briefing as both a `peopleContext` entry (type: `birthday`) AND a signal (source: `contact`) so it appears on the dashboard.
 
 ### Overnight activity and today's meetings (single WorkIQ call)
 Make ONE call to `mcp_workiq_ask_work_iq`. This is the only WorkIQ call in the entire briefing. Do not make per-meeting follow-up calls.
@@ -152,7 +152,13 @@ For each meeting today, assemble a briefing by combining:
 1. **Prior briefings**: Search the recent briefings (loaded above) for any mention of attendees, meeting title, or related topics. Extract prior signals, open follow-ups, and unresolved items.
 2. **Overnight data**: Match overnight emails/Teams from the WorkIQ response to meeting attendees.
 3. **Memory files** (already loaded): Cross-reference action-items.md (does Derek owe an attendee?) and waiting-on-others.md (does an attendee owe Derek?).
-4. **Work contacts directory**: Read `~/Library/CloudStorage/OneDrive-Microsoft/01_people/contacts/index.json` once to get the name-to-file mapping. For each attendee, look up their entry in the index (match on name, aliases, or email). Read matching contact files for context (role, working style, personal details, history). This is especially useful for cross-team contacts and people whose filenames don't match their display name.
+4. **Work contacts directory**: Read `~/Library/CloudStorage/OneDrive-Microsoft/01_people/contacts/index.json` once to get the name-to-file mapping. For each attendee, look up their entry in the index (match on name, aliases, or email). Read matching contact files and extract context that matters *for this specific meeting today*:
+   - **Birthday**: If today/tomorrow/this week, always flag it (source: `contact`)
+   - **Working style**: Only include traits relevant to this meeting's likely dynamics (e.g., "prefers data-driven arguments" for a decision meeting, "sensitive to PM dictating" for a cross-functional sync)
+   - **History**: Last interaction date and summary. Especially important for 1:1s (how long since last sync?) and for people Derek hasn't met with recently.
+   - **Watch-out-for**: Any patterns, sensitivities, or dynamics noted in the contact file
+   - **Personal**: Recently promoted, returned from leave, new to team, etc.
+   Route these into the JSON `peopleContext` array (see dashboard-json-schema.md) AND into `signals` when they're actionable (e.g., birthday today → signal with source `contact`).
 5. **Yesterday's journal**: Open threads involving these people.
 
 Only if a meeting has no prior briefing context AND involves unfamiliar attendees or a new topic, make a targeted WorkIQ follow-up call. This should be rare.
