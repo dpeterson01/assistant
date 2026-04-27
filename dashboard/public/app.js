@@ -402,9 +402,18 @@ function renderSchedule(meetings) {
     const liveBadge = x.isNow ? `<span class="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-ios-green/15 text-ios-green uppercase tracking-wider"><span class="w-1 h-1 rounded-full bg-ios-green animate-pulse-dot"></span>Now</span>` : '';
     const nextBadge = (idx === nextUpIdx && !x.isNow) ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-ios-blue/15 text-ios-blue uppercase tracking-wider">Next</span>` : '';
 
+    // Summary-level details: attendees, conflict, prep indicator
+    const attendeeCount = m.attendees?.length || 0;
+    const summaryMeta = [];
+    if (attendeeCount) summaryMeta.push(`${attendeeCount} attendee${attendeeCount !== 1 ? 's' : ''}`);
+    if (m.conflict) summaryMeta.push('⚠ conflict');
+    if (m.prep) summaryMeta.push('📋 prep needed');
+    if (m.raiseThis?.length) summaryMeta.push(`${m.raiseThis.length} talking pt${m.raiseThis.length !== 1 ? 's' : ''}`);
+    const hasDetails = m.conflict || m.whyItMatters || attendeeCount || m.signals?.length || m.raiseThis?.length || m.prep;
+
     return `
-    <details${m.highStakes || x.isNow ? ' open' : ''} class="group">
-      <summary class="relative flex items-start gap-3 py-3 cursor-pointer">
+    <details${x.isNow ? ' open' : ''} class="group">
+      <summary class="relative flex items-start gap-3 py-3 cursor-pointer hover:bg-white/[0.02] -mx-2 px-2 rounded-lg transition-colors">
         <div class="relative shrink-0 w-3 mt-1.5">
           <span class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full ${dotColor}"></span>
         </div>
@@ -414,21 +423,22 @@ function renderSchedule(meetings) {
         </div>
         <div class="flex-1 min-w-0">
           <div class="flex flex-wrap items-center gap-1.5">
-            <span class="chev text-zinc-600 text-xs">▸</span>
+            ${hasDetails ? `<span class="chev text-zinc-600 text-xs transition-transform">▸</span>` : `<span class="w-3"></span>`}
             <span class="text-[14px] font-medium ${titleTone} truncate">${m.title || 'Untitled'}</span>
             ${liveBadge} ${nextBadge}
           </div>
-          ${tags.length ? `<div class="mt-1 flex flex-wrap items-center gap-1.5">${tags.join('')}</div>` : ''}
+          ${tags.length ? `<div class="mt-1 ml-[1.125rem] flex flex-wrap items-center gap-1.5">${tags.join('')}</div>` : ''}
+          ${summaryMeta.length ? `<div class="mt-0.5 ml-[1.125rem] text-[11px] text-zinc-600">${summaryMeta.join(' · ')}</div>` : ''}
         </div>
       </summary>
-      <div class="ml-9 sm:ml-[7.5rem] pb-4 pt-1 text-[13px] text-zinc-300 space-y-2">
+      ${hasDetails ? `<div class="ml-9 sm:ml-[7.5rem] pb-4 pt-1 text-[13px] text-zinc-300 space-y-2">
         ${m.conflict ? `<div class="text-ios-red font-medium flex items-center gap-1.5"><span>⚠</span>${m.conflict}</div>` : ''}
         ${m.whyItMatters ? `<p class="text-zinc-400">${m.whyItMatters}</p>` : ''}
         ${m.attendees?.length ? `<div class="text-[11px] text-zinc-500"><span class="text-zinc-600">Attendees · </span>${m.attendees.join(', ')}</div>` : ''}
         ${m.signals?.length ? `<div><div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">Signals</div><ul class="space-y-1 text-zinc-300">${m.signals.map(s => `<li class="flex gap-2"><span class="text-zinc-600">·</span><span>${s}</span></li>`).join('')}</ul></div>` : ''}
         ${m.raiseThis?.length ? `<div><div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">Raise</div><ul class="space-y-1 text-zinc-300">${m.raiseThis.map(s => `<li class="flex gap-2"><span class="text-ios-yellow">→</span><span>${s}</span></li>`).join('')}</ul></div>` : ''}
         ${m.prep ? `<div class="rounded-lg bg-white/5 border border-white/5 hairline px-3 py-2"><span class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Prep · </span><span class="text-zinc-200">${m.prep}</span></div>` : ''}
-      </div>
+      </div>` : ''}
     </details>`;
   }).join('');
 
@@ -437,7 +447,7 @@ function renderSchedule(meetings) {
     <div class="divide-y divide-white/5">${list}</div>
   </div>`;
 
-  return sectionShell("Today's schedule", `${meetings.length}`, inner, { padded: false, collapsible: true });
+  return sectionShell("Today's schedule", `${meetings.length}`, inner, { padded: false });
 }
 
 function renderInbox(items, lowCount) {
