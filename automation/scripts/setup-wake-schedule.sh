@@ -5,7 +5,7 @@
 #
 # What this does:
 #   - Wakes at 6:25 AM Mon-Fri (5 min before morning briefing at 6:30 AM)
-#   - Wakes at 7:55 PM Mon-Fri (5 min before end-of-day auto-run at 8:00 PM)
+#   - Wakes at 7:55 PM, 8:55 PM, 9:55 PM Mon-Fri (5 min before each EOD retry at 8, 9, 10 PM)
 #   - Briefing-sync job (every 15 min) handles continuous completion propagation.
 #
 # Limitations:
@@ -46,7 +46,7 @@ cat > "$DAEMON_PLIST" << 'PLIST'
     <array>
         <string>/bin/zsh</string>
         <string>-c</string>
-        <string>pmset schedule wake "$(date '+%m/%d/%Y') 19:55:00"</string>
+        <string>pmset schedule wake "$(date '+%m/%d/%Y') 19:55:00"; pmset schedule wake "$(date '+%m/%d/%Y') 20:55:00"; pmset schedule wake "$(date '+%m/%d/%Y') 21:55:00"</string>
     </array>
     <key>StartCalendarInterval</key>
     <array>
@@ -62,8 +62,16 @@ cat > "$DAEMON_PLIST" << 'PLIST'
 </plist>
 PLIST
 
-launchctl load "$DAEMON_PLIST" 2>/dev/null || launchctl unload "$DAEMON_PLIST" && launchctl load "$DAEMON_PLIST"
-echo "✓ Evening wake daemon installed: schedules 7:55 PM wake each weekday morning"
+# Use modern launchctl API (bootstrap/bootout) — legacy load/unload fails on newer macOS
+launchctl bootout system "$DAEMON_PLIST" 2>/dev/null
+launchctl bootstrap system "$DAEMON_PLIST"
+echo "✓ Evening wake daemon installed: schedules 7:55, 8:55, 9:55 PM wakes each weekday morning"
+
+# Also schedule tonight's wakes immediately (daemon normally does this at 6:20 AM)
+pmset schedule wake "$(date '+%m/%d/%Y') 19:55:00" 2>/dev/null
+pmset schedule wake "$(date '+%m/%d/%Y') 20:55:00" 2>/dev/null
+pmset schedule wake "$(date '+%m/%d/%Y') 21:55:00" 2>/dev/null
+echo "✓ Tonight's wake events scheduled immediately"
 
 echo ""
 echo "Current schedule:"
@@ -72,10 +80,10 @@ pmset -g sched | grep -v "user-invisible" | head -10
 echo ""
 echo "Done."
 echo "  Morning: Mac wakes Mon-Fri at 6:25 AM → briefing runs at 6:30 AM"
-echo "  Evening: Mac wakes Mon-Fri at 7:55 PM → end-of-day runs at 8:00 PM"
+echo "  Evening: Mac wakes Mon-Fri at 7:55/8:55/9:55 PM → end-of-day runs at 8/9/10 PM (retry pattern)"
 echo ""
 echo "Notes:"
 echo "  - Only works reliably on AC power"
 echo "  - To remove morning: sudo pmset repeat cancel"
-echo "  - To remove evening daemon: sudo launchctl unload /Library/LaunchDaemons/com.atlas.evening-wake-scheduler.plist && sudo rm /Library/LaunchDaemons/com.atlas.evening-wake-scheduler.plist"
+echo "  - To remove evening daemon: sudo launchctl bootout system /Library/LaunchDaemons/com.atlas.evening-wake-scheduler.plist && sudo rm /Library/LaunchDaemons/com.atlas.evening-wake-scheduler.plist"
 echo "  - To check: pmset -g sched"

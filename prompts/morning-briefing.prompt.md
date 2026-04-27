@@ -9,6 +9,14 @@ argument-hint: "Optional: specific context to focus on (work, personal, church)"
 
 You are Derek's AI partner. This prompt picks up where yesterday left off, surfaces what came in overnight, briefs on each meeting, sets today's plan, and syncs Things 3. Move fast.
 
+## Determine today's date (MANDATORY first step)
+
+Before doing ANYTHING else, run this in a terminal:
+```sh
+date '+%A %B %d, %Y'
+```
+Use the **exact output** as today's date and day-of-week for the entire briefing. Never calculate the day-of-week from a date string yourself — LLMs get this wrong for future dates. The shell `date` command is the single source of truth.
+
 ## How Checkboxes Work
 
 Every actionable item in the briefing gets a checkbox: `- [ ]`. Derek can check items as he completes them throughout the day. When ready to push completions immediately to Things 3 and action-items (instead of waiting for the 15-min sync), he runs:
@@ -431,3 +439,4 @@ Hard-won lessons. Check here before debugging.
 | Contact lookup fails because filename doesn't match display name | Read `index.json` first to get the name-to-file mapping. Match on name, aliases, or email. |
 | Meeting brief ledger `claim` returns non-zero | The rolling sweep already produced a brief. Skip generation and reference the existing path. |
 | atlas-db commit add fails with "task_id already exists" | The item is already tracked. Use `$ATLAS commit search` to find it. |
+| Briefing shows wrong day-of-week (e.g. Sunday instead of Monday) | LLMs cannot reliably compute day-of-week from date strings. Always run `date '+%A %B %d, %Y'` in a terminal as the first step. Never derive it yourself. |
