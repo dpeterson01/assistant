@@ -191,7 +191,7 @@ function getSourceUrl(item) {
 
   // Fallback: no deep link but source is known — generate a search URL
   if (ch) {
-    const q = encodeURIComponent(item.sender || item.text || '');
+    const q = encodeURIComponent(searchTermForItem(item));
     if (ch === 'teams') return `https://teams.microsoft.com/_#/search?q=${q}`;
     if (ch === 'gmail') return `https://mail.google.com/mail/u/0/#search/${q}`;
     if (ch === 'outlook-work' || ch === 'outlook-personal' || ch === 'hmbl' || ch === 'email') {
@@ -199,6 +199,25 @@ function getSourceUrl(item) {
     }
   }
   return null;
+}
+
+// Extract a useful search term from an item: prefer explicit person/sender,
+// otherwise pull a name out of common to-do phrasings.
+function searchTermForItem(item) {
+  if (!item) return '';
+  if (item.sender) return item.sender;
+  if (item.person) return item.person;
+  const text = item.text || item.item || '';
+  // "Respond to NAME on...", "Reply to NAME about..."
+  let m = text.match(/^(?:Respond|Reply|Follow up|Follow-up|Ping|Email|Message|Nudge|Check in)\s+(?:to|with)\s+([A-Z][\w'\-]+(?:\s+[A-Z][\w'\-]+)?)/);
+  if (m) return m[1];
+  // "Review NAME's ..."
+  m = text.match(/^(?:Review|Read|Check)\s+([A-Z][\w'\-]+(?:\s+[A-Z][\w'\-]+)?)'s/);
+  if (m) return m[1];
+  // "from/with/for NAME"
+  m = text.match(/(?:from|with|for)\s+([A-Z][\w'\-]+\s+[A-Z][\w'\-]+)/);
+  if (m) return m[1];
+  return text;
 }
 
 // Parse a meeting time string ("9:30 AM" or ISO "2026-04-27T08:00:00-07:00") → minutes from midnight
