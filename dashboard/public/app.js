@@ -399,7 +399,23 @@ function renderSchedule(meetings) {
     if (m.peopleContext?.length) summaryMeta.push(`${m.peopleContext.length} people note${m.peopleContext.length !== 1 ? 's' : ''}`);
     const hasDetails = m.conflict || m.whyItMatters || attendeeCount || m.signals?.length || m.raiseThis?.length || m.peopleContext?.length || m.prep;
 
+    // Right-justified stacked artifact pills (recap, transcript). Rendered
+    // outside <summary> so clicking them doesn't toggle the disclosure.
+    const pillParts = [];
+    if (m.recapAvailable && m.id) {
+      const href = `/api/meeting-artifact?event_id=${encodeURIComponent(m.id)}&kind=recap`;
+      pillParts.push(`<a href="${escapeAttr(href)}" target="_blank" rel="noopener" title="Open recap" class="meeting-pill inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-ios-indigo/15 text-ios-indigo uppercase tracking-wider hover:bg-ios-indigo/25 transition-colors">Recap</a>`);
+    }
+    if (m.transcriptAvailable && m.recordingUrl) {
+      pillParts.push(`<a href="${escapeAttr(m.recordingUrl)}" target="_blank" rel="noopener" title="Open transcript / recording" class="meeting-pill inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-ios-blue/15 text-ios-blue uppercase tracking-wider hover:bg-ios-blue/25 transition-colors">Transcript</a>`);
+    }
+    const pillStack = pillParts.length
+      ? `<div class="absolute right-2 top-3 z-10 flex flex-col items-end gap-1">${pillParts.join('')}</div>`
+      : '';
+
     return `
+    <div class="relative">
+    ${pillStack}
     <details${x.isNow ? ' open' : ''} class="group">
       <summary class="relative flex items-start gap-3 py-3 cursor-pointer hover:bg-white/[0.02] -mx-2 px-2 rounded-lg transition-colors">
         <div class="relative shrink-0 w-3 mt-1.5">
@@ -448,7 +464,8 @@ function renderSchedule(meetings) {
         }).join('')}</div></div>` : ''}
         ${m.prep ? `<div class="rounded-lg bg-white/5 border border-white/5 hairline px-3 py-2"><span class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Prep · </span><span class="text-zinc-200">${escapeHtml(m.prep)}</span></div>` : ''}
       </div>` : ''}
-    </details>`;
+    </details>
+    </div>`;
   }).join('');
 
   const inner = `<div class="relative">

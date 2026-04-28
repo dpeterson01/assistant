@@ -1,8 +1,8 @@
 import express from 'express';
-import { readFileSync, readdirSync, writeFileSync, renameSync, existsSync, mkdirSync, watch } from 'fs';
-import { join, dirname } from 'path';
+import { readFileSync, readdirSync, writeFileSync, renameSync, existsSync, mkdirSync, watch, statSync, realpathSync } from 'fs';
+import { join, dirname, resolve as resolvePath } from 'path';
 import { fileURLToPath } from 'url';
-import { execFile, spawn } from 'child_process';
+import { execFile, execFileSync, spawn } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -12,6 +12,52 @@ const HOST = '127.0.0.1'; // bind loopback only — single-machine tool, no LAN 
 const DATA_DIR = join(__dirname, '..', 'data');
 const BRIEFINGS_DIR = join(DATA_DIR, 'briefings');
 const ARCHIVE_DIR = join(BRIEFINGS_DIR, 'archive');
+const ASSISTANT_DIR = join(__dirname, '..');
+const ATLAS_DB = join(DATA_DIR, 'state', 'assistant.db');
+
+// --- Meeting artifact lookup (recap / transcript) -----------------------------
+// Reads atlas-db's meetings table to attach artifact links to each meeting in
+// the briefing response. The dashboard turns these into RECAP / TRANSCRIPT
+// pills that link out to the local recap markdown or the recording URL.
+function getMeetingArtifacts(eventIds) {
+  if (!eventIds || !eventIds.length || !existsSync(ATLAS_DB)) return new Map();
+  // Build a parameterized IN clause via JSON: sqlite3 CLI doesn't bind params,
+  // so escape ids defensively (event_id is matched against ITEM_ID_RE upstream
+  // when present, but be safe).
+  const safe = eventIds.filter(id => /^[\w.:@\/\-]{1,200}$/.test(id));
+  if (!safe.length) return new Map();
+  const list = safe.map(id => `'${id.replace(/'/g, "''")}'`).join(',');
+  const sql = `SELECT event_id, brief_file, brief_status, recap_file, recap_status, recording_url, transcript_available, recap_summary FROM meetings WHERE event_id IN (${list});`;
+  let raw = '';
+  try {
+    raw = execFileSync('sqlite3', ['-json', '-readonly', ATLAS_DB, sql], { encoding: 'utf-8', timeout: 2000 });
+  } catch {
+    return new Map();
+  }
+  if (!raw.trim()) return new Map();
+  let rows;
+  try { rows = JSON.parse(raw); } catch { return new Map(); }
+  const out = new Map();
+  for (const r of rows) out.set(r.event_id, r);
+  return out;
+}
+
+function enrichMeetingsWithArtifacts(data) {
+  if (!data || !Array.isArray(data.meetings) || !data.meetings.length) return data;
+  const ids = data.meetings.map(m => m && m.id).filter(Boolean);
+  const map = getMeetingArtifacts(ids);
+  if (!map.size) return data;
+  for (const m of data.meetings) {
+    const row = map.get(m.id);
+    if (!row) continue;
+    if (row.recap_file) m.recapAvailable = true;
+    if (row.brief_file) m.briefAvailable = true;
+    if (row.recap_summary) m.recapSummary = row.recap_summary;
+    if (row.recording_url) m.recordingUrl = row.recording_url;
+    if (row.transcript_available) m.transcriptAvailable = true;
+  }
+  return data;
+}
 
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(join(__dirname, 'public')));
@@ -425,8 +471,43 @@ app.get('/api/briefing', (req, res) => {
     trackHealth('GET /api/briefing', false, 'No briefing found');
     return res.status(404).json({ error: 'No briefing found' });
   }
+  enrichMeetingsWithArtifacts(data);
   trackHealth('GET /api/briefing', true);
   res.json(data);
+});
+
+// GET /api/meeting-artifact?event_id=...&kind=recap|brief
+// Streams a local meeting recap or brief markdown file. The path is read from
+// atlas-db so the user can't request arbitrary files; we additionally validate
+// that the resolved path lives under the assistant directory.
+app.get('/api/meeting-artifact', (req, res) => {
+  const eventId = String(req.query.event_id || '');
+  const kind = String(req.query.kind || '');
+  if (!/^[\w.:@\/\-]{1,200}$/.test(eventId)) return res.status(400).json({ error: 'Invalid event_id' });
+  if (kind !== 'recap' && kind !== 'brief') return res.status(400).json({ error: 'Invalid kind' });
+  const map = getMeetingArtifacts([eventId]);
+  const row = map.get(eventId);
+  if (!row) return res.status(404).json({ error: 'Meeting not found' });
+  const filePath = kind === 'recap' ? row.recap_file : row.brief_file;
+  if (!filePath) return res.status(404).json({ error: `No ${kind} file recorded` });
+  let abs;
+  try {
+    abs = realpathSync(resolvePath(filePath));
+  } catch {
+    return res.status(404).json({ error: 'File not found on disk' });
+  }
+  // Allowed roots: anything inside the assistant directory or the linked
+  // atlas-data directory. Resolve symlinks to compare canonically.
+  let assistantReal, dataReal;
+  try { assistantReal = realpathSync(ASSISTANT_DIR); } catch { assistantReal = ASSISTANT_DIR; }
+  try { dataReal = realpathSync(DATA_DIR); } catch { dataReal = DATA_DIR; }
+  if (!abs.startsWith(assistantReal + '/') && !abs.startsWith(dataReal + '/')) {
+    return res.status(403).json({ error: 'Path outside allowed roots' });
+  }
+  if (!existsSync(abs) || !statSync(abs).isFile()) return res.status(404).json({ error: 'File not found' });
+  res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.send(readFileSync(abs, 'utf-8'));
 });
 
 // PATCH /api/briefing — incremental update (used by 15-min cron job)
