@@ -44,19 +44,40 @@ if ! curl -sf "$DASHBOARD_URL/api/briefing" > /dev/null 2>&1; then
 fi
 
 # ──────────────────────────────────────────────
-# PHASE 0: EMAIL CLEANUP — filter spam/marketing from journals
+# PHASE 0: EMAIL CLEANUP
+#   0a: filter spam/marketing lines from journal files
+#   0b: sweep Outlook junk folder (delete matched, log unmatched)
 # ──────────────────────────────────────────────
 
-echo "--- Phase 0: Email cleanup ---"
+echo "--- Phase 0a: Journal email cleanup ---"
 FILTER_SCRIPT="$ASSISTANT_DIR/filter-scripts/filter-spam-emails.py"
 if [[ -f "$FILTER_SCRIPT" ]]; then
   if python3 "$FILTER_SCRIPT" --apply 2>&1; then
-    echo "  ✓ Email cleanup complete"
+    echo "  ✓ Journal email cleanup complete"
   else
-    echo "  ✗ Email cleanup failed (exit $?), continuing"
+    echo "  ✗ Journal email cleanup failed (exit $?), continuing"
   fi
 else
   echo "  - Filter script not found, skipping"
+fi
+
+echo "--- Phase 0b: Outlook junk mail sweep ---"
+JUNK_SCRIPT="$HOME/.local/share/outlook-mcp/email_cleanup.py"
+if [[ -f "$JUNK_SCRIPT" ]]; then
+  # Auto-delete matched spam (quiet mode for scheduled runs)
+  if cd "$(dirname "$JUNK_SCRIPT")" && uv run email_cleanup.py junk --apply --limit 50 --quiet 2>&1; then
+    echo "  ✓ Junk mail sweep complete"
+  else
+    echo "  ✗ Junk mail sweep failed (exit $?), continuing"
+  fi
+  # Dry-run pass to count unmatched items for logging
+  UNMATCHED_COUNT=$(cd "$(dirname "$JUNK_SCRIPT")" && uv run email_cleanup.py junk --limit 50 2>&1 | grep -c "^UNMATCHED" || true)
+  if [[ "$UNMATCHED_COUNT" -gt 0 ]]; then
+    echo "  ⚠ ${UNMATCHED_COUNT} unmatched junk items to review"
+  fi
+  cd "$ASSISTANT_DIR"
+else
+  echo "  - Junk mail script not found, skipping"
 fi
 
 # ──────────────────────────────────────────────
