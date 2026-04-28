@@ -17,6 +17,8 @@ date '+%A %B %d, %Y'
 ```
 Use the **exact output** as today's date and day-of-week for the entire briefing. Never calculate the day-of-week from a date string yourself — LLMs get this wrong for future dates. The shell `date` command is the single source of truth.
 
+**OVERRIDE RULE**: If the invocation prompt, system context, or user message says a different day-of-week than what `date` returns, **`date` wins**. Discard the conflicting day-of-week entirely. This is the #1 recurring bug in this system.
+
 ## How Checkboxes Work
 
 Every actionable item in the briefing gets a checkbox: `- [ ]`. Derek can check items as he completes them throughout the day. When ready to push completions immediately to Things 3 and action-items (instead of waiting for the 15-min sync), he runs:
