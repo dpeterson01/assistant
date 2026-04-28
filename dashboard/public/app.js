@@ -90,53 +90,22 @@ function toggleStatus() {
 // HELPERS
 // ============================================================
 
-const sourceMap = { 'outlook-work': 'Outlook', 'outlook-personal': 'Outlook (personal)', 'gmail': 'Gmail', 'hmbl': 'HMBL', 'teams': 'Teams', 'task': 'Things 3', 'github': 'GitHub' };
-const sourceLabel = ch => sourceMap[ch] || ch || '';
+import {
+  sourceMap, sourceLabel, sourceTint,
+  priorityTint, priorityGlyph,
+  categoryTint, categoryLabel,
+  dayFitPalette,
+  escapeHtml, escapeAttr,
+  formatDate, shortDate, shortTime, shortDateTime,
+  parseMeetingTime, formatMeetingTime,
+  searchTermForItem,
+} from './helpers.js';
 
-const sourceTint = ch => ({
-  'outlook-work': 'bg-ios-blue/15 text-ios-blue',
-  'outlook-personal': 'bg-ios-indigo/15 text-ios-indigo',
-  'gmail': 'bg-ios-red/15 text-ios-red',
-  'hmbl': 'bg-ios-teal/15 text-ios-teal',
-  'teams': 'bg-ios-indigo/15 text-ios-indigo',
-  'task': 'bg-ios-orange/15 text-ios-orange',
-  'github': 'bg-white/10 text-zinc-300',
-}[ch] || 'bg-white/10 text-zinc-300');
-
-const priorityTint = p => ({
-  high: 'bg-ios-red/15 text-ios-red ring-ios-red/20',
-  medium: 'bg-ios-yellow/15 text-ios-yellow ring-ios-yellow/20',
-  low: 'bg-ios-green/15 text-ios-green ring-ios-green/20',
-}[p] || 'bg-white/5 text-zinc-400 ring-white/10');
-
-const dayFitPalette = lvl => ({
-  red: { bg: 'bg-ios-red/10', border: 'border-ios-red/20', text: 'text-ios-red', glow: 'shadow-ios-red/10' },
-  yellow: { bg: 'bg-ios-yellow/10', border: 'border-ios-yellow/20', text: 'text-ios-yellow', glow: 'shadow-ios-yellow/10' },
-  green: { bg: 'bg-ios-green/10', border: 'border-ios-green/20', text: 'text-ios-green', glow: 'shadow-ios-green/10' },
-}[lvl] || { bg: 'bg-white/5', border: 'border-white/10', text: 'text-zinc-300', glow: '' });
-
-function formatDate(s) { if (!s) return ''; const d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }); }
-function shortDate(s) { if (!s) return ''; const d = new Date(s + 'T12:00:00'); return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); }
-function shortTime(iso) { if (!iso) return ''; return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
-function shortDateTime(iso) { if (!iso) return ''; const d = new Date(iso); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
-
-function escapeHtml(str) { const div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML; }
 function openWindow(url) { window.open(url, '_blank', 'noopener,width=1200,height=800'); }
 
 // ============================================================
 // CATEGORY FILTER
 // ============================================================
-
-const categoryTint = cat => ({
-  work: 'bg-ios-blue/15 text-ios-blue border-ios-blue/30',
-  personal: 'bg-ios-green/15 text-ios-green border-ios-green/30',
-  church: 'bg-ios-indigo/15 text-ios-indigo border-ios-indigo/30',
-  hmbl: 'bg-ios-teal/15 text-ios-teal border-ios-teal/30',
-}[cat] || 'bg-white/10 text-zinc-300 border-white/15');
-
-const categoryLabel = cat => ({
-  work: 'Work', personal: 'Personal', church: 'Church', hmbl: 'HMBL',
-}[cat] || cat.charAt(0).toUpperCase() + cat.slice(1));
 
 function getCategories() {
   if (!briefing) return [];
@@ -168,12 +137,12 @@ function renderFilterBar() {
   const cats = getCategories();
   if (cats.length < 2) return '';
   const allActive = activeFilter === 'all';
-  const allPill = `<button onclick="setFilter('all')" class="px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors ${allActive ? 'bg-white/15 text-zinc-100 border-white/20' : 'bg-transparent text-zinc-500 border-white/5 hover:text-zinc-300 hover:border-white/10'}">${allActive ? `All` : 'All'}</button>`;
+  const allPill = `<button data-action="setFilter" data-args='["all"]' class="px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors ${allActive ? 'bg-white/15 text-zinc-100 border-white/20' : 'bg-transparent text-zinc-500 border-white/5 hover:text-zinc-300 hover:border-white/10'}">${allActive ? `All` : 'All'}</button>`;
   const catPills = cats.map(cat => {
     const isActive = activeFilter === cat;
     const count = [...(briefing.carryOver || []), ...(briefing.inbox || []), ...(briefing.tasks || [])].filter(i => i.category === cat && i.status !== 'done' && i.status !== 'dismissed').length;
-    return `<button onclick="setFilter('${cat}')" class="px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors ${isActive ? categoryTint(cat) : 'bg-transparent text-zinc-500 border-white/5 hover:text-zinc-300 hover:border-white/10'}">
-      ${categoryLabel(cat)}${count ? ` <span class="tabular-nums opacity-60">${count}</span>` : ''}
+    return `<button data-action="setFilter" data-args='${escapeAttr(JSON.stringify([cat]))}' class="px-3 py-1.5 rounded-full text-[12px] font-medium border transition-colors ${isActive ? categoryTint(cat) : 'bg-transparent text-zinc-500 border-white/5 hover:text-zinc-300 hover:border-white/10'}">
+      ${escapeHtml(categoryLabel(cat))}${count ? ` <span class="tabular-nums opacity-60">${count}</span>` : ''}
     </button>`;
   }).join('');
   return `<div class="flex flex-wrap items-center gap-2 mb-5">${allPill}${catPills}</div>`;
@@ -199,54 +168,6 @@ function getSourceUrl(item) {
     }
   }
   return null;
-}
-
-// Extract a useful search term from an item: prefer explicit person/sender,
-// otherwise pull a name out of common to-do phrasings.
-function searchTermForItem(item) {
-  if (!item) return '';
-  if (item.sender) return item.sender;
-  if (item.person) return item.person;
-  const text = item.text || item.item || '';
-  // "Respond to NAME on...", "Reply to NAME about..."
-  let m = text.match(/^(?:Respond|Reply|Follow up|Follow-up|Ping|Email|Message|Nudge|Check in)\s+(?:to|with)\s+([A-Z][\w'\-]+(?:\s+[A-Z][\w'\-]+)?)/);
-  if (m) return m[1];
-  // "Review NAME's ..."
-  m = text.match(/^(?:Review|Read|Check)\s+([A-Z][\w'\-]+(?:\s+[A-Z][\w'\-]+)?)'s/);
-  if (m) return m[1];
-  // "from/with/for NAME"
-  m = text.match(/(?:from|with|for)\s+([A-Z][\w'\-]+\s+[A-Z][\w'\-]+)/);
-  if (m) return m[1];
-  return text;
-}
-
-// Parse a meeting time string ("9:30 AM" or ISO "2026-04-27T08:00:00-07:00") → minutes from midnight
-function parseMeetingTime(t) {
-  if (!t) return null;
-  // Try ISO timestamp first
-  const iso = new Date(t);
-  if (!isNaN(iso.getTime()) && String(t).includes('T')) {
-    return iso.getHours() * 60 + iso.getMinutes();
-  }
-  // Fallback: "9:30 AM" style
-  const m = String(t).match(/(\d{1,2}):?(\d{2})?\s*(AM|PM)?/i);
-  if (!m) return null;
-  let h = parseInt(m[1], 10);
-  const min = parseInt(m[2] || '0', 10);
-  const ap = (m[3] || '').toUpperCase();
-  if (ap === 'PM' && h < 12) h += 12;
-  if (ap === 'AM' && h === 12) h = 0;
-  return h * 60 + min;
-}
-
-// Format a meeting time for display: ISO or "9:30 AM" → "8:00 AM"
-function formatMeetingTime(t) {
-  if (!t) return '—';
-  const iso = new Date(t);
-  if (!isNaN(iso.getTime()) && String(t).includes('T')) {
-    return iso.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  }
-  return t;
 }
 
 function nowMinutes() { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
@@ -324,34 +245,48 @@ function render() {
   const focusTasks = withUrgency(dedupedTasks);
   const focusCount = focusCarryOver.length + focusTasks.length;
 
+  // Per-section render: catch and contain errors so one bad section can't
+  // blank the entire dashboard. Logs to console with the section name so a
+  // partial outage is debuggable.
+  const safe = (name, fn) => {
+    try { return fn(); }
+    catch (e) {
+      console.error(`render: ${name} threw`, e);
+      return `<section class="rounded-2xl bg-ios-red/5 border border-ios-red/20 hairline p-4 text-[12px] text-ios-red">
+        <div class="font-semibold mb-1">Couldn't render ${escapeHtml(name)}</div>
+        <div class="text-ios-red/80 text-[11px]">${escapeHtml(e.message || String(e))}</div>
+      </section>`;
+    }
+  };
+
   document.getElementById('app').innerHTML = `
     <!-- Day Fit hero (mobile only on small, full on all) -->
-    ${renderDayFitHero(d.dayFit)}
+    ${safe('day fit', () => renderDayFitHero(d.dayFit))}
 
     <!-- Category filter -->
-    ${renderFilterBar()}
+    ${safe('filter bar', () => renderFilterBar())}
 
     <!-- Stats grid -->
     <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-      ${statCard('Meetings today', meetings.length, meetings.filter(m => m.highStakes).length ? `${meetings.filter(m => m.highStakes).length} high stakes` : 'all clear', 'ios-blue', iconCalendar())}
-      ${statCard('Inbox shown', filteredInbox.length, d.inboxLowCount ? `+${d.inboxLowCount} low hidden` : 'all shown', 'ios-orange', iconInbox())}
-      ${statCard("Today's focus", focusCount, dedupedCarryOver.length ? `${dedupedCarryOver.length} carry over` : 'fresh start', 'ios-green', iconCheck())}
-      ${statCard('Draftable', filteredInbox.filter(i => (i.draftConfidence || 0) > 0).length, filteredInbox.filter(i => (i.draftConfidence || 0) > 0).length ? 'with confidence ≥40%' : 'nothing draftable', 'ios-indigo', iconPen())}
+      ${safe('stat: meetings', () => statCard('Meetings today', meetings.length, meetings.filter(m => m.highStakes).length ? `${meetings.filter(m => m.highStakes).length} high stakes` : 'all clear', 'ios-blue', iconCalendar()))}
+      ${safe('stat: inbox', () => statCard('Inbox shown', filteredInbox.length, d.inboxLowCount ? `+${d.inboxLowCount} low hidden` : 'all shown', 'ios-orange', iconInbox()))}
+      ${safe('stat: focus', () => statCard("Today's focus", focusCount, dedupedCarryOver.length ? `${dedupedCarryOver.length} carry over` : 'fresh start', 'ios-green', iconCheck()))}
+      ${safe('stat: draftable', () => statCard('Draftable', filteredInbox.filter(i => (i.draftConfidence || 0) > 0).length, filteredInbox.filter(i => (i.draftConfidence || 0) > 0).length ? 'with confidence ≥40%' : 'nothing draftable', 'ios-indigo', iconPen()))}
     </section>
 
     <!-- Two-column layout on desktop -->
     <div class="grid lg:grid-cols-5 gap-6">
       <!-- LEFT (main column, spans 3) -->
       <div class="lg:col-span-3 space-y-6 min-w-0">
-        ${renderSchedule(meetings)}
-        ${renderInbox(filteredInbox, activeFilter === 'all' ? d.inboxLowCount : 0)}
-        ${renderTodaysFocus(focusCarryOver, focusTasks)}
+        ${safe('schedule', () => renderSchedule(meetings))}
+        ${safe('inbox', () => renderInbox(filteredInbox, activeFilter === 'all' ? d.inboxLowCount : 0))}
+        ${safe("today's focus", () => renderTodaysFocus(focusCarryOver, focusTasks))}
       </div>
 
       <!-- RIGHT rail -->
       <aside class="lg:col-span-2 space-y-6 min-w-0">
-        ${renderCommitments(acc)}
-        ${renderUpcoming(d.upcoming || [])}
+        ${safe('commitments', () => renderCommitments(acc))}
+        ${safe('upcoming', () => renderUpcoming(d.upcoming || []))}
       </aside>
     </div>
 
@@ -403,16 +338,16 @@ function renderDayFitHero(df) {
       </div>
       <div class="flex-1 min-w-0">
         <div class="text-[11px] uppercase tracking-wider text-zinc-500 font-semibold">Day Fit</div>
-        <p class="mt-1 text-zinc-200 text-[15px] leading-snug">${df.summary || ''}</p>
+        <p class="mt-1 text-zinc-200 text-[15px] leading-snug">${escapeHtml(df.summary || '')}</p>
       </div>
     </div>
     ${(df.failures?.length || df.passes?.length) ? `
     <ul class="mt-4 grid sm:grid-cols-2 gap-x-6 gap-y-1 text-[13px]">
-      ${(df.failures || []).map(f => `<li class="flex gap-2 text-zinc-300"><span class="text-ios-red shrink-0">✗</span><span>${f}</span></li>`).join('')}
-      ${(df.passes || []).map(p => `<li class="flex gap-2 text-zinc-400"><span class="text-ios-green shrink-0">✓</span><span>${p}</span></li>`).join('')}
+      ${(df.failures || []).map(f => `<li class="flex gap-2 text-zinc-300"><span class="text-ios-red shrink-0" aria-label="fail">✗</span><span>${escapeHtml(f)}</span></li>`).join('')}
+      ${(df.passes || []).map(pass => `<li class="flex gap-2 text-zinc-400"><span class="text-ios-green shrink-0" aria-label="pass">✓</span><span>${escapeHtml(pass)}</span></li>`).join('')}
     </ul>` : ''}
     ${df.recoveryMoves?.length ? `<div class="mt-4 pt-4 border-t border-white/10 hairline text-[13px] text-zinc-300">
-      <span class="text-ios-yellow font-semibold">Recovery → </span>${df.recoveryMoves.join(' ')}
+      <span class="text-ios-yellow font-semibold">Recovery → </span>${escapeHtml(df.recoveryMoves.join(' '))}
     </div>` : ''}
   </section>`;
 }
@@ -477,7 +412,7 @@ function renderSchedule(meetings) {
         <div class="flex-1 min-w-0">
           <div class="flex flex-wrap items-center gap-1.5">
             ${hasDetails ? `<span class="chev text-zinc-600 text-xs transition-transform">▸</span>` : `<span class="w-3"></span>`}
-            <span class="text-[14px] font-medium ${titleTone} truncate">${m.title || 'Untitled'}</span>
+            <span class="text-[14px] font-medium ${titleTone} truncate">${escapeHtml(m.title || 'Untitled')}</span>
             ${liveBadge} ${nextBadge}
           </div>
           ${tags.length ? `<div class="mt-1 ml-[1.125rem] flex flex-wrap items-center gap-1.5">${tags.join('')}</div>` : ''}
@@ -485,33 +420,33 @@ function renderSchedule(meetings) {
         </div>
       </summary>
       ${hasDetails ? `<div class="ml-9 sm:ml-[7.5rem] pb-4 pt-1 text-[13px] text-zinc-300 space-y-2">
-        ${m.conflict ? `<div class="text-ios-red font-medium flex items-center gap-1.5"><span>⚠</span>${m.conflict}</div>` : ''}
-        ${m.whyItMatters ? `<p class="text-zinc-400">${m.whyItMatters}</p>` : ''}
-        ${m.attendees?.length ? `<div class="text-[11px] text-zinc-500"><span class="text-zinc-600">Attendees · </span>${m.attendees.join(', ')}</div>` : ''}
+        ${m.conflict ? `<div class="text-ios-red font-medium flex items-center gap-1.5"><span aria-hidden="true">⚠</span>${escapeHtml(m.conflict)}</div>` : ''}
+        ${m.whyItMatters ? `<p class="text-zinc-400">${escapeHtml(m.whyItMatters)}</p>` : ''}
+        ${m.attendees?.length ? `<div class="text-[11px] text-zinc-500"><span class="text-zinc-600">Attendees · </span>${escapeHtml(m.attendees.join(', '))}</div>` : ''}
         ${m.signals?.length ? `<div><div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">Signals</div><ul class="space-y-1.5 text-zinc-300">${m.signals.map(s => {
           if (typeof s === 'object' && s.summary) {
-            const src = s.source ? `<span class="text-[10px] font-medium text-zinc-500 uppercase">${s.source}</span>` : '';
-            const who = s.who ? `<span class="text-zinc-400 font-medium">${s.who}</span>` : '';
+            const src = s.source ? `<span class="text-[10px] font-medium text-zinc-500 uppercase">${escapeHtml(s.source)}</span>` : '';
+            const who = s.who ? `<span class="text-zinc-400 font-medium">${escapeHtml(s.who)}</span>` : '';
             const meta = [src, who].filter(Boolean).join(' · ');
-            return `<li class="flex flex-col gap-0.5"><div class="flex items-center gap-1.5">${meta ? `<span class="text-zinc-600">·</span><span class="text-[11px]">${meta}</span>` : ''}</div><span class="text-zinc-300 leading-snug">${s.summary}</span></li>`;
+            return `<li class="flex flex-col gap-0.5"><div class="flex items-center gap-1.5">${meta ? `<span class="text-zinc-600">·</span><span class="text-[11px]">${meta}</span>` : ''}</div><span class="text-zinc-300 leading-snug">${escapeHtml(s.summary)}</span></li>`;
           }
-          return `<li class="flex gap-2"><span class="text-zinc-600">·</span><span>${s}</span></li>`;
+          return `<li class="flex gap-2"><span class="text-zinc-600">·</span><span>${escapeHtml(String(s))}</span></li>`;
         }).join('')}</ul></div>` : ''}
         ${m.raiseThis?.length ? `<div><div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">Raise</div><ul class="space-y-1.5 text-zinc-300">${m.raiseThis.map(s => {
           if (typeof s === 'object' && s.detail) {
-            return `<li class="flex flex-col gap-0.5"><div class="flex items-center gap-1.5"><span class="text-ios-yellow">→</span><span class="font-medium text-zinc-200">${s.topic || 'Item'}</span></div><span class="text-zinc-400 text-[12px] leading-snug">${s.detail}</span></li>`;
+            return `<li class="flex flex-col gap-0.5"><div class="flex items-center gap-1.5"><span class="text-ios-yellow">→</span><span class="font-medium text-zinc-200">${escapeHtml(s.topic || 'Item')}</span></div><span class="text-zinc-400 text-[12px] leading-snug">${escapeHtml(s.detail)}</span></li>`;
           }
-          return `<li class="flex gap-2"><span class="text-ios-yellow">→</span><span>${s}</span></li>`;
+          return `<li class="flex gap-2"><span class="text-ios-yellow">→</span><span>${escapeHtml(String(s))}</span></li>`;
         }).join('')}</ul></div>` : ''}
         ${m.peopleContext?.length ? `<div><div class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1">People</div><div class="space-y-2">${m.peopleContext.map(p => {
           const typeIcon = { birthday: '🎂', style: '🎯', history: '📅', relationship: '🔗', watch: '⚠️', personal: '👤' };
           const items = (p.items || []).map(i => {
             const icon = typeIcon[i.type] || '·';
-            return `<div class="flex gap-2 text-[12px]"><span class="shrink-0">${icon}</span><span class="text-zinc-400">${i.detail}</span></div>`;
+            return `<div class="flex gap-2 text-[12px]"><span class="shrink-0" aria-hidden="true">${icon}</span><span class="text-zinc-400">${escapeHtml(i.detail || '')}</span></div>`;
           }).join('');
-          return `<div><span class="text-zinc-300 text-[12px] font-medium">${p.name}</span>${items}</div>`;
+          return `<div><span class="text-zinc-300 text-[12px] font-medium">${escapeHtml(p.name || '')}</span>${items}</div>`;
         }).join('')}</div></div>` : ''}
-        ${m.prep ? `<div class="rounded-lg bg-white/5 border border-white/5 hairline px-3 py-2"><span class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Prep · </span><span class="text-zinc-200">${m.prep}</span></div>` : ''}
+        ${m.prep ? `<div class="rounded-lg bg-white/5 border border-white/5 hairline px-3 py-2"><span class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Prep · </span><span class="text-zinc-200">${escapeHtml(m.prep)}</span></div>` : ''}
       </div>` : ''}
     </details>`;
   }).join('');
@@ -549,7 +484,7 @@ function renderInbox(items, lowCount) {
       // Server provided low items — render collapsible
       lowBlock = `
         <div class="mt-3">
-          <button onclick="toggleLowPriority()" class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-white/5 hairline bg-white/[0.02] hover:bg-white/[0.05] text-[12px] text-zinc-400 hover:text-zinc-200 transition-colors">
+          <button data-action="toggleLowPriority" class="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-white/5 hairline bg-white/[0.02] hover:bg-white/[0.05] text-[12px] text-zinc-400 hover:text-zinc-200 transition-colors">
             <span class="flex items-center gap-2">
               <svg class="w-3.5 h-3.5 chev" style="${showLowPriority ? 'transform:rotate(90deg)' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
               <span class="font-medium">${showLowPriority ? 'Hide' : 'Show'} ${lowSorted.length} low-priority ${lowSorted.length === 1 ? 'item' : 'items'}</span>
@@ -711,11 +646,11 @@ function renderCommitments(acc) {
     const src = itemSourceLink(item);
     const sourceBtn = src
       ? (src.url
-        ? `<a href="#" onclick="openWindow('${src.url}');return false" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/10 hairline bg-white/[0.03] text-zinc-300 hover:bg-ios-blue/15 hover:border-ios-blue/30 hover:text-ios-blue transition-colors" title="Open in ${src.label}">
-      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-      <span>${src.label}</span>
+        ? `<a href="${escapeAttr(src.url)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/10 hairline bg-white/[0.03] text-zinc-300 hover:bg-ios-blue/15 hover:border-ios-blue/30 hover:text-ios-blue transition-colors" title="Open in ${escapeAttr(src.label)}">
+      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      <span>${escapeHtml(src.label)}</span>
     </a>`
-        : `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded ${sourceTint(item.channel || '')}">${src.label}</span>`)
+        : `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded ${sourceTint(item.channel || '')}">${escapeHtml(src.label)}</span>`)
       : '';
 
     // For 'owe' items, use original overdue/approaching type+index for server calls
@@ -723,24 +658,28 @@ function renderCommitments(acc) {
     const serverIdx = (type === 'owe' && item._origIdx !== undefined) ? item._origIdx : idx;
 
     const draftBtn = isWaiting
-      ? `<button onclick="nudgeOne(${idx})" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-semibold border border-white/10 hairline bg-white/[0.03] text-zinc-200 hover:bg-ios-indigo/15 hover:border-ios-indigo/30 hover:text-ios-indigo transition-colors" title="Draft a nudge">
+      ? `<button data-action="nudgeOne" data-args='${escapeAttr(JSON.stringify([idx]))}' class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-semibold border border-white/10 hairline bg-white/[0.03] text-zinc-200 hover:bg-ios-indigo/15 hover:border-ios-indigo/30 hover:text-ios-indigo transition-colors" title="Draft a nudge">
           <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
           <span>Nudge</span>
         </button>`
-      : `<button onclick="draftAccItem('${serverType}', ${serverIdx})" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-semibold border border-white/10 hairline bg-white/[0.03] text-zinc-200 hover:bg-ios-indigo/15 hover:border-ios-indigo/30 hover:text-ios-indigo transition-colors" title="Draft a response">
+      : `<button data-action="draftAccItem" data-args='${escapeAttr(JSON.stringify([serverType, serverIdx]))}' class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-semibold border border-white/10 hairline bg-white/[0.03] text-zinc-200 hover:bg-ios-indigo/15 hover:border-ios-indigo/30 hover:text-ios-indigo transition-colors" title="Draft a response">
           <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
           <span>Draft</span>
         </button>`;
 
-    const completeFn = isWaiting ? `dismissWaiting(${idx})` : `completeAccItem('${serverType}', ${serverIdx})`;
-    const completeBtn = `<button onclick="${completeFn}" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/10 hairline bg-white/[0.03] text-zinc-300 hover:bg-ios-green/15 hover:border-ios-green/30 hover:text-ios-green transition-colors" title="Mark complete">
-      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    const completeAction = isWaiting
+      ? `data-action="dismissWaiting" data-args='${escapeAttr(JSON.stringify([idx]))}'`
+      : `data-action="completeAccItem" data-args='${escapeAttr(JSON.stringify([serverType, serverIdx]))}'`;
+    const completeBtn = `<button ${completeAction} class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/10 hairline bg-white/[0.03] text-zinc-300 hover:bg-ios-green/15 hover:border-ios-green/30 hover:text-ios-green transition-colors" title="Mark complete">
+      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
       <span>Done</span>
     </button>`;
 
-    const dismissFn = isWaiting ? `dismissWaiting(${idx})` : `dismissAccItem('${serverType}', ${serverIdx})`;
-    const dismissBtn = `<button onclick="${dismissFn}" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/5 hairline bg-transparent text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-300 transition-colors" title="Dismiss">
-      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    const dismissAction = isWaiting
+      ? `data-action="dismissWaiting" data-args='${escapeAttr(JSON.stringify([idx]))}'`
+      : `data-action="dismissAccItem" data-args='${escapeAttr(JSON.stringify([serverType, serverIdx]))}'`;
+    const dismissBtn = `<button ${dismissAction} class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/5 hairline bg-transparent text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-300 transition-colors" title="Dismiss">
+      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       <span>Dismiss</span>
     </button>`;
 
@@ -829,13 +768,18 @@ function renderUpcoming(upcoming) {
   if (!upcoming.length) {
     return sectionShell('Upcoming', '0', emptyState('Clear horizon', 'Nothing scheduled.'));
   }
-  // Each entry: { date: 'YYYY-MM-DD', items: [string, ...] }
-  const totalItems = upcoming.reduce((n, u) => n + (u.items?.length || 0), 0);
-  const inner = `<div class="space-y-4">${upcoming.map(u => `
+  // Each entry can be either { date, items: [string, ...] } (new shape) or
+  // { date, text: string } (briefing JSON shape). Normalize to items[].
+  const normalized = upcoming.map(u => ({
+    date: u.date,
+    items: Array.isArray(u.items) ? u.items : (u.text ? [u.text] : []),
+  }));
+  const totalItems = normalized.reduce((n, u) => n + u.items.length, 0);
+  const inner = `<div class="space-y-4">${normalized.map(u => `
     <div>
       <div class="mb-1.5 text-[11px] font-semibold text-ios-blue uppercase tracking-wider tabular-nums">${escapeHtml(shortDate(u.date) || u.date)}</div>
       <ul class="space-y-1">
-        ${(u.items || []).map(it => `
+        ${u.items.map(it => `
           <li class="flex gap-2 items-baseline text-[13px] text-zinc-200">
             <span class="text-zinc-600">·</span><span>${escapeHtml(it)}</span>
           </li>`).join('')}
@@ -864,14 +808,14 @@ function renderItem(item, section) {
       : conf >= 0.50 ? 'fair'
         : 'low';
   const draftBtn = canDraft
-    ? `<button onclick="draftOne('${item.id}')" class="shrink-0 inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-semibold border border-white/10 hairline bg-white/[0.03] text-zinc-200 hover:bg-ios-indigo/15 hover:border-ios-indigo/30 hover:text-ios-indigo transition-colors" title="${conf > 0 ? confLabel + ' confidence — ' + Math.round(conf * 100) + '%' : 'Generate draft reply'}">
+    ? `<button data-action="draftOne" data-args='${escapeAttr(JSON.stringify([item.id]))}' class="shrink-0 inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-semibold border border-white/10 hairline bg-white/[0.03] text-zinc-200 hover:bg-ios-indigo/15 hover:border-ios-indigo/30 hover:text-ios-indigo transition-colors" title="${conf > 0 ? escapeAttr(confLabel + ' confidence — ' + Math.round(conf * 100) + '%') : 'Generate draft reply'}">
          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
          <span>Draft</span>
          ${conf > 0 ? `<span class="${confColor} tabular-nums">${Math.round(conf * 100)}%</span>` : ''}
        </button>` : '';
 
-  const priorityBadge = item.priority ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded ring-1 ${priorityTint(item.priority)}">${item.priority}</span>` : '';
-  const catBadge = item.category && activeFilter === 'all' ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border ${categoryTint(item.category)}">${categoryLabel(item.category)}</span>` : '';
+  const priorityBadge = item.priority ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded ring-1 ${priorityTint(item.priority)}" title="Priority: ${escapeHtml(item.priority)}"><span aria-hidden="true" class="mr-0.5">${priorityGlyph(item.priority)}</span>${escapeHtml(item.priority)}</span>` : '';
+  const catBadge = item.category && activeFilter === 'all' ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded border ${categoryTint(item.category)}">${escapeHtml(categoryLabel(item.category))}</span>` : '';
   const urgencyBadge = item._urgency === 'overdue'
     ? '<span class="inline-flex items-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-ios-red/15 text-ios-red ring-1 ring-ios-red/20">overdue</span>'
     : item._urgency === 'approaching'
@@ -881,22 +825,22 @@ function renderItem(item, section) {
   const receivedAt = (item.receivedAt || item.addedAt) && section === 'inbox'
     ? `<span class="text-[11px] text-zinc-600">·</span><span class="text-[11px] text-zinc-500 tabular-nums">${shortDateTime(item.receivedAt || item.addedAt)}</span>` : '';
   const sourceChip = item.channel
-    ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded ${sourceTint(item.channel)}">${sourceLabel(item.channel)}</span>` : '';
+    ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded ${sourceTint(item.channel)}">${escapeHtml(sourceLabel(item.channel))}</span>` : '';
   const chatName = item.channel === 'teams' && item.chatName
     ? `<span class="text-[11px] text-zinc-500">${escapeHtml(item.chatName)}</span>` : '';
   const sourceUrl = getSourceUrl(item);
   const sourceLink = sourceUrl
-    ? `<a href="#" onclick="openWindow('${sourceUrl}');return false" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/10 hairline bg-white/[0.03] text-zinc-300 hover:bg-ios-blue/15 hover:border-ios-blue/30 hover:text-ios-blue transition-colors cursor-pointer" title="Open in ${sourceLabel(item.channel)}">
-      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-      <span>${sourceLabel(item.channel)}</span>
+    ? `<a href="${escapeAttr(sourceUrl)}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/10 hairline bg-white/[0.03] text-zinc-300 hover:bg-ios-blue/15 hover:border-ios-blue/30 hover:text-ios-blue transition-colors cursor-pointer" title="Open in ${escapeHtml(sourceLabel(item.channel))}">
+      <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      <span>${escapeHtml(sourceLabel(item.channel))}</span>
     </a>` : sourceChip;
 
-  const dismissBtn = `<button onclick="dismissItem('${item.id}')" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/5 hairline bg-transparent text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-300 transition-colors" title="Dismiss">
+  const dismissBtn = `<button data-action="dismissItem" data-args='${escapeAttr(JSON.stringify([item.id]))}' class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/5 hairline bg-transparent text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-300 transition-colors" title="Dismiss">
       <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       <span>Dismiss</span>
     </button>`;
 
-  const doneBtn = `<button onclick="toggleItem('${item.id}')" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/10 hairline bg-white/[0.03] text-zinc-300 hover:bg-ios-green/15 hover:border-ios-green/30 hover:text-ios-green transition-colors" title="Mark complete">
+  const doneBtn = `<button data-action="toggleItem" data-args='${escapeAttr(JSON.stringify([item.id]))}' class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/10 hairline bg-white/[0.03] text-zinc-300 hover:bg-ios-green/15 hover:border-ios-green/30 hover:text-ios-green transition-colors" title="Mark complete">
       <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
       <span>Done</span>
     </button>`;
@@ -907,15 +851,15 @@ function renderItem(item, section) {
   return `
   <div class="group rounded-xl bg-zinc-900/50 border border-white/5 hairline p-3 card-fade hover:bg-zinc-900/70 hover:border-white/10 transition-colors ${isDone ? 'opacity-50' : ''}" data-id="${item.id}" data-section="${section}">
     <div class="flex items-start gap-3">
-      ${showCheckbox ? `<button onclick="toggleItem('${item.id}')" class="shrink-0 w-[22px] h-[22px] rounded-md border-2 ${isDone ? 'bg-ios-green border-ios-green text-white' : 'border-zinc-600 text-transparent hover:border-ios-green hover:text-ios-green'} flex items-center justify-center text-[12px] leading-none transition-colors" aria-label="Complete"><span>✓</span></button>` : ''}
+      ${showCheckbox ? `<button data-action="toggleItem" data-args='${escapeAttr(JSON.stringify([item.id]))}' class="shrink-0 w-[22px] h-[22px] rounded-md border-2 ${isDone ? 'bg-ios-green border-ios-green text-white' : 'border-zinc-600 text-transparent hover:border-ios-green hover:text-ios-green'} flex items-center justify-center text-[12px] leading-none transition-colors" aria-label="Complete"><span aria-hidden="true">✓</span></button>` : ''}
       <div class="flex-1 min-w-0">
         <div class="flex flex-wrap items-center gap-1.5">
-          <span class="text-[14px] text-zinc-100 ${isDone ? 'line-through text-zinc-500' : ''}">${item.text}</span>
+          <span class="text-[14px] text-zinc-100 ${isDone ? 'line-through text-zinc-500' : ''}">${escapeHtml(item.text || '')}</span>
           ${priorityBadge}
           ${catBadge}
           ${urgencyBadge}
         </div>
-        ${item.detail ? `<div class="mt-1 text-[12px] text-zinc-400 leading-snug">${item.detail}</div>` : ''}
+        ${item.detail ? `<div class="mt-1 text-[12px] text-zinc-400 leading-snug">${escapeHtml(item.detail)}</div>` : ''}
         <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
           ${chatName} ${sender} ${receivedAt}
         </div>
@@ -966,8 +910,8 @@ function sectionShell(title, count, body, opts = {}) {
 
 function emptyState(title, sub) {
   return `<div class="text-center py-10">
-    <div class="text-[13px] text-zinc-300 font-medium">${title}</div>
-    <div class="mt-1 text-[12px] text-zinc-600">${sub || ''}</div>
+    <div class="text-[13px] text-zinc-300 font-medium">${escapeHtml(title)}</div>
+    <div class="mt-1 text-[12px] text-zinc-600">${escapeHtml(sub || '')}</div>
   </div>`;
 }
 
@@ -1148,7 +1092,7 @@ function showUndoToast(id, label) {
   toast.dataset.undoId = id;
   toast.innerHTML = `
     <span class="flex-1">${label}</span>
-    <button onclick="undoItem('${id}', this.closest('.undo-toast'))" class="text-ios-blue font-medium hover:text-ios-blue/80 transition-colors text-sm">Undo</button>
+    <button data-action="undoItem" data-args='${escapeAttr(JSON.stringify([id]))}' class="text-ios-blue font-medium hover:text-ios-blue/80 transition-colors text-sm">Undo</button>
     <div class="absolute bottom-0 left-0 h-0.5 bg-ios-blue/40 rounded-full undo-timer" style="animation-duration:${UNDO_GRACE_MS}ms"></div>
   `;
   toast.style.position = 'relative';
@@ -1158,6 +1102,8 @@ function showUndoToast(id, label) {
 }
 
 async function undoItem(id, toastEl) {
+  // Resolve the toast either from explicit arg (legacy) or by id (delegation path).
+  if (!toastEl) toastEl = document.querySelector(`.undo-toast[data-undo-id="${CSS.escape(String(id))}"]`);
   if (toastEl) toastEl.remove();
   try {
     const res = await fetch(`${API}/api/undo/${encodeURIComponent(id)}`, {
@@ -1189,6 +1135,7 @@ async function draftOne(id) {
 
 let _modalItemId = null;
 let _modalItem = null;
+let _modalReturnFocus = null;
 
 function openDraftModal(itemId) {
   _modalItemId = itemId;
@@ -1224,6 +1171,7 @@ function openDraftModal(itemId) {
   loadingEl.innerHTML = '<span class="spinner"></span> Generating draft...';
   textareaEl.classList.add('hidden');
   textareaEl.value = '';
+  delete textareaEl.dataset.userEdited;
 
   // Reset action buttons
   document.getElementById('dm-btn-save').disabled = true;
@@ -1250,9 +1198,36 @@ function openDraftModal(itemId) {
   document.getElementById('draft-modal').classList.remove('hidden');
   document.body.style.overflow = 'hidden';
 
+  // Focus management: remember the trigger so we can restore focus on close,
+  // then move focus into the modal so screen-reader and keyboard users land
+  // inside the dialog.
+  _modalReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  setTimeout(() => {
+    const ta = document.getElementById('dm-draft-textarea');
+    if (ta && !ta.classList.contains('hidden')) { ta.focus(); return; }
+    const closeBtn = document.querySelector('#draft-modal [aria-label="Close draft modal"]');
+    if (closeBtn) closeBtn.focus();
+  }, 0);
+
   // Fire both requests in parallel
   fetchOriginalMessage(itemId);
   fetchDraftReply(itemId);
+}
+
+// Tab/Shift-Tab cycle within the modal so focus can't escape into the page
+// behind it. No-op when the modal is closed.
+function _trapModalFocus(e) {
+  if (!_modalItemId || e.key !== 'Tab') return;
+  const modal = document.getElementById('draft-modal');
+  if (!modal || modal.classList.contains('hidden')) return;
+  const focusables = modal.querySelectorAll(
+    'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  );
+  if (!focusables.length) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 }
 
 function closeDraftModal() {
@@ -1261,11 +1236,18 @@ function closeDraftModal() {
   document.body.style.overflow = '';
   _modalItemId = null;
   _modalItem = null;
+  // Return focus to whatever opened the modal so keyboard navigation resumes
+  // where the user left off.
+  if (_modalReturnFocus && document.contains(_modalReturnFocus)) {
+    try { _modalReturnFocus.focus(); } catch { /* ignore */ }
+  }
+  _modalReturnFocus = null;
 }
 
-// Keyboard: Esc to close
+// Keyboard: Esc to close, Tab cycles within modal
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && _modalItemId) closeDraftModal();
+  if (e.key === 'Escape' && _modalItemId) { closeDraftModal(); return; }
+  _trapModalFocus(e);
 });
 
 async function fetchOriginalMessage(itemId) {
@@ -1302,6 +1284,7 @@ async function fetchDraftReply(itemId) {
     loadingEl.classList.add('hidden');
     textareaEl.classList.remove('hidden');
     textareaEl.value = data.draft;
+    if (_modalItemId) textareaEl.focus();
 
     // Enable action buttons
     document.getElementById('dm-btn-save').disabled = false;
@@ -1447,9 +1430,9 @@ async function nudgeOne(idx) {
       </div>
       <textarea id="nudge-text-${idx}" class="w-full min-h-[120px] bg-zinc-900/60 border border-white/10 hairline rounded-md p-2 text-[12px] text-zinc-100 leading-relaxed font-sans resize-y focus:outline-none focus:border-ios-indigo/50">${escapeHtml(data.draft)}</textarea>
       <div class="mt-2 flex flex-wrap gap-2 items-center">
-        <button class="btn-primary" onclick="approveNudge(${idx})">Approve & Open ${escapeHtml(nudgeSourceLabel)}</button>
-        <button class="btn-secondary" onclick="copyNudge(${idx})">Copy</button>
-        <button class="btn-secondary" onclick="document.getElementById('nudge-result-${idx}').classList.add('hidden')">Discard</button>
+        <button class="btn-primary" data-action="approveNudge" data-args='${escapeAttr(JSON.stringify([idx]))}'>Approve & Open ${escapeHtml(nudgeSourceLabel)}</button>
+        <button class="btn-secondary" data-action="copyNudge" data-args='${escapeAttr(JSON.stringify([idx]))}'>Copy</button>
+        <button class="btn-secondary" data-action="discardNudge" data-args='${escapeAttr(JSON.stringify([idx]))}'>Discard</button>
         <span id="nudge-status-${idx}" class="text-[11px] text-zinc-500"></span>
       </div>`;
   } catch (e) {
@@ -1557,8 +1540,8 @@ async function draftAccItem(type, idx) {
     if (data.error) throw new Error(data.error);
     el.innerHTML = `${escapeHtml(data.draft || '')}
       <div class="mt-3 flex gap-2">
-        <button class="btn-secondary" onclick="navigator.clipboard.writeText(this.closest('[id^=acc-result-]').dataset.draft||this.closest('[id^=acc-result-]').innerText)">Copy</button>
-        <button class="btn-secondary" onclick="this.closest('[id^=acc-result-]').classList.add('hidden')">Discard</button>
+        <button class="btn-secondary" data-action="copyAccDraft" data-args='${escapeAttr(JSON.stringify([type, idx]))}'>Copy</button>
+        <button class="btn-secondary" data-action="discardAccDraft" data-args='${escapeAttr(JSON.stringify([type, idx]))}'>Discard</button>
       </div>`;
   } catch (e) {
     el.innerHTML = `<span class="text-ios-red">Draft failed: ${escapeHtml(e.message)}</span>`;
@@ -1628,6 +1611,9 @@ function connectSSE() {
       const d = JSON.parse(e.data);
       lastSeenUpdate = d.lastUpdated;
     });
+    // Server emits a heartbeat every 25s; refresh lastEventAt so the safety
+    // net poll doesn't reconnect a perfectly healthy stream.
+    sse.addEventListener('ping', () => { lastEventAt = Date.now(); });
     sse.addEventListener('briefing', async (e) => {
       lastEventAt = Date.now();
       const d = JSON.parse(e.data);
@@ -1643,7 +1629,36 @@ function connectSSE() {
         render();
       } catch (err) { console.error('SSE refetch failed', err); }
     });
-    sse.addEventListener('ping', () => { lastEventAt = Date.now(); });
+    // Live-update the draft modal as the LLM produces output. The server
+    // emits draft-progress with the running buffer; we only paint if the
+    // modal is open for the matching item.
+    sse.addEventListener('draft-progress', (e) => {
+      lastEventAt = Date.now();
+      try {
+        const d = JSON.parse(e.data);
+        if (!_modalItemId || d.itemId !== _modalItemId) return;
+        const textareaEl = document.getElementById('dm-draft-textarea');
+        const loadingEl = document.getElementById('dm-draft-loading');
+        if (loadingEl) loadingEl.classList.add('hidden');
+        if (textareaEl) {
+          textareaEl.classList.remove('hidden');
+          // Don't overwrite if the user has started editing
+          if (!textareaEl.dataset.userEdited) textareaEl.value = d.text || '';
+        }
+      } catch {}
+    });
+    sse.addEventListener('draft-ready', (e) => {
+      lastEventAt = Date.now();
+      try {
+        const d = JSON.parse(e.data);
+        if (!_modalItemId || d.itemId !== _modalItemId) return;
+        const textareaEl = document.getElementById('dm-draft-textarea');
+        if (textareaEl && !textareaEl.dataset.userEdited) {
+          textareaEl.value = d.text || '';
+          textareaEl.focus();
+        }
+      } catch {}
+    });
     sse.addEventListener('regenerating', () => {
       lastEventAt = Date.now();
       showRegenBanner();
@@ -1670,6 +1685,66 @@ function connectSSE() {
 }
 
 connectSSE();
+
+// Mark the draft textarea as user-edited on first input so SSE draft-progress
+// events can't overwrite in-flight edits.
+(() => {
+  const ta = document.getElementById('dm-draft-textarea');
+  if (ta) ta.addEventListener('input', () => { ta.dataset.userEdited = '1'; });
+})();
+
+// ============================================================
+// EVENT DELEGATION
+// ============================================================
+//
+// All click handlers are wired through a single delegated listener instead of
+// inline `onclick=...` attributes. Each interactive element carries:
+//   data-action="functionName"
+//   data-args='[...]'         (JSON array of args, optional)
+// This lets us tighten CSP later by removing 'unsafe-inline' from script-src.
+
+function discardNudge(idx) {
+  const el = document.getElementById(`nudge-result-${idx}`);
+  if (el) el.classList.add('hidden');
+}
+
+function copyAccDraft(type, idx) {
+  const el = document.getElementById(`acc-result-${type}-${idx}`);
+  if (!el) return;
+  const txt = el.dataset.draft || el.innerText;
+  navigator.clipboard.writeText(txt).catch(e => console.error('copy failed', e));
+}
+
+function discardAccDraft(type, idx) {
+  const el = document.getElementById(`acc-result-${type}-${idx}`);
+  if (el) el.classList.add('hidden');
+}
+
+const ACTION_REGISTRY = {
+  setFilter, openWindow, manualRefresh, toggleStatus, toggleLowPriority,
+  toggleItem, dismissItem, undoItem,
+  draftOne, closeDraftModal, saveDraftAndOpen, copyDraft, regenDraft,
+  nudgeOne, approveNudge, copyNudge, discardNudge,
+  draftAccItem, completeAccItem, dismissAccItem, copyAccDraft, discardAccDraft,
+  dismissWaiting,
+};
+
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-action]');
+  if (!el) return;
+  const fn = ACTION_REGISTRY[el.dataset.action];
+  if (typeof fn !== 'function') {
+    console.warn('Unknown data-action:', el.dataset.action);
+    return;
+  }
+  let args = [];
+  if (el.dataset.args) {
+    try { args = JSON.parse(el.dataset.args); }
+    catch (err) { console.error('Bad data-args:', el.dataset.args, err); return; }
+  }
+  e.preventDefault();
+  fn(...args);
+});
 
 // Refresh health independently (cheap, gives the dot in the header)
 setInterval(loadHealth, 60_000);
