@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+/* Tailwind v4 theme tokens — replaces the old window.tailwind.config block.
+   Values mirror the previous CDN config so utilities like text-ios-blue,
+   font-display, and animate-fade-in continue to resolve. */
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', Inter, 'Segoe UI', system-ui, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Display', Inter, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --color-ios-blue: #0a84ff;
+  --color-ios-green: #30d158;
+  --color-ios-yellow: #ffd60a;
+  --color-ios-orange: #ff9f0a;
+  --color-ios-red: #ff453a;
+  --color-ios-indigo: #5e5ce6;
+  --color-ios-pink: #ff2d55;
+  --color-ios-teal: #64d2ff;
+
+  --animate-fade-in: fade-in .25s ease-out;
+  --animate-pulse-dot: pulse-dot 2s ease-in-out infinite;
+
+  @keyframes fade-in {
+    0% { opacity: 0; transform: translateY(4px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .3; }
+  }
+}
+
+/* Honor the explicit dark-mode class on <html> the same way the old
+   darkMode: 'class' config did. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ----- Hand-written styles (previously in public/styles.css) ----- */
+
+@media (-webkit-min-device-pixel-ratio: 2) { .hairline { border-width: 0.5px !important; } }
+.spinner { display:inline-block; width:14px; height:14px; border:2px solid rgb(82 82 91); border-top-color:#0a84ff; border-radius:50%; animation:spin .6s linear infinite; vertical-align:-2px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+details > summary { list-style: none; }
+details > summary::-webkit-details-marker { display: none; }
+.chev { transition: transform .2s ease; }
+details[open] > summary .chev { transform: rotate(90deg); }
+.card-fade { transition: opacity .4s ease, background-color .3s ease; }
+body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+/* Custom scrollbars in tab strip */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+/* Subtle gradient backdrop */
+.bg-app {
+  background:
+    radial-gradient(1200px 600px at 0% -10%, rgba(10,132,255,0.08), transparent 60%),
+    radial-gradient(1000px 500px at 100% 0%, rgba(94,92,230,0.06), transparent 60%),
+    #09090b;
+}
+/* Frosted header */
+.frost { backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px); }
+/* Undo toast */
+.undo-toast {
+  animation: slideUp .25s ease-out;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.undo-toast .undo-timer {
+  animation: shrink linear forwards;
+}
+@keyframes shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+/* Draft modal */
+#draft-modal-overlay:not(.hidden) { animation: fadeIn .15s ease-out; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
