@@ -1,12 +1,13 @@
 import express from 'express';
-import { readFileSync, readdirSync, writeFileSync, existsSync, mkdirSync, watch } from 'fs';
+import { readFileSync, readdirSync, writeFileSync, renameSync, existsSync, mkdirSync, watch } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { execFile } from 'child_process';
+import { execFile, spawn } from 'child_process';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = 3141;
+const HOST = '127.0.0.1'; // bind loopback only — single-machine tool, no LAN exposure
 
 const DATA_DIR = join(__dirname, '..', 'data');
 const BRIEFINGS_DIR = join(DATA_DIR, 'briefings');
@@ -31,6 +32,48 @@ function isValidItemId(s) {
 function sanitizeString(s, maxLen = 500) {
   if (typeof s !== 'string') return s;
   return s.slice(0, maxLen);
+}
+
+// Strip control chars and collapse whitespace before interpolating fields like
+// sender/subject into LLM prompts. Defends against control-char prompt steering
+// and keeps a single-line prompt single-line.
+function promptSafe(s, maxLen = 500) {
+  if (typeof s !== 'string') return '';
+  // eslint-disable-next-line no-control-regex
+  return s.replace(/[\x00-\x1f\x7f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLen);
+}
+
+// Centralized channel → MCP mail tool map. Used by every Copilot CLI shell-out
+// so the routing rules live in one place.
+const MAIL_TOOL_BY_CHANNEL = {
+  'outlook-work': 'outlook',
+  'outlook-personal': 'outlook',
+  email: 'outlook',
+  gmail: 'gmail',
+  hmbl: 'hmbl-mail',
+};
+function mailToolFor(channel) { return MAIL_TOOL_BY_CHANNEL[channel] || 'outlook'; }
+
+// --- LLM prompt templates ---
+//
+// Templates live in dashboard/prompts/*.md so prompt edits ship as one-file
+// diffs and the golden-prompt regression test (tests/golden-prompts.test.js)
+// can detect drift. Substitution is intentionally minimal: {{var}} → values[var].
+// Missing keys render empty. Callers are responsible for sanitizing inputs
+// (promptSafe / sanitizeString) before passing them in.
+
+const PROMPTS_DIR = join(__dirname, 'prompts');
+const PROMPT_FILES = ['fetch-message', 'save-draft', 'draft-reply', 'draft-nudge'];
+const PROMPTS = Object.fromEntries(
+  PROMPT_FILES.map(name => [name, readFileSync(join(PROMPTS_DIR, `${name}.md`), 'utf8')])
+);
+
+function renderPrompt(name, values = {}) {
+  const tpl = PROMPTS[name];
+  if (!tpl) throw new Error(`Unknown prompt template: ${name}`);
+  return tpl.replace(/\{\{(\w+)\}\}/g, (_, k) =>
+    values[k] != null ? String(values[k]) : ''
+  ).trim();
 }
 
 // --- File helpers ---
@@ -61,11 +104,30 @@ function readBriefing(date) {
 function writeBriefing(data) {
   const p = briefingPath(data.date);
   if (!p) throw new Error('Cannot determine briefing path');
-  writeFileSync(p, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+  // Atomic write: stage to a sibling tmp file then rename. A crash mid-stringify
+  // or mid-write leaves the original intact instead of corrupting it.
+  const tmp = `${p}.tmp-${process.pid}-${Date.now()}`;
+  writeFileSync(tmp, JSON.stringify(data, null, 2) + '\n', 'utf-8');
+  renameSync(tmp, p);
   // The fs.watch in the SSE block will also fire; the debounce coalesces.
   // Calling scheduleBroadcast directly guarantees at-least-one push even on
   // filesystems where watch is unreliable (e.g., some network mounts).
   if (typeof scheduleBroadcast === 'function') scheduleBroadcast('write');
+}
+
+// --- Per-date write mutex ---
+// All endpoints that read-modify-write the briefing JSON serialize through
+// this lock. Without it, two clicks landing within milliseconds (or the cron
+// PATCH overlapping a UI action) would race and silently clobber each other.
+const writeLocks = new Map(); // date -> Promise chain tail
+function withBriefingLock(date, fn) {
+  const key = date || '__latest__';
+  const prev = writeLocks.get(key) || Promise.resolve();
+  const next = prev.catch(() => {}).then(() => fn());
+  writeLocks.set(key, next);
+  // Clean up the map entry once this turn settles (only if still the tail).
+  next.finally(() => { if (writeLocks.get(key) === next) writeLocks.delete(key); });
+  return next;
 }
 
 function now() { return new Date().toISOString(); }
@@ -381,44 +443,49 @@ app.patch('/api/briefing', (req, res) => {
   if (!patch || typeof patch !== 'object') return res.status(400).json({ error: 'Request body must be a JSON object' });
   if (patch.date && !isValidDate(patch.date)) return res.status(400).json({ error: 'Invalid date format (expected YYYY-MM-DD)' });
 
-  const data = readBriefing(patch.date);
-  if (!data) return res.status(404).json({ error: 'No briefing found for date' });
-  const ts = now();
+  withBriefingLock(patch.date, async () => {
+    const data = readBriefing(patch.date);
+    if (!data) return res.status(404).json({ error: 'No briefing found for date' });
+    const ts = now();
 
-  // Merge array sections by id
-  for (const section of ['inbox', 'carryOver', 'tasks', 'meetings']) {
-    if (!patch[section]) continue;
-    if (!data[section]) data[section] = [];
-    for (const incoming of patch[section]) {
-      const existing = data[section].find(i => i.id === incoming.id);
-      if (existing) {
-        Object.assign(existing, incoming, { updatedAt: ts });
-      } else {
-        data[section].push({ ...incoming, addedAt: incoming.addedAt || ts });
+    // Merge array sections by id
+    for (const section of ['inbox', 'carryOver', 'tasks', 'meetings']) {
+      if (!patch[section]) continue;
+      if (!data[section]) data[section] = [];
+      for (const incoming of patch[section]) {
+        const existing = data[section].find(i => i.id === incoming.id);
+        if (existing) {
+          Object.assign(existing, incoming, { updatedAt: ts });
+        } else {
+          data[section].push({ ...incoming, addedAt: incoming.addedAt || ts });
+        }
       }
     }
-  }
 
-  // Full-replace sections
-  for (const section of ['dayFit', 'accountability', 'upcoming']) {
-    if (patch[section]) data[section] = patch[section];
-  }
+    // Full-replace sections
+    for (const section of ['dayFit', 'accountability', 'upcoming']) {
+      if (patch[section]) data[section] = patch[section];
+    }
 
-  // Scalars
-  if (patch.inboxLowCount != null) data.inboxLowCount = patch.inboxLowCount;
+    // Scalars
+    if (patch.inboxLowCount != null) data.inboxLowCount = patch.inboxLowCount;
 
-  data.lastUpdated = ts;
-  data.updateCount = (data.updateCount || 0) + 1;
+    data.lastUpdated = ts;
+    data.updateCount = (data.updateCount || 0) + 1;
 
-  writeBriefing(data);
-  trackHealth('PATCH /api/briefing', true);
-  res.json({ ok: true, lastUpdated: data.lastUpdated, updateCount: data.updateCount });
+    writeBriefing(data);
+    trackHealth('PATCH /api/briefing', true);
+    res.json({ ok: true, lastUpdated: data.lastUpdated, updateCount: data.updateCount });
+  }).catch(err => {
+    trackHealth('PATCH /api/briefing', false, err.message);
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  });
 });
 
 // POST /api/complete-task/:id — mark done in JSON + complete in Things 3
 app.post('/api/complete-task/:id', (req, res) => {
   if (!isValidItemId(req.params.id)) return res.status(400).json({ error: 'Invalid item id' });
-  try {
+  withBriefingLock(null, async () => {
     const data = readBriefing();
     const source = req.body?.source || 'api';
     const item = findItem(data, req.params.id);
@@ -427,7 +494,7 @@ app.post('/api/complete-task/:id', (req, res) => {
       return res.status(404).json({ error: 'Item not found' });
     }
     const text = item.text || '';
-    const found = setItemStatus(data, req.params.id, 'done', source);
+    setItemStatus(data, req.params.id, 'done', source);
 
     // Cross-complete: remove matching accountability overdue/approaching entry
     const acc = data.accountability || {};
@@ -458,16 +525,16 @@ app.post('/api/complete-task/:id', (req, res) => {
     markEmailRead(item);
     trackHealth('POST /api/complete-task', true);
     res.json({ ok: true, id: req.params.id });
-  } catch (err) {
+  }).catch(err => {
     trackHealth('POST /api/complete-task', false, err.message);
-    res.status(500).json({ error: err.message });
-  }
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  });
 });
 
 // POST /api/dismiss/:id — remove from dashboard + delete from Things 3
 app.post('/api/dismiss/:id', (req, res) => {
   if (!isValidItemId(req.params.id)) return res.status(400).json({ error: 'Invalid item id' });
-  try {
+  withBriefingLock(null, async () => {
     const data = readBriefing();
     const source = req.body?.source || 'api';
     const item = findItem(data, req.params.id);
@@ -476,24 +543,24 @@ app.post('/api/dismiss/:id', (req, res) => {
       return res.status(404).json({ error: 'Item not found' });
     }
     const text = item.text || '';
-    const found = setItemStatus(data, req.params.id, 'dismissed', source);
+    setItemStatus(data, req.params.id, 'dismissed', source);
     data.lastUpdated = now();
     writeBriefing(data);
     things3Delete(text);
     markEmailRead(item);
     trackHealth('POST /api/dismiss', true);
     res.json({ ok: true, id: req.params.id });
-  } catch (err) {
+  }).catch(err => {
     trackHealth('POST /api/dismiss', false, err.message);
-    res.status(500).json({ error: err.message });
-  }
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  });
 });
 
 // POST /api/undo/:id — revert the last status change within the grace period.
 // Only works if setItemStatus was called within the last UNDO_GRACE_MS.
 app.post('/api/undo/:id', (req, res) => {
   if (!isValidItemId(req.params.id)) return res.status(400).json({ error: 'Invalid item id' });
-  try {
+  withBriefingLock(null, async () => {
     pruneUndoBuffer();
     // Find the most recent undo entry for this id (search from end)
     const idx = undoBuffer.findLastIndex(e => e.id === req.params.id);
@@ -515,10 +582,10 @@ app.post('/api/undo/:id', (req, res) => {
 
     trackHealth('POST /api/undo', true);
     res.json({ ok: true, id: req.params.id, restoredStatus: entry.previousStatus });
-  } catch (err) {
+  }).catch(err => {
     trackHealth('POST /api/undo', false, err.message);
-    res.status(500).json({ error: err.message });
-  }
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  });
 });
 
 // --- Message fetch helper ---
@@ -527,26 +594,17 @@ function runCopilotFetchMessage(item) {
   return new Promise((resolve, reject) => {
     const channel = item.channel || 'email';
     const emailId = item.emailId || '';
-    const sender = item.sender || 'unknown';
-    const subject = item.text || '';
+    const sender = promptSafe(item.sender || 'unknown', 200);
+    const subject = promptSafe(item.text || '', 300);
 
-    // Build a targeted prompt to read the original message
-    const prompt = [
-      `Fetch the full body of the message from ${sender} with subject "${subject}".`,
-      emailId ? `Email ID: ${emailId}.` : '',
-      `Channel: ${channel}.`,
-      `Return ONLY the raw message body text. No metadata, no subject line, no commentary.`,
-      `If you cannot fetch it, return the text: FETCH_FAILED`,
-    ].filter(Boolean).join(' ');
+    const prompt = renderPrompt('fetch-message', {
+      sender,
+      subject,
+      channel,
+      emailIdLine: emailId ? `Email ID: ${promptSafe(emailId, 200)}.` : '',
+    });
 
-    const toolMap = {
-      'outlook-work': 'outlook',
-      'outlook-personal': 'outlook',
-      email: 'outlook',
-      gmail: 'gmail',
-      hmbl: 'hmbl-mail',
-    };
-    const mailTool = toolMap[channel] || 'outlook';
+    const mailTool = mailToolFor(channel);
 
     execFile('copilot', [
       '-p', prompt,
@@ -613,22 +671,17 @@ app.get('/api/message/:itemId', async (req, res) => {
 
 function runCopilotSaveDraft(channel, to, subject, body) {
   return new Promise((resolve, reject) => {
-    const toolMap = {
-      'outlook-work': 'outlook',
-      'outlook-personal': 'outlook',
-      email: 'outlook',
-      gmail: 'gmail',
-      hmbl: 'hmbl-mail',
-    };
-    const mailTool = toolMap[channel] || 'outlook';
+    const mailTool = mailToolFor(channel);
+    const safeTo = promptSafe(to, 200);
+    const safeSubject = promptSafe(subject, 300);
 
-    const prompt = [
-      `Save the following as a draft email.`,
-      `To: ${to}. Subject: Re: ${subject}.`,
-      `Channel: ${channel}.`,
-      `Body:\n${body}`,
-      `\nUse the ${mailTool}_draft_email tool to save it. Return ONLY the word "SAVED" if successful, or "FAILED: reason" if not.`,
-    ].join(' ');
+    const prompt = renderPrompt('save-draft', {
+      to: safeTo,
+      subject: safeSubject,
+      channel,
+      body,
+      mailTool,
+    });
 
     execFile('copilot', [
       '-p', prompt,
@@ -677,15 +730,20 @@ app.post('/api/save-draft', async (req, res) => {
 
 // --- Draft helpers ---
 
-function runCopilotDraft(item) {
+function runCopilotDraft(item, { stream = false } = {}) {
   return new Promise((resolve, reject) => {
     const channel = item.channel || 'email';
-    const sender = item.sender || 'unknown';
-    const subject = item.text || '';
-    const detail = item.detail || '';
-    const prompt = `/draft-message Draft a reply to ${sender} about: ${subject}. ${detail ? 'Context: ' + detail : ''} Channel: ${channel}. Output ONLY the draft body text, no metadata.`;
+    const sender = promptSafe(item.sender || 'unknown', 200);
+    const subject = promptSafe(item.text || '', 300);
+    const detail = promptSafe(item.detail || '', 800);
+    const prompt = renderPrompt('draft-reply', {
+      sender,
+      subject,
+      channel,
+      contextLine: detail ? `Context: ${detail}` : '',
+    });
 
-    execFile('copilot', [
+    const args = [
       '-p', prompt,
       '--allow-tool=workiq',
       '--allow-tool=outlook',
@@ -695,7 +753,36 @@ function runCopilotDraft(item) {
       '--allow-tool=shell(cat)',
       '--deny-tool=shell(rm)',
       '--deny-tool=shell(git push)',
-    ], { timeout: 120_000, cwd: join(__dirname, '..') }, (err, stdout, stderr) => {
+    ];
+    const opts = { cwd: join(__dirname, '..') };
+
+    // When stream=true, spawn so we can forward stdout chunks to SSE clients
+    // as `draft-progress` events keyed by item.id. The promise still resolves
+    // with the full final text so the HTTP response is unchanged.
+    if (stream && item.id) {
+      const proc = spawn('copilot', args, opts);
+      let buf = '';
+      const timer = setTimeout(() => {
+        try { proc.kill('SIGTERM'); } catch {}
+        reject(new Error('copilot draft timed out after 120s'));
+      }, 120_000);
+
+      proc.stdout.on('data', chunk => {
+        buf += chunk.toString();
+        broadcast('draft-progress', { itemId: item.id, text: buf });
+      });
+      proc.on('error', err => { clearTimeout(timer); reject(err); });
+      proc.on('close', code => {
+        clearTimeout(timer);
+        const final = buf.trim();
+        if (code !== 0) return reject(new Error(`copilot exited ${code}`));
+        broadcast('draft-ready', { itemId: item.id, text: final });
+        resolve(final);
+      });
+      return;
+    }
+
+    execFile('copilot', args, { ...opts, timeout: 120_000 }, (err, stdout, _stderr) => {
       if (err) return reject(err);
       resolve(stdout.trim());
     });
@@ -719,7 +806,7 @@ app.post('/api/draft-reply', async (req, res) => {
   if (!item) return res.status(404).json({ error: 'Item not found' });
 
   try {
-    const draft = await runCopilotDraft(item);
+    const draft = await runCopilotDraft(item, { stream: true });
     trackHealth('POST /api/draft-reply', true);
     res.json({ ok: true, itemId, draft, status: 'generated' });
   } catch (err) {
@@ -733,7 +820,7 @@ app.post('/api/draft-reply', async (req, res) => {
   }
 });
 
-// POST /api/draft-all — sequential drafts for all high-confidence items
+// POST /api/draft-all — parallel drafts (concurrency cap) for high-confidence items
 app.post('/api/draft-all', async (req, res) => {
   const data = readBriefing();
   if (!data) return res.status(404).json({ error: 'No briefing found' });
@@ -742,32 +829,31 @@ app.post('/api/draft-all', async (req, res) => {
     i => i.status === 'open' && i.draftConfidence != null && i.draftConfidence >= 0.70
   );
 
-  const drafts = [];
-  for (const c of candidates) {
-    try {
-      const draft = await runCopilotDraft(c);
-      drafts.push({
-        itemId: c.id,
-        sender: c.sender,
-        subject: c.text,
-        channel: c.channel,
-        confidence: c.draftConfidence,
-        draft,
-        status: 'generated'
-      });
-    } catch (err) {
-      drafts.push({
-        itemId: c.id,
-        sender: c.sender,
-        subject: c.text,
-        channel: c.channel,
-        confidence: c.draftConfidence,
-        draft: null,
-        status: 'failed',
-        error: err.message
-      });
+  // Bounded concurrency to avoid hammering MCP tools / Copilot CLI process pool.
+  const CONCURRENCY = 2;
+  const drafts = new Array(candidates.length);
+  let cursor = 0;
+  async function worker() {
+    while (true) {
+      const idx = cursor++;
+      if (idx >= candidates.length) return;
+      const c = candidates[idx];
+      try {
+        const draft = await runCopilotDraft(c);
+        drafts[idx] = {
+          itemId: c.id, sender: c.sender, subject: c.text, channel: c.channel,
+          confidence: c.draftConfidence, draft, status: 'generated',
+        };
+      } catch (err) {
+        drafts[idx] = {
+          itemId: c.id, sender: c.sender, subject: c.text, channel: c.channel,
+          confidence: c.draftConfidence, draft: null, status: 'failed', error: err.message,
+        };
+      }
     }
   }
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, candidates.length) }, worker));
+
   const allOk = drafts.every(d => d.status === 'generated');
   trackHealth('POST /api/draft-all', allOk, allOk ? null : `${drafts.filter(d => d.status === 'failed').length} drafts failed`);
   res.json({ ok: true, count: drafts.length, drafts });
@@ -777,9 +863,9 @@ app.post('/api/draft-all', async (req, res) => {
 
 function runCopilotNudge(entry) {
   return new Promise((resolve, reject) => {
-    const person = entry.person || 'unknown';
-    const item = entry.item || '';
-    const detail = entry.detail || '';
+    const person = promptSafe(entry.person || 'unknown', 200);
+    const item = promptSafe(entry.item || '', 400);
+    const detail = promptSafe(entry.detail || '', 800);
     const channel = entry.channel || 'email';
     const daysOpen = entry.daysOpen != null ? entry.daysOpen : null;
     const stale = !!entry.stale;
@@ -788,15 +874,13 @@ function runCopilotNudge(entry) {
       ? `${daysOpen} day${daysOpen === 1 ? '' : 's'} open${stale ? ', flagged stale' : ''}`
       : (stale ? 'flagged stale' : 'recent');
 
-    const prompt = [
-      `/draft-message Draft a follow-up nudge to ${person} about: ${item}.`,
-      detail ? `Context: ${detail}.` : '',
-      `Channel: ${channel}. Aging: ${aging}.`,
-      `Tone: warm, professional, growth mindset, never passive-aggressive. 2-4 sentences.`,
-      `Reference the original context briefly so they don't have to search.`,
-      `End with a P.S. (one short sentence) that semi-humorously discloses this reminder was drafted by Derek's AI assistant.`,
-      `Output ONLY the message body text. No subject line, no metadata, no explanation.`,
-    ].filter(Boolean).join(' ');
+    const prompt = renderPrompt('draft-nudge', {
+      person,
+      item,
+      channel,
+      aging,
+      contextLine: detail ? `Context: ${detail}.` : '',
+    });
 
     execFile('copilot', [
       '-p', prompt,
@@ -843,7 +927,7 @@ app.post('/api/draft-nudge', async (req, res) => {
 // source of truth and is updated by atlas-db.py. Tomorrow's briefing will
 // re-pull from the DB.
 app.post('/api/dismiss-waiting', (req, res) => {
-  try {
+  withBriefingLock(null, async () => {
     const data = readBriefing();
     if (!data) return res.status(404).json({ error: 'No briefing found' });
     const acc = data.accountability || {};
@@ -876,16 +960,16 @@ app.post('/api/dismiss-waiting', (req, res) => {
 
     trackHealth('POST /api/dismiss-waiting', true);
     res.json({ ok: true, removed, remaining: list.length });
-  } catch (err) {
+  }).catch(err => {
     trackHealth('POST /api/dismiss-waiting', false, err.message);
-    res.status(500).json({ error: err.message });
-  }
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  });
 });
 
 // POST /api/complete-accountability — mark an overdue/approaching item done.
 // Body: { type: 'overdue'|'approaching', index: number, source: 'ui'|... }
 app.post('/api/complete-accountability', (req, res) => {
-  try {
+  withBriefingLock(null, async () => {
     const data = readBriefing();
     if (!data) return res.status(404).json({ error: 'No briefing found' });
     const acc = data.accountability || {};
@@ -926,16 +1010,16 @@ app.post('/api/complete-accountability', (req, res) => {
     writeBriefing(data);
     trackHealth('POST /api/complete-accountability', true);
     res.json({ ok: true, removed, remaining: list.length });
-  } catch (err) {
+  }).catch(err => {
     trackHealth('POST /api/complete-accountability', false, err.message);
-    res.status(500).json({ error: err.message });
-  }
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  });
 });
 
 // POST /api/dismiss-accountability — dismiss an overdue/approaching item.
 // Body: { type: 'overdue'|'approaching', index: number, source: 'ui'|... }
 app.post('/api/dismiss-accountability', (req, res) => {
-  try {
+  withBriefingLock(null, async () => {
     const data = readBriefing();
     if (!data) return res.status(404).json({ error: 'No briefing found' });
     const acc = data.accountability || {};
@@ -959,10 +1043,10 @@ app.post('/api/dismiss-accountability', (req, res) => {
     writeBriefing(data);
     trackHealth('POST /api/dismiss-accountability', true);
     res.json({ ok: true, removed, remaining: list.length });
-  } catch (err) {
+  }).catch(err => {
     trackHealth('POST /api/dismiss-accountability', false, err.message);
-    res.status(500).json({ error: err.message });
-  }
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  });
 });
 
 // POST /api/mark-read/:id — mark email as read via Graph API
@@ -1039,6 +1123,17 @@ app.get('/api/obligations', (req, res) => {
 });
 
 // --- Start ---
-app.listen(PORT, () => {
-  console.log(`Briefing dashboard → http://localhost:${PORT}`);
+app.listen(PORT, HOST, () => {
+  console.log(`Briefing dashboard → http://${HOST}:${PORT}`);
 });
+
+// Reap any in-flight regenerate child on shutdown so we don't orphan it.
+function shutdown(sig) {
+  if (regenProc) {
+    try { regenProc.kill('SIGTERM'); } catch { /* already gone */ }
+  }
+  console.log(`[server] ${sig} received, exiting`);
+  process.exit(0);
+}
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));
