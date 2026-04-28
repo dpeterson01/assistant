@@ -90,15 +90,17 @@ function toggleStatus() {
 // HELPERS
 // ============================================================
 
-const channelMap = { 'outlook-work': 'Outlook', 'outlook-personal': 'Outlook (personal)', 'gmail': 'Gmail', 'hmbl': 'HMBL', 'teams': 'Teams' };
-const channelLabel = ch => channelMap[ch] || ch || '';
+const sourceMap = { 'outlook-work': 'Outlook', 'outlook-personal': 'Outlook (personal)', 'gmail': 'Gmail', 'hmbl': 'HMBL', 'teams': 'Teams', 'task': 'Things 3', 'github': 'GitHub' };
+const sourceLabel = ch => sourceMap[ch] || ch || '';
 
-const channelTint = ch => ({
+const sourceTint = ch => ({
   'outlook-work': 'bg-ios-blue/15 text-ios-blue',
   'outlook-personal': 'bg-ios-indigo/15 text-ios-indigo',
   'gmail': 'bg-ios-red/15 text-ios-red',
   'hmbl': 'bg-ios-teal/15 text-ios-teal',
   'teams': 'bg-ios-indigo/15 text-ios-indigo',
+  'task': 'bg-ios-orange/15 text-ios-orange',
+  'github': 'bg-white/10 text-zinc-300',
 }[ch] || 'bg-white/10 text-zinc-300');
 
 const priorityTint = p => ({
@@ -186,6 +188,16 @@ function getSourceUrl(item) {
   if (ch === 'outlook-personal' && eid) return `https://outlook.live.com/mail/deeplink/read/${encodeURIComponent(eid)}`;
   if (ch === 'gmail' && eid) return `https://mail.google.com/mail/u/0/#inbox/${encodeURIComponent(eid)}`;
   if (ch === 'hmbl' && eid) return `https://outlook.office365.com/mail/deeplink/read/${encodeURIComponent(eid)}`;
+
+  // Fallback: no deep link but source is known — generate a search URL
+  if (ch) {
+    const q = encodeURIComponent(item.sender || item.text || '');
+    if (ch === 'teams') return `https://teams.microsoft.com/_#/search?q=${q}`;
+    if (ch === 'gmail') return `https://mail.google.com/mail/u/0/#search/${q}`;
+    if (ch === 'outlook-work' || ch === 'outlook-personal' || ch === 'hmbl' || ch === 'email') {
+      return `https://outlook.office365.com/mail/0/search?q=${q}`;
+    }
+  }
   return null;
 }
 
@@ -588,13 +600,17 @@ function renderCommitments(acc) {
   function itemSourceLink(item) {
     if (item.sourceUrl) return { url: item.sourceUrl, label: 'Source' };
 
-    // Try to find a matching carryOver or inbox item with deep link data
+    // Task items (Things 3) have no external link
+    const itemCh = (item.channel || '').toLowerCase();
+    if (itemCh === 'task') return { url: null, label: 'Things 3' };
+
+    // Try to find a matching carryOver or inbox item with deep link or source data
     const allItems = [...(briefing.carryOver || []), ...(briefing.inbox || [])];
     const person = (item.person || '').toLowerCase();
     const text = (item.text || item.item || '').toLowerCase();
 
     const match = allItems.find(ci => {
-      if (!ci.emailId && !ci.teamsDeepLink && !ci.threadId) return false;
+      if (!ci.emailId && !ci.teamsDeepLink && !ci.threadId && !ci.channel) return false;
       const ciText = (ci.text || '').toLowerCase();
       const ciSender = (ci.sender || '').toLowerCase();
       // Match by person name in sender, or by overlapping text
@@ -609,16 +625,20 @@ function renderCommitments(acc) {
       const url = getSourceUrl(match);
       if (url) {
         const ch = match.channel || '';
-        const label = ch.startsWith('outlook') ? 'Outlook'
-          : ch === 'teams' ? 'Teams'
-            : ch === 'gmail' ? 'Gmail'
-              : ch === 'hmbl' ? 'HMBL'
-                : 'Source';
+        const label = sourceMap[ch] || 'Source';
         return { url, label };
+      }
+      // No deep link, but matched item has a source — use it for search fallback
+      if (match.channel) {
+        const mch = match.channel.toLowerCase();
+        const searchTerm = encodeURIComponent(item.person || item.text || item.item || '');
+        if (mch === 'teams') return { url: `https://teams.microsoft.com/_#/search?q=${searchTerm}`, label: 'Teams' };
+        if (mch === 'gmail') return { url: `https://mail.google.com/mail/u/0/#search/${searchTerm}`, label: 'Gmail' };
+        if (mch.startsWith('outlook') || mch === 'email') return { url: `https://outlook.office365.com/mail/0/search?q=${searchTerm}`, label: 'Outlook' };
       }
     }
 
-    // Use item.channel (from atlas-db) to route to the correct platform
+    // Use item.channel (from atlas-db) to route to the correct source
     const ch = (item.channel || '').toLowerCase();
     const personEnc = encodeURIComponent(item.person || '');
     const searchTerm = personEnc || encodeURIComponent(item.text || item.item || '');
@@ -670,10 +690,14 @@ function renderCommitments(acc) {
         : '';
 
     const src = itemSourceLink(item);
-    const sourceBtn = src ? `<a href="#" onclick="openWindow('${src.url}');return false" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/10 hairline bg-white/[0.03] text-zinc-300 hover:bg-ios-blue/15 hover:border-ios-blue/30 hover:text-ios-blue transition-colors" title="Open in ${src.label}">
+    const sourceBtn = src
+      ? (src.url
+        ? `<a href="#" onclick="openWindow('${src.url}');return false" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/10 hairline bg-white/[0.03] text-zinc-300 hover:bg-ios-blue/15 hover:border-ios-blue/30 hover:text-ios-blue transition-colors" title="Open in ${src.label}">
       <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
       <span>${src.label}</span>
-    </a>` : '';
+    </a>`
+        : `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded ${sourceTint(item.channel || '')}">${src.label}</span>`)
+      : '';
 
     // For 'owe' items, use original overdue/approaching type+index for server calls
     const serverType = (type === 'owe' && item._origType) ? item._origType : type;
@@ -738,7 +762,17 @@ function renderCommitments(acc) {
     ...overdue.map((s, i) => ({ ...parseStringItem(s, 'overdue'), _origType: 'overdue', _origIdx: i })),
     ...approaching.map((s, i) => ({ ...parseStringItem(s, 'approaching'), _origType: 'approaching', _origIdx: i }))
   ];
-  const filteredIOwe = iOweItems;
+
+  // De-duplicate: remove I-Owe items that already appear in Today's Focus (carryOver)
+  const carryTexts = new Set((briefing.carryOver || [])
+    .filter(c => c.status !== 'done' && c.status !== 'dismissed')
+    .map(c => (c.text || '').toLowerCase().trim()));
+  const filteredIOwe = iOweItems.filter(item => {
+    // Extract the core text before the em-dash detail suffix
+    const raw = (item.text || '');
+    const core = raw.includes('—') ? raw.split('—')[0].trim() : raw.trim();
+    return !carryTexts.has(core.toLowerCase());
+  });
 
   const iOweBlock = filteredIOwe.length
     ? `<div class="space-y-1.5">${filteredIOwe.map((item, idx) => accCard(item, idx, 'owe')).join('')}</div>`
@@ -827,16 +861,16 @@ function renderItem(item, section) {
   const sender = item.sender ? `<span class="text-[11px] text-zinc-500">${escapeHtml(item.sender)}</span>` : '';
   const receivedAt = (item.receivedAt || item.addedAt) && section === 'inbox'
     ? `<span class="text-[11px] text-zinc-600">·</span><span class="text-[11px] text-zinc-500 tabular-nums">${shortDateTime(item.receivedAt || item.addedAt)}</span>` : '';
-  const channelChip = item.channel
-    ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded ${channelTint(item.channel)}">${channelLabel(item.channel)}</span>` : '';
+  const sourceChip = item.channel
+    ? `<span class="inline-flex items-center text-[10px] font-medium px-1.5 py-0.5 rounded ${sourceTint(item.channel)}">${sourceLabel(item.channel)}</span>` : '';
   const chatName = item.channel === 'teams' && item.chatName
     ? `<span class="text-[11px] text-zinc-500">${escapeHtml(item.chatName)}</span>` : '';
   const sourceUrl = getSourceUrl(item);
-  const channelLink = sourceUrl
-    ? `<a href="#" onclick="openWindow('${sourceUrl}');return false" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/10 hairline bg-white/[0.03] text-zinc-300 hover:bg-ios-blue/15 hover:border-ios-blue/30 hover:text-ios-blue transition-colors cursor-pointer" title="Open in ${channelLabel(item.channel)}">
+  const sourceLink = sourceUrl
+    ? `<a href="#" onclick="openWindow('${sourceUrl}');return false" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/10 hairline bg-white/[0.03] text-zinc-300 hover:bg-ios-blue/15 hover:border-ios-blue/30 hover:text-ios-blue transition-colors cursor-pointer" title="Open in ${sourceLabel(item.channel)}">
       <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-      <span>${channelLabel(item.channel)}</span>
-    </a>` : channelChip;
+      <span>${sourceLabel(item.channel)}</span>
+    </a>` : sourceChip;
 
   const dismissBtn = `<button onclick="dismissItem('${item.id}')" class="inline-flex items-center gap-1 px-2 h-7 rounded-md text-[11px] font-medium border border-white/5 hairline bg-transparent text-zinc-500 hover:bg-white/[0.05] hover:text-zinc-300 transition-colors" title="Dismiss">
       <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -867,7 +901,7 @@ function renderItem(item, section) {
           ${chatName} ${sender} ${receivedAt}
         </div>
         <div class="mt-2 flex items-center gap-2">
-          ${channelLink}
+          ${sourceLink}
           ${draftBtn}
           ${isInbox ? doneBtn : ''}
           ${dismissBtn}
@@ -1151,15 +1185,15 @@ function openDraftModal(itemId) {
   const subjectEl = document.getElementById('dm-subject');
   const senderEl = document.getElementById('dm-sender');
   const timeEl = document.getElementById('dm-time');
-  const badge = document.getElementById('dm-channel-badge');
+  const badge = document.getElementById('dm-source-badge');
   subjectEl.textContent = _modalItem?.text || 'Message';
   senderEl.textContent = _modalItem?.sender || '';
   const ts = _modalItem?.receivedAt || _modalItem?.addedAt;
   timeEl.textContent = ts ? shortDateTime(ts) : '';
 
   const ch = _modalItem?.channel || 'email';
-  badge.textContent = channelLabel(ch);
-  badge.className = `text-[10px] font-medium px-1.5 py-0.5 rounded ${channelTint(ch)}`;
+  badge.textContent = sourceLabel(ch);
+  badge.className = `text-[10px] font-medium px-1.5 py-0.5 rounded ${sourceTint(ch)}`;
 
   // Reset content areas
   const origEl = document.getElementById('dm-original');
@@ -1178,7 +1212,7 @@ function openDraftModal(itemId) {
   document.getElementById('dm-btn-regen').disabled = true;
   document.getElementById('dm-status').textContent = '';
 
-  // Update save button label based on channel
+  // Update save button label based on source
   const saveBtn = document.getElementById('dm-btn-save');
   const saveLabelMap = {
     'outlook-work': 'Save Draft & Open Outlook',
@@ -1305,7 +1339,7 @@ async function saveDraftAndOpen() {
     return;
   }
 
-  // For mail channels: save via server
+  // For mail sources: save via server
   saveBtn.disabled = true;
   status.textContent = 'Saving draft...';
 
@@ -1335,7 +1369,7 @@ async function saveDraftAndOpen() {
   }
 }
 
-// Infer a send channel for a waiting-on entry from its detail string
+// Infer a send source for a waiting-on entry from its detail string
 function inferNudgeChannel(entry) {
   const blob = `${entry.detail || ''} ${entry.item || ''}`.toLowerCase();
   if (blob.includes('teams')) return 'teams';
@@ -1365,7 +1399,7 @@ function openNudgeChannel(entry, body) {
     window.open(url, '_blank');
     return 'Opened Teams chat. Review and send.';
   }
-  return 'No auto-send for this channel — copy the text above.';
+  return 'No auto-send for this source — copy the text above.';
 }
 
 async function nudgeOne(idx) {
@@ -1381,7 +1415,7 @@ async function nudgeOne(idx) {
     if (!data.ok) throw new Error(data.error || 'draft failed');
     const entry = data.entry || {};
     const channel = inferNudgeChannel(entry);
-    const channelLabel = channel === 'email' ? 'Email' : channel === 'teams' ? 'Teams' : channel;
+    const nudgeSourceLabel = channel === 'email' ? 'Email' : channel === 'teams' ? 'Teams' : channel;
     // Stash draft on the element so the action handlers can read it back
     el.dataset.draft = data.draft;
     el.dataset.idx = String(idx);
@@ -1389,12 +1423,12 @@ async function nudgeOne(idx) {
       <div class="mb-2 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
         <span>Draft nudge</span>
         <span class="text-zinc-600">·</span>
-        <span class="text-ios-indigo">${escapeHtml(channelLabel)}</span>
+        <span class="text-ios-indigo">${escapeHtml(nudgeSourceLabel)}</span>
         <span class="ml-auto text-zinc-600">to ${escapeHtml(entry.person || '')}</span>
       </div>
       <textarea id="nudge-text-${idx}" class="w-full min-h-[120px] bg-zinc-900/60 border border-white/10 hairline rounded-md p-2 text-[12px] text-zinc-100 leading-relaxed font-sans resize-y focus:outline-none focus:border-ios-indigo/50">${escapeHtml(data.draft)}</textarea>
       <div class="mt-2 flex flex-wrap gap-2 items-center">
-        <button class="btn-primary" onclick="approveNudge(${idx})">Approve & Open ${escapeHtml(channelLabel)}</button>
+        <button class="btn-primary" onclick="approveNudge(${idx})">Approve & Open ${escapeHtml(nudgeSourceLabel)}</button>
         <button class="btn-secondary" onclick="copyNudge(${idx})">Copy</button>
         <button class="btn-secondary" onclick="document.getElementById('nudge-result-${idx}').classList.add('hidden')">Discard</button>
         <span id="nudge-status-${idx}" class="text-[11px] text-zinc-500"></span>

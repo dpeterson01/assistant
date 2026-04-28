@@ -344,8 +344,13 @@ The `carryOver` array must only contain items that survived the hard filter in S
 Then continue to Phase B while Derek reads.
 
 ### Open the dashboard
-After saving the JSON, open the interactive dashboard in Microsoft Edge:
+After saving the JSON, ensure the dashboard server is running and open it:
 ```sh
+# Start the server if it's not already running
+if ! curl -sf http://localhost:3141/api/briefing > /dev/null 2>&1; then
+  cd ~/projects/personal/assistant/dashboard && node server.js &
+  sleep 1
+fi
 open -a "Microsoft Edge" http://localhost:3141
 ```
 

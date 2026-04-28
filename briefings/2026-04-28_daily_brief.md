@@ -1,155 +1,65 @@
 ---
 date: 2026-04-28
-day: Monday
-meetings: 7
-action_items: 17
-high_priority: 5
+meeting_count: 0 # WorkIQ unavailable
+action_items_count: 4
+high_priority_count: 4
 ---
 
-# Monday Morning Briefing — April 28, 2026
+# Morning  2026-04-28 (Tuesday)Briefing 
 
-## 1. What Carried Over
+1) What carried over
+- Arkose Labs: recap + renewal prep (open)
+- HMBL M365 auto-renewal decision needed (Apr 27)
+- Verify GoDaddy domain purchases (ICRoslyn.org, SJBCleElum.org)
+- Coordinate final OCIA hosting this week
+- Docs Modernization pod assignment, Hui Xie epic (7+ days stale)
 
-From Sunday's session (April 27):
-- ✅ Cleared Q&A backlog (AIRR decline + Data Reuse Spec) — unblocked Abhinava, Louis/Isabella/Matthew
-- ✅ Advanced Learn Companion DSB/RAI readiness with Collin
-- ✅ Aligned Azure Edu Center direction with Sarah Luck (partner after research)
-- ⚠️ **Connects** due Wed Apr 30 — not started
-- ⚠️ **AI-enabled practices presentation** due Wed Apr 30 — not started
-- ⚠️ **Heather's FY27 strategy doc** — still unreviewed
-- ⚠️ **Inline Experiences roadmap** — still unreviewed
-- ⚠️ **PR #74 (Figma Prompt / UX Designer agent)** — still unreviewed
-- ⚠️ **Docs Modernization pod assignment (part 2)** — still open
-- ⚠️ **Hui Xie epic blocked** — no engineering follow-up yet
+2) New communications (triage)
+ HIGH
+- Arkose Labs recap/renewal | Personal journal | Derek | Direct: prep and decisions needed
+- HMBL M365 renewal | Personal/HMBL email | Derek | Decide cancel/keep
+- GoDaddy domains verification | Personal journal | Derek | Confirm purchases
+- OCIA hosting coordination | Personal journal | Derek | Logistics this week
 
-## 2. New Communications
+- DMP Management accountant proposal | Personal | Review and sign
+- Heather FY27/AXE promo card | Work | Review requested
+- Osmond: Agent Skills Ecosystem draft | Teams | Strategic review
 
-### 🔴 HIGH
+- Fiverr parish logo thread, Cornell replies, procedural updates (count: 6)
 
-- **Re: ADO Hygiene Report: Your Team's Backlog Health** | Email | Saravanan Palaniyandi | Asks who should own remediation of stale/unowned items — direct question, needs response today
-- **Learn and Agent Skills Ecosystem doc** | Teams | Osmond Jiang | Draft governance proposal shared for review with Derek and Collin — active strategic initiative
-- **"AXE prod promo card1" shared** | Email/SharePoint | Heather Crince | Manager shared file for review/edit
-- **Learn Companion Working Group threads** | Teams | Multiple | Skill overlap, eval rigor, agent service APIs, context restoration — active development threads needing PM input
-- **Arkose Labs renewal meeting** | Open thread from Apr 27 | Prep needed — check if meeting is today or later this week
+3) Today's meetings
+- (WorkIQ fetch unavailable, cross-check needed.) Known meetings from calendar context and Things 3: Matt 1:1 (9:00), AIF x Learn sync (9:35, possibly canceled), NorthStar standup (10:45), Derek/Tanvi (11:35), iPod Sprint Planning (1:00), Daniel 1:1 (1: conflict).30 
+Suggestion: attend sprint planning first 30 minutes, then drop to Daniel 1:1.
 
-### 🟡 MEDIUM
+4) Accountability check
+- Overdue/stale: Docs Modernization pod assignment, Hui Xie epic, Heather FY27 review, Inline Experiences roadmap.
+- Immediate: respond to Tara Kaelin (Slalom) and Saravanan (ADO hygiene) to unblock partners.
 
-- **Re: Using Microsoft Q&A for Azure Document Intelligence** | Email | Ravi Kanth Koppala | Proposes NSO onboarding model for new Azure services via PCS/Q&A
-- **RE: Azure FACS Update – Through 4/22** | Email | Ruchika Bhasin | Proposes ACES-led single-threaded cadence, canceling overlapping meetings
-- **Weekly LT Meeting thread** | Teams | Feature area stewardship and Learn Buddy discussion
-- **Product Experiences Weekly Sync** | Teams | Copilot CLI usage, sprint kickoff email generation, MCP config fixes
-- **M365 Business Basic auto-renewed Apr 27** | Personal Outlook | HMBL wind-down decision still pending — $$ continuing
+5) Today's tasks (Things 3 highlights) + Top 3
+- Prep Arkose Labs renewal (added to Things 3)
+- Decide on HMBL M365 renewal (added)
+- Verify GoDaddy domains (added)
+Top 3: 1) Arkose prep; 2) HMBL renewal decision; 3) Verify domains + OCIA logistics
 
-### 🟢 LOW (5 items)
-Sprint kickoff self-sent v2, RITM procurement ticket, Team Bridge PR/deploy FYIs, Learn Support channel discussions, Google Search Console notifications.
+6) Upcoming (72h)48
+- Wed Apr 29: Ravi Kanth Q&A onboarding review; follow up with Daniel on Bug 698419
+- Thu Apr 30: Connects due, AI-enabled practices presentation due
+- Fri May 1: Run /repo-digest-weekly
 
-## 3. Today's Meetings (7)
-
-**8:30 AM — AI Show-and-Tell Series: Scaling AI Fluency** (30 min)
-Optional. 42 attendees, Ruhi's org. No agenda posted.
-💡 Worth attending if presenting AI practices; otherwise skip and review recap.
-
-**9:00 AM — Matt/Derek 1:1** (25 min)
-Direct report. Standing agenda: last week's goals, this week's 2-3 goals, wins/FYI/discuss.
-🔍 Matthew's recent threads: commitment scope discussion (6-month window), CI posting/answer experience. Ask about sprint progress and any blockers.
-
-**9:35 AM — AIF x Learn Weekly Sync** (25 min)
-Tanvi-organized. Daniel Stafford, Nick Brady, Nick Hamilton, others. Cross-team sync on AIF integration.
-🔍 Relevant: Osmond's skills ecosystem doc may have implications here. Daniel's Bug 698419 follow-up is Wednesday.
-
-**10:45 AM — NorthStar Pod Standup** (15 min)
-Optional. JJ Juarez, Jeremy Stayton, Daniel Stafford, Sonia.
-💡 Quick check-in. Listen for blockers.
-
-**11:35 AM — Derek/Tanvi Weekly Sync** (25 min)
-Top of mind, follow-ups, escalations, risks.
-🔍 Raise: Tanvi's ADO Epic Change Report (corrected version reviewed Apr 22), sprint kickoff ownership expectations, AIF sync outcomes.
-
-**⚠️ 1:00 PM — iPod Sprint Planning** (60 min) ← **CONFLICT**
-Collin-organized. Xinxin Zhou, Ken Dale, Christopher King, Garrett Settles, Olga Solomakha, Nick Hamilton.
-🔍 Derek is optional. Key: align on next sprint's work items.
-
-**⚠️ 1:30 PM — Daniel/Derek 1:1** (25 min) ← **CONFLICT with iPod Sprint Planning**
-Direct report. No posted agenda.
-🔍 Follow up on Bug 698419, NorthStar pod progress, "can we chat" thread resolved last week.
-💡 **Suggestion**: Attend iPod Sprint Planning 1:00-1:30, then drop to Daniel 1:1 at 1:30. Or reschedule Daniel to earlier if possible.
-
-## 4. Accountability Check
-
-**⚠️ Overdue action items:**
-| Item | Owed to | Age |
-|------|---------|-----|
-| Azure Edu Center proposal | Malika Watler | 8 days (progressing — aligned with Sarah Luck, but Malika not yet notified) |
-| Heather's FY27 strategy doc | Heather | 5 days |
-| Inline Experiences roadmap | Heather | 5 days |
-| PR #74 review | Team | 5 days |
-| Q&A Data Reuse prioritization | Louis/Isabella/Matthew | 5 days (cleared Sunday) ✅ |
-| Docs Modernization pod (part 2) | Team | 7 days |
-| Hui Xie epic follow-up | Hui Xie | 7 days |
-
-**Stale waiting-on-others:** Review waiting-on-others file for items > 5 days with no response.
-
-## 5. Today's Tasks + Top 3
-
-**From Things 3 (work, due today):**
-- Respond to Saravanan on ADO Hygiene ownership
-- Review Osmond's Agent Skills Ecosystem doc
-- Review Heather's AXE prod promo card
-- Complete sprint kickoff Special Thanks section (Collin flagged)
-- Review Arkose Labs recap / prep for renewal
-- Create weekly update from ADO status updates
-- Review Katherine Jaress ASN Transition scope doc
-- Review Isabella's Companion prompt iteration
-- Prepare AI-enabled practices presentation (due Wed)
-- Complete Connects (due Wed)
-
-**💡 Suggested Top 3 for today:**
-1. **Respond to Saravanan + review Osmond's skills doc** — both are quick wins that unblock people and advance Agent Skills strategy
-2. **Connects progress** — due Wednesday, needs dedicated time; block 2:00-3:30 PM as deep work
-3. **Review Heather's items** (FY27 strategy doc, Inline roadmap, AXE promo card) — manager asks, 5+ days overdue
-
-## 6. Upcoming (Tue-Wed)
-
-- **Wed Apr 29**: Follow up with Daniel Stafford on Bug 698419
-- **Wed Apr 30**: Connects due, AI-enabled practices presentation due
-- **Fri May 1**: Run /repo-digest-weekly
-
-## 7. Conflicts & Suggestions
-
-⚠️ **Schedule conflict**: iPod Sprint Planning (1:00-2:00) overlaps Daniel/Derek 1:1 (1:30-1:55). Attend sprint planning first 30 min, then drop to Daniel 1:1.
-
-💡 **Deep work window**: 2:00-5:00 PM is open after meetings end. Use for Connects and Heather's reviews.
-
-💡 **Delegation opportunity**: Katherine Jaress ASN Transition scope doc and Isabella's Companion prompt iteration could be async reviews — read and respond via Teams rather than blocking calendar time.
-
-💡 **Stale items**: Hui Xie epic and Docs Modernization pod are both 7+ days. Consider raising in NorthStar standup or iPod Sprint Planning.
-
-⚠️ **Gmail MCP token expired** — personal Gmail not checked. Re-authenticate when convenient.
-
-📌 Run /pods in a separate chat to refresh pod assignments for the week.
+7) Conflicts & suggestions
+- 1:2:00 PM sprint planning overlaps 1:30 Daniel 1:1. Prioritize sprint planning first 30m, then 1:30 drop-in.00
+- Block 2:4:30 PM for deep work (Connects + Heather reviews)00
+- Delegate domain verification (Deanna/Ethan) if possible; delegate DMP accountant doc to confirm billing details.
 
 ---
 
-## Cleanup Activities
+Cleanup Activities
+- Things 3: 4 HIGH items added (Arkose prep; HMBL renewal decision; Verify domains; OCIA hosting coordination)
+- Junk mail sweep: 13 items sent to review queue; patterns need update
+- Context files: templates present; atlas-db is primary source; no destructive writes performed
 
-### Things 3 Sync
-- **Added 4 tasks**: Respond to Saravanan (ADO ownership), Review Osmond's Skills Ecosystem doc, Review Heather's AXE promo card, Review Ravi Kanth Q&A proposal
-- **Moved to projects**: Saravanan → Operational, Osmond → Agent Skills, Heather → People & Growth, Ravi → Operational
-- **Completed**: Q&A AIRR decline and Data Reuse Spec already marked done (cleared Sunday)
-- **Verification**: All HIGH/MEDIUM items have matching Things 3 tasks ✅
+Skipped/Failed items
+- WorkIQ meeting fetch not performed (WorkIQ MCP unavailable). Flagged: meeting list may be incomplete. 
+- Personal Gmail (MCP) token expired; inbox not fetched. Re-auth required.
 
-### Junk Mail Sweep
-- 12 items in JunkEmail folder, 0 auto-matched by patterns (all unmatched/review)
-- All 12 appear to be spam (dating scams, spoofed Walmart, WSJ Wine tracking, Substack). No legitimate mail found.
-- No action taken (patterns need updating to catch these).
-
-### Context File Updates
-- ⚠️ Context files (`action-items.md`, `waiting-on-others.md`, `priorities.md`) not found at expected paths. Source of truth is `atlas-db.py` per user memory. User memory action-items updated to reflect:
-  - ✅ Q&A AIRR decline and Data Reuse Spec completed (Sunday Apr 27)
-  - Azure Edu Center progressing (aligned with Sarah Luck, Malika notification pending)
-  - New items: Saravanan ADO ownership, Osmond skills ecosystem, Heather AXE promo, Ravi Q&A onboarding
-
-### Skipped Items
-- **Gmail**: Token expired (`invalid_grant`). Personal Gmail not checked. Re-auth needed.
-- **Junk mail auto-delete**: 0 matched. 12 review items not deleted (patterns need refresh).
-- **Context file writes**: Template-only files at expected path; atlas-db is source of truth.
+Notes: open in Typora for quick edits. Suggested immediate actions: reply to Tara Kaelin, decide HMBL renewal, confirm domain purchases.

@@ -428,6 +428,30 @@ app.post('/api/complete-task/:id', (req, res) => {
     }
     const text = item.text || '';
     const found = setItemStatus(data, req.params.id, 'done', source);
+
+    // Cross-complete: remove matching accountability overdue/approaching entry
+    const acc = data.accountability || {};
+    const textLower = text.toLowerCase().trim();
+    for (const aType of ['overdue', 'approaching']) {
+      const aList = acc[aType] || [];
+      const aIdx = aList.findIndex(s => {
+        const core = typeof s === 'string'
+          ? (s.includes('—') ? s.split('—')[0].trim() : s.trim())
+          : (s.text || '');
+        return core.toLowerCase() === textLower;
+      });
+      if (aIdx !== -1) {
+        const [removed] = aList.splice(aIdx, 1);
+        if (!Array.isArray(acc.completedItems)) acc.completedItems = [];
+        acc.completedItems.push({
+          type: aType, text: typeof removed === 'string' ? removed : removed?.text || '',
+          completedAt: now(), source: source || 'ui',
+        });
+        data.accountability = acc;
+        break;
+      }
+    }
+
     data.lastUpdated = now();
     writeBriefing(data);
     things3Complete(text);
@@ -876,10 +900,27 @@ app.post('/api/complete-accountability', (req, res) => {
     const [removed] = list.splice(index, 1);
     acc[type] = list;
     if (!Array.isArray(acc.completedItems)) acc.completedItems = [];
+    const removedText = typeof removed === 'string' ? removed : removed?.text || '';
     acc.completedItems.push({
-      type, text: typeof removed === 'string' ? removed : removed?.text || '',
+      type, text: removedText,
       completedAt: now(), source: source || 'ui',
     });
+
+    // Cross-complete: mark matching carryOver/tasks item as done
+    const coreText = removedText.includes('—') ? removedText.split('—')[0].trim() : removedText.trim();
+    for (const section of ['carryOver', 'tasks']) {
+      const items = data[section] || [];
+      const match = items.find(i => i.status !== 'done' && i.status !== 'dismissed'
+        && (i.text || '').toLowerCase().trim() === coreText.toLowerCase());
+      if (match) {
+        match.status = 'done';
+        match.updatedAt = now();
+        match.source = source || 'ui';
+        match.syncPending = true;
+        break;
+      }
+    }
+
     data.accountability = acc;
     data.lastUpdated = now();
     writeBriefing(data);
