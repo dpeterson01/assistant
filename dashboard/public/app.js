@@ -986,13 +986,7 @@ function renderStatusButton() {
   // --- Automation Jobs section ---
   if (hasJobs) {
     html += `<div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Scheduled Jobs</div>`;
-    html += `<div class="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-x-4 gap-y-0 text-[12px] mb-1">`;
-    html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1">Job</div>`;
-    html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1">Schedule</div>`;
-    html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1">Freq</div>`;
-    html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1 text-right">Last OK</div>`;
-    html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1 text-right">Today</div>`;
-    html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1 text-center"></div>`;
+    html += `<div class="space-y-0 text-[12px] mb-1">`;
     for (const job of automationHealth.jobs) {
       const statusMap = {
         ok:          { label: 'OK' },
@@ -1004,22 +998,18 @@ function renderStatusButton() {
       const s = statusMap[job.today] || statusMap['no-log'];
       const dotColor = jobDotColor(job);
       const lastOk = formatLastSuccess(job.last_success);
-      html += `<div class="flex items-center gap-2 py-1 border-t border-white/5">
+      const statusColor = dotColor === 'bg-ios-red' ? 'text-ios-red' : dotColor === 'bg-ios-yellow' ? 'text-ios-yellow' : dotColor === 'bg-ios-green' ? 'text-ios-green' : 'text-zinc-500';
+      const runBtn = job.script
+        ? `<button onclick="runJob('${escapeHtml(job.script)}')" class="job-run-btn px-1.5 py-0.5 text-[10px] font-medium rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 hover:text-white transition-colors" data-script="${escapeHtml(job.script)}">▶ Run</button>`
+        : '';
+      html += `<div class="flex items-center gap-3 py-1.5 border-t border-white/5">
         <span class="w-1.5 h-1.5 rounded-full ${dotColor} shrink-0"></span>
-        <span class="text-zinc-300 truncate">${escapeHtml(job.name)}</span>
+        <span class="text-zinc-300 flex-1 truncate">${escapeHtml(job.name)}</span>
+        <span class="text-[11px] text-zinc-500 whitespace-nowrap">${escapeHtml(job.schedule)}</span>
+        <span class="text-[11px] text-zinc-400 tabular-nums whitespace-nowrap w-16 text-right">${lastOk}</span>
+        <span class="text-[10px] font-medium ${statusColor} w-7 text-right">${s.label}</span>
+        <span class="w-12 text-center">${runBtn}</span>
       </div>`;
-      html += `<div class="py-1 border-t border-white/5 text-zinc-500 text-[11px] whitespace-nowrap">${escapeHtml(job.schedule)}</div>`;
-      html += `<div class="py-1 border-t border-white/5 text-zinc-500 text-[11px] whitespace-nowrap">${escapeHtml(job.frequency)}</div>`;
-      html += `<div class="py-1 border-t border-white/5 text-zinc-400 text-right text-[11px] tabular-nums whitespace-nowrap">${lastOk}</div>`;
-      html += `<div class="py-1 border-t border-white/5 text-right"><span class="text-[10px] font-medium ${dotColor === 'bg-ios-red' ? 'text-ios-red' : dotColor === 'bg-ios-yellow' ? 'text-ios-yellow' : dotColor === 'bg-ios-green' ? 'text-ios-green' : 'text-zinc-500'}">${s.label}</span></div>`;
-      // Run button (only for jobs with a script)
-      if (job.script) {
-        html += `<div class="py-1 border-t border-white/5 text-center">
-          <button onclick="runJob('${escapeHtml(job.script)}')" class="job-run-btn px-1.5 py-0.5 text-[10px] font-medium rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 hover:text-white transition-colors" data-script="${escapeHtml(job.script)}">▶ Run</button>
-        </div>`;
-      } else {
-        html += `<div class="py-1 border-t border-white/5"></div>`;
-      }
     }
     html += `</div>`;
     const okCount = automationHealth.jobs.filter(j => jobDotColor(j) === 'bg-ios-green').length;
