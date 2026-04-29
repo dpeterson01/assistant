@@ -135,12 +135,13 @@ status_icon() {
 # Job definitions: name, schedule, frequency, log detection
 # ============================================================
 
-declare -a JOB_NAMES JOB_SCHEDULES JOB_FREQUENCIES JOB_LAST_SUCCESS JOB_TODAY_STATUS
+declare -a JOB_NAMES JOB_SCHEDULES JOB_FREQUENCIES JOB_LAST_SUCCESS JOB_TODAY_STATUS JOB_SCRIPTS
 
 # 1. Morning Briefing
 JOB_NAMES+=("Morning Briefing")
 JOB_SCHEDULES+=("6:30 AM M-F, 7:30 AM Sat-Sun")
 JOB_FREQUENCIES+=("Daily")
+JOB_SCRIPTS+=("morning-briefing.sh")
 JOB_LAST_SUCCESS+=("$(last_success "morning-briefing" "$LOGS" "=== Finished")")
 JOB_TODAY_STATUS+=("$(check_success "$LOGS/morning-briefing-${TODAY}.log" "=== Finished")")
 
@@ -148,6 +149,7 @@ JOB_TODAY_STATUS+=("$(check_success "$LOGS/morning-briefing-${TODAY}.log" "=== F
 JOB_NAMES+=("Briefing Sync")
 JOB_SCHEDULES+=("Every 15 min")
 JOB_FREQUENCIES+=("96x/day")
+JOB_SCRIPTS+=("briefing-sync.sh")
 JOB_LAST_SUCCESS+=("$(last_success "briefing-sync" "$LOGS" "=== Briefing Sync")")
 JOB_TODAY_STATUS+=("$(check_success "$LOGS/briefing-sync-${TODAY}.log" "=== Briefing Sync")")
 
@@ -155,6 +157,7 @@ JOB_TODAY_STATUS+=("$(check_success "$LOGS/briefing-sync-${TODAY}.log" "=== Brie
 JOB_NAMES+=("Meeting Sweep")
 JOB_SCHEDULES+=("Every 15 min")
 JOB_FREQUENCIES+=("96x/day")
+JOB_SCRIPTS+=("meeting-sweep.sh")
 JOB_LAST_SUCCESS+=("$(last_success "meeting-sweep" "$LOGS" "=== Meeting Sweep")")
 JOB_TODAY_STATUS+=("$(check_success "$LOGS/meeting-sweep-${TODAY}.log" "=== Meeting Sweep")")
 
@@ -162,6 +165,7 @@ JOB_TODAY_STATUS+=("$(check_success "$LOGS/meeting-sweep-${TODAY}.log" "=== Meet
 JOB_NAMES+=("Meeting Recap Sweep")
 JOB_SCHEDULES+=("Every 15 min")
 JOB_FREQUENCIES+=("96x/day")
+JOB_SCRIPTS+=("meeting-recap-sweep.sh")
 JOB_LAST_SUCCESS+=("$(last_success "meeting-recap-sweep" "$LOGS" "=== Meeting Recap Sweep")")
 JOB_TODAY_STATUS+=("$(check_success "$LOGS/meeting-recap-sweep-${TODAY}.log" "=== Meeting Recap Sweep")")
 
@@ -169,6 +173,7 @@ JOB_TODAY_STATUS+=("$(check_success "$LOGS/meeting-recap-sweep-${TODAY}.log" "==
 JOB_NAMES+=("EOD Reminder")
 JOB_SCHEDULES+=("5:15 PM M-F")
 JOB_FREQUENCIES+=("Weekdays")
+JOB_SCRIPTS+=("end-of-day-reminder.sh")
 JOB_LAST_SUCCESS+=("$(last_success "reminders" "$LOGS" "End-of-day reminder")")
 JOB_TODAY_STATUS+=("$(check_success "$LOGS/reminders-${TODAY}.log" "End-of-day reminder")")
 
@@ -176,6 +181,7 @@ JOB_TODAY_STATUS+=("$(check_success "$LOGS/reminders-${TODAY}.log" "End-of-day r
 JOB_NAMES+=("End-of-Day Auto")
 JOB_SCHEDULES+=("8/9/10 PM M-F (retry)")
 JOB_FREQUENCIES+=("Weekdays")
+JOB_SCRIPTS+=("end-of-day-auto.sh")
 # EOD success = sentinel file exists
 eod_last="none (14d)"
 for i in $(seq 0 14); do
@@ -196,6 +202,7 @@ fi
 JOB_NAMES+=("Weekly Review")
 JOB_SCHEDULES+=("9:00 AM Sun")
 JOB_FREQUENCIES+=("Weekly")
+JOB_SCRIPTS+=("weekly-review.sh")
 JOB_LAST_SUCCESS+=("$(last_success "reminders" "$LOGS" "Weekly review reminder")")
 JOB_TODAY_STATUS+=("$(check_success "$LOGS/reminders-${TODAY}.log" "Weekly review")")
 
@@ -203,6 +210,7 @@ JOB_TODAY_STATUS+=("$(check_success "$LOGS/reminders-${TODAY}.log" "Weekly revie
 JOB_NAMES+=("Dashboard Server")
 JOB_SCHEDULES+=("Always (KeepAlive)")
 JOB_FREQUENCIES+=("Persistent")
+JOB_SCRIPTS+=("")
 # Check if dashboard is responding
 if curl -s -o /dev/null -w '%{http_code}' http://localhost:3141/ 2>/dev/null | grep -q 200; then
     JOB_LAST_SUCCESS+=("$TODAY")
@@ -216,6 +224,7 @@ fi
 JOB_NAMES+=("Dashboard Refresh")
 JOB_SCHEDULES+=("Hourly 6AM-10PM")
 JOB_FREQUENCIES+=("17x/day")
+JOB_SCRIPTS+=("")
 DASH_LOG="$HOME/.local/share/dashboard/refresh.log"
 JOB_LAST_SUCCESS+=("$(last_success_single "$DASH_LOG" "refreshed:")")
 if [[ -f "$DASH_LOG" ]] && grep -q "$(date +%Y-%m-%d)" "$DASH_LOG" 2>/dev/null; then
@@ -234,6 +243,7 @@ fi
 JOB_NAMES+=("Daily Consolidation")
 JOB_SCHEDULES+=("8:00 PM daily")
 JOB_FREQUENCIES+=("Daily")
+JOB_SCRIPTS+=("")
 CONSOL_LOG="$HOME/.local/share/daily-consolidation/consolidation.log"
 JOB_LAST_SUCCESS+=("$(last_success_single "$CONSOL_LOG" "consolidation complete")")
 if [[ -f "$CONSOL_LOG" ]] && grep -q "${TODAY}.*consolidation complete" "$CONSOL_LOG" 2>/dev/null; then
@@ -248,6 +258,7 @@ fi
 JOB_NAMES+=("Email Cleanup")
 JOB_SCHEDULES+=("6AM / 12PM / 8PM")
 JOB_FREQUENCIES+=("3x/day")
+JOB_SCRIPTS+=("")
 CLEANUP_LOG="$HOME/.local/share/outlook-mcp/logs/cleanup.log"
 JOB_LAST_SUCCESS+=("$(last_success_single "$CLEANUP_LOG" "cleanup complete")")
 if [[ -f "$CLEANUP_LOG" ]] && grep -q "${TODAY}.*cleanup complete" "$CLEANUP_LOG" 2>/dev/null; then
@@ -262,6 +273,7 @@ fi
 JOB_NAMES+=("Pod Assignments")
 JOB_SCHEDULES+=("10:00 AM M-F")
 JOB_FREQUENCIES+=("Weekdays")
+JOB_SCRIPTS+=("")
 POD_LOG="$HOME/.local/share/pod-assignments/refresh.log"
 POD_MARKER="$HOME/.local/share/pod-assignments/needs-mcp-refresh"
 JOB_LAST_SUCCESS+=("$(last_success_single "$POD_LOG" "refresh starting")")
@@ -288,8 +300,14 @@ if $JSON_MODE; then
     echo "["
     for i in $(seq 1 ${#JOB_NAMES}); do
         [[ $i -gt 1 ]] && echo ","
-        printf '  {"name": "%s", "schedule": "%s", "frequency": "%s", "last_success": "%s", "today": "%s"}' \
-            "${JOB_NAMES[$i]}" "${JOB_SCHEDULES[$i]}" "${JOB_FREQUENCIES[$i]}" "${JOB_LAST_SUCCESS[$i]}" "${JOB_TODAY_STATUS[$i]}"
+        local_script="${JOB_SCRIPTS[$i]:-}"
+        if [[ -n "$local_script" ]]; then
+            printf '  {"name": "%s", "schedule": "%s", "frequency": "%s", "last_success": "%s", "today": "%s", "script": "%s"}' \
+                "${JOB_NAMES[$i]}" "${JOB_SCHEDULES[$i]}" "${JOB_FREQUENCIES[$i]}" "${JOB_LAST_SUCCESS[$i]}" "${JOB_TODAY_STATUS[$i]}" "$local_script"
+        else
+            printf '  {"name": "%s", "schedule": "%s", "frequency": "%s", "last_success": "%s", "today": "%s"}' \
+                "${JOB_NAMES[$i]}" "${JOB_SCHEDULES[$i]}" "${JOB_FREQUENCIES[$i]}" "${JOB_LAST_SUCCESS[$i]}" "${JOB_TODAY_STATUS[$i]}"
+        fi
     done
     echo ""
     echo "]"

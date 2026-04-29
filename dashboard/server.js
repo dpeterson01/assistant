@@ -255,6 +255,74 @@ app.post('/api/regenerate', (_req, res) => {
   res.json({ status: 'started', pid: regenProc.pid });
 });
 
+// --- Run any scheduled job by script name ---
+// POST /api/jobs/run { script: "morning-briefing.sh" }
+// Validates the script name against a strict allowlist (filenames only, no paths).
+// Runs the script in the background and returns immediately.
+
+const SCRIPTS_DIR = join(__dirname, '..', 'automation', 'scripts');
+const ALLOWED_SCRIPTS = new Set([
+  'morning-briefing.sh',
+  'briefing-sync.sh',
+  'meeting-sweep.sh',
+  'meeting-recap-sweep.sh',
+  'end-of-day-reminder.sh',
+  'end-of-day-auto.sh',
+  'weekly-review.sh',
+  'auto-draft-inbox.sh',
+]);
+
+// Track running jobs so we don't double-launch
+const runningJobs = new Map(); // script -> { proc, startedAt }
+
+app.post('/api/jobs/run', (req, res) => {
+  const { script } = req.body || {};
+  if (!script || typeof script !== 'string') {
+    return res.status(400).json({ error: 'Missing script field' });
+  }
+  // Strict validation: must be in allowlist (no path traversal possible)
+  if (!ALLOWED_SCRIPTS.has(script)) {
+    return res.status(403).json({ error: `Script not allowed: ${script}` });
+  }
+  if (runningJobs.has(script)) {
+    const running = runningJobs.get(script);
+    return res.status(409).json({ error: 'Already running', pid: running.proc.pid, startedAt: running.startedAt });
+  }
+
+  const scriptPath = join(SCRIPTS_DIR, script);
+  const env = {
+    ...process.env,
+    ATLAS_FORCE_REGEN: '1',
+    HOME: process.env.HOME || '/Users/derekpeterson',
+    PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:' + (process.env.HOME || '/Users/derekpeterson') + '/.local/bin',
+  };
+
+  const proc = execFile('/bin/zsh', [scriptPath], { env, timeout: 720_000, cwd: SCRIPTS_DIR }, (err) => {
+    const ok = !err;
+    runningJobs.delete(script);
+    trackHealth(`job:${script}`, ok, ok ? `completed ${now()}` : `failed: ${err.message}`);
+    console.log(`[job:${script}] finished: ${ok ? 'success' : err.message}`);
+    broadcast('job-done', { script, ok, at: now() });
+  });
+
+  proc.unref?.();
+  const startedAt = now();
+  runningJobs.set(script, { proc, startedAt });
+  trackHealth(`job:${script}`, true, `started ${startedAt}`);
+  broadcast('job-started', { script, at: startedAt });
+  console.log(`[job:${script}] started, pid=${proc.pid}`);
+  res.json({ status: 'started', script, pid: proc.pid });
+});
+
+// GET /api/jobs/status — which jobs are currently running
+app.get('/api/jobs/status', (_req, res) => {
+  const running = {};
+  for (const [script, { proc, startedAt }] of runningJobs) {
+    running[script] = { pid: proc.pid, startedAt };
+  }
+  res.json({ running });
+});
+
 // --- Server-Sent Events: live push of briefing updates ---
 // Clients connect to /api/events and stay open. We push:
 //   - event: hello       on connect (with current lastUpdated)

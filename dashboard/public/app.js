@@ -5,6 +5,31 @@ let automationHealth = null;
 let showLowPriority = false;
 let activeFilter = 'all';
 
+// --- Job run handler ---
+async function runJob(script) {
+  const btn = document.querySelector(`button[data-script="${script}"]`);
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    btn.classList.add('opacity-50', 'cursor-wait');
+  }
+  try {
+    const res = await fetch(`${API}/api/jobs/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ script }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      if (btn) { btn.textContent = '⚠️'; btn.title = data.error || 'Failed'; }
+      return;
+    }
+    if (btn) { btn.textContent = '⏳ Running'; }
+  } catch (e) {
+    if (btn) { btn.textContent = '⚠️'; btn.title = e.message; }
+  }
+}
+
 // ============================================================
 // LOAD
 // ============================================================
@@ -961,12 +986,13 @@ function renderStatusButton() {
   // --- Automation Jobs section ---
   if (hasJobs) {
     html += `<div class="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-2">Scheduled Jobs</div>`;
-    html += `<div class="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 gap-y-0 text-[12px] mb-1">`;
+    html += `<div class="grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-x-4 gap-y-0 text-[12px] mb-1">`;
     html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1">Job</div>`;
     html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1">Schedule</div>`;
     html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1">Freq</div>`;
     html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1 text-right">Last OK</div>`;
     html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1 text-right">Today</div>`;
+    html += `<div class="text-[10px] font-semibold text-zinc-500 pb-1 text-center"></div>`;
     for (const job of automationHealth.jobs) {
       const statusMap = {
         ok:          { label: 'OK' },
@@ -986,6 +1012,14 @@ function renderStatusButton() {
       html += `<div class="py-1 border-t border-white/5 text-zinc-500 text-[11px] whitespace-nowrap">${escapeHtml(job.frequency)}</div>`;
       html += `<div class="py-1 border-t border-white/5 text-zinc-400 text-right text-[11px] tabular-nums whitespace-nowrap">${lastOk}</div>`;
       html += `<div class="py-1 border-t border-white/5 text-right"><span class="text-[10px] font-medium ${dotColor === 'bg-ios-red' ? 'text-ios-red' : dotColor === 'bg-ios-yellow' ? 'text-ios-yellow' : dotColor === 'bg-ios-green' ? 'text-ios-green' : 'text-zinc-500'}">${s.label}</span></div>`;
+      // Run button (only for jobs with a script)
+      if (job.script) {
+        html += `<div class="py-1 border-t border-white/5 text-center">
+          <button onclick="runJob('${escapeHtml(job.script)}')" class="job-run-btn px-1.5 py-0.5 text-[10px] font-medium rounded bg-zinc-700 hover:bg-zinc-600 text-zinc-300 hover:text-white transition-colors" data-script="${escapeHtml(job.script)}">▶ Run</button>
+        </div>`;
+      } else {
+        html += `<div class="py-1 border-t border-white/5"></div>`;
+      }
     }
     html += `</div>`;
     const okCount = automationHealth.jobs.filter(j => jobDotColor(j) === 'bg-ios-green').length;
@@ -1691,6 +1725,31 @@ function connectSSE() {
           if (res.ok) { briefing = await res.json(); render(); }
         } catch (err) { console.error('Post-regen fetch failed', err); }
       }
+    });
+    sse.addEventListener('job-started', (e) => {
+      lastEventAt = Date.now();
+      try {
+        const d = JSON.parse(e.data);
+        const btn = document.querySelector(`button[data-script="${d.script}"]`);
+        if (btn) { btn.disabled = true; btn.textContent = '⏳ Running'; btn.classList.add('opacity-50', 'cursor-wait'); }
+      } catch {}
+    });
+    sse.addEventListener('job-done', async (e) => {
+      lastEventAt = Date.now();
+      try {
+        const d = JSON.parse(e.data);
+        const btn = document.querySelector(`button[data-script="${d.script}"]`);
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove('opacity-50', 'cursor-wait');
+          btn.textContent = d.ok ? '✓ Done' : '✗ Failed';
+          btn.classList.add(d.ok ? 'text-ios-green' : 'text-ios-red');
+          setTimeout(() => { btn.textContent = '▶ Run'; btn.classList.remove('text-ios-green', 'text-ios-red'); }, 5000);
+        }
+        // Refresh health status after job completion
+        await loadHealth();
+        render();
+      } catch {}
     });
     sse.onerror = () => {
       // EventSource will auto-retry; nothing to do unless the page is hidden.
