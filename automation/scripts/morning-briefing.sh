@@ -61,7 +61,7 @@ cd "$HOME/projects/personal"
 # Build the copilot command with a 10-minute timeout (perl used; macOS lacks GNU timeout)
 COPILOT_CMD=(perl -e 'alarm 600; exec @ARGV' -- copilot
     --agent=morning-briefing
-    -p "Run my full morning briefing for today, $(date '+%A %B %d, %Y'). Write the briefing to assistant/data/briefings/${DATE}_daily_brief.md and open it in Typora when done."
+    -p "Run my full morning briefing for today, $(date '+%A %B %d, %Y'). Write the briefing to ~/projects/personal/assistant/data/briefings/${DATE}_daily_brief.md and open it in Typora when done."
     --allow-tool='shell'
     --allow-tool='write'
     --allow-tool='workiq'
@@ -74,9 +74,11 @@ COPILOT_CMD=(perl -e 'alarm 600; exec @ARGV' -- copilot
     --deny-tool='shell(git push)'
 )
 
-"${COPILOT_CMD[@]}" 2>&1 | tee -a "$LOG_FILE"
+# stdout/stderr already teed via exec redirect above; no extra pipe needed.
+# Running without a pipe so $? captures the copilot exit code directly.
+"${COPILOT_CMD[@]}" 2>&1
 
-EXIT_CODE=${PIPESTATUS[0]}
+EXIT_CODE=$?
 
 if [[ $EXIT_CODE -eq 0 ]]; then
     echo "Morning briefing completed successfully."
