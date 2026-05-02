@@ -144,7 +144,7 @@ Good: `{ "topic": "Experimentation blockers", "detail": "Ask Samir if the A/B te
 ### High-Stakes Criteria
 
 A meeting is high-stakes if any:
-- ≥1 external attendee (different domain than microsoft.com)
+- ≥1 external attendee (different domain than the user's employer domain)
 - Title matches `1:1`, `sync`, `review`, `decision`, `interview`, `leadership`, `debrief`, `prep`, or `kickoff` AND duration ≥ 25 min
 - the user owes someone in the meeting an action item
 - Someone in the meeting owes the user something overdue

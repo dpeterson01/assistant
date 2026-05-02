@@ -31,8 +31,8 @@ If you cannot resolve a single event, list candidates and stop.
 ## Step 2: Classify attendees
 
 Split attendees into:
-- **External** — domain is not `microsoft.com` and not `[user-domain]` etc. (the user's known domains)
-- **Internal team** — `microsoft.com` and not the user
+- **External** — domain is not the user's employer domain and not `[user-domain]` etc. (the user's known domains)
+- **Internal team** — same employer domain and not the user
 - **Self** — the user
 
 External attendees get the deep treatment. Internal team get a one-liner each.
@@ -117,7 +117,7 @@ Bulleted list pulled from action-items.md and waiting-on-others.md. Format: `- [
 2-4 specific things the user should bring up. Each one tied to a signal, open item, or attendee context. Be specific — name the topic, not "discuss status."
 
 ## Risks / sensitivities
-Any working-style notes that matter for THIS conversation (e.g. "Sean: never frame as PM overriding engineering"). Pull from contact cards.
+Any working-style notes that matter for THIS conversation (e.g. "[Name]: never frame as PM overriding engineering"). Pull from contact cards.
 
 ## Prep
 - [ ] Specific concrete prep tasks the user should do BEFORE the meeting, if any. Otherwise: "None — walk in cold is fine."

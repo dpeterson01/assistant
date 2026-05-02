@@ -438,7 +438,7 @@ This gives you the best of both worlds: Things 3 for task lifecycle (what you in
 
 2. **Diff against prior critique**: Read the last critique at `assistant/data/state/self-critique-log.md` (append-only file, one entry per week). Compare: did last week's recommendations get implemented? Did they help?
 
-3. **Generate specific recommendations**: Not vague ("improve meeting prep"). Specific: "Add `@microsoft.com` filter to Teams noise list" or "Increase WorkIQ timeout from 10s to 15s for meeting queries" or "The 'Connects Signals' section was empty 4/5 days; consider removing from EOD template or adding more specific triggers."
+3. **Generate specific recommendations**: Not vague ("improve meeting prep"). Specific: "Add `@employer-domain` filter to Teams noise list" or "Increase WorkIQ timeout from 10s to 15s for meeting queries" or "The 'Connects Signals' section was empty 4/5 days; consider removing from EOD template or adding more specific triggers."
 
 4. **Categorize recommendations**:
    - **Auto-fix**: Things the agent can change right now (filter rules, timeout values, template tweaks). Present to the user for approval, then apply.

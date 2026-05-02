@@ -75,7 +75,7 @@ cd "$ASSISTANT_DIR"
 # Ask for all meetings from today, including those that already ended.
 EVENTS_JSON=$(perl -e 'alarm 60; exec @ARGV' -- copilot \
   --agent=morning-briefing \
-  -p "List ALL of my calendar events for today (${DATE}) that have already ended. Include meetings that ended in the last ${MAX_AGE_MIN} minutes. Output ONLY a JSON array (no prose, no markdown fences) where each element has: event_id, title, start (ISO 8601 with timezone), end (ISO 8601 with timezone), attendees (array of {name,email}), and external_count (count of attendees whose email domain is not microsoft.com)." \
+  -p "List ALL of my calendar events for today (${DATE}) that have already ended. Include meetings that ended in the last ${MAX_AGE_MIN} minutes. Output ONLY a JSON array (no prose, no markdown fences) where each element has: event_id, title, start (ISO 8601 with timezone), end (ISO 8601 with timezone), attendees (array of {name,email}), and external_count (count of attendees whose email domain differs from your employer domain)." \
   --allow-tool='workiq' \
   --allow-tool='outlook' \
   2>>"$LOG_FILE" | python3 -c "

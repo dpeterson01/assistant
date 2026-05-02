@@ -143,7 +143,7 @@ For recurring standups or office hours with no signals, compress to one line: "*
 ### Write per-meeting brief files (high-stakes meetings only)
 
 In addition to the inline briefing assembled above, write a deeper standalone brief for each **high-stakes** meeting. A meeting is high-stakes if any of these are true:
-- ≥1 external attendee (different domain than `microsoft.com`)
+- ≥1 external attendee (different domain than the user's employer domain)
 - Title matches `1:1`, `sync`, `review`, `decision`, `interview`, `leadership`, `debrief`, `prep`, or `kickoff` AND duration ≥ 25 minutes
 - the user owes someone in the meeting an action item (per `action-items.md`)
 - Someone in the meeting owes the user something overdue (per `waiting-on-others.md`)

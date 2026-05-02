@@ -70,7 +70,7 @@ cd "$ASSISTANT_DIR"
 # This keeps the sweep deterministic; the agent handles provider auth.
 EVENTS_JSON=$(perl -e 'alarm 60; exec @ARGV' -- copilot \
   --agent=morning-briefing \
-  -p "List my calendar events between now and ${LOOKAHEAD_MIN} minutes from now. Output ONLY a JSON array (no prose, no markdown fences) where each element has: event_id, title, start (ISO 8601 with timezone), end (ISO 8601), attendees (array of {name,email}), and external_count (count of attendees whose email domain is not microsoft.com)." \
+  -p "List my calendar events between now and ${LOOKAHEAD_MIN} minutes from now. Output ONLY a JSON array (no prose, no markdown fences) where each element has: event_id, title, start (ISO 8601 with timezone), end (ISO 8601), attendees (array of {name,email}), and external_count (count of attendees whose email domain differs from your employer domain)." \
   --allow-tool='workiq' \
   --allow-tool='outlook' \
   2>>"$LOG_FILE" | python3 -c "

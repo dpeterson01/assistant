@@ -9,8 +9,8 @@ Pulls:
   4. Recent journal mentions across work / personal / hmbl / church journals
 
 Usage:
-  get-person-context.py "Sean Norman"
-  get-person-context.py sean --days 60
+  get-person-context.py "Jane Smith"
+  get-person-context.py jane --days 60
   get-person-context.py heather --json
 """
 from __future__ import annotations
@@ -180,7 +180,7 @@ def build_name_pattern(
 ) -> re.Pattern:
     """Word-boundary regex for full name, aliases, last name, and (if unique
     across the index) first name. Word boundaries prevent substring false
-    positives like 'Sean' matching 'Seana'.
+    positives like 'Jane' matching 'Janelle'.
     """
     needles: list[str] = [person_name]
     # Multi-token aliases are unambiguous; single-token aliases are gated.
@@ -229,7 +229,7 @@ def extract_associates(contact_md: str, person_name: str) -> set[str]:
     found = set(PROPER_PHRASE_RE.findall(contact_md))
     found = {p for p in found if p not in ASSOCIATE_STOPLIST}
     # Drop the person and any phrase that contains their last name (avoids
-    # treating their own full name or 'Sean Norman 1:1' as an associate).
+    # treating their own full name or 'Jane Smith 1:1' as an associate).
     last = person_name.split(" ")[-1].lower() if person_name else ""
     drop = set()
     for p in found:

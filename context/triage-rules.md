@@ -19,7 +19,7 @@ Do not include in the briefing output, regardless of tier:
 - Matches an active item in `action-items.md` or `waiting-on-others.md`
 - Someone delivering something the user is waiting on
 - Teams @mention of you (auto-promote one tier from base)
-- External-domain sender (non-microsoft.com) on a topic intersecting `priorities.md`
+- External-domain sender (outside the user's employer domain) on a topic intersecting `priorities.md`
 - Meeting prep needed within 24 hours
 - **Aging boost**: unread 2+ business days → escalate one tier. M2-band engineering counterparts use 1-business-day boost.
 
