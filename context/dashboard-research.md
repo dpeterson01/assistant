@@ -45,7 +45,7 @@ Every major framework enforces a hard boundary between *capture* and *action*:
 
 - **Covey/Eisenhower Q2**: The "Quadrant of Quality" is Not Urgent & Important. This is where deep work, planning, relationship building, and skill development live. Spending too much time in Q1 (Urgent & Important) leads to burnout. Q3 (Urgent & Not Important) is the trap of busywork driven by others' priorities.
 
-**Implication for our dashboard**: Deadlines and urgency markers should be *visible* but should not automatically elevate items above important-but-not-urgent work. The dashboard should help Derek stay in Q2, not get sucked into Q1/Q3.
+**Implication for our dashboard**: Deadlines and urgency markers should be *visible* but should not automatically elevate items above important-but-not-urgent work. The dashboard should help the user stay in Q2, not get sucked into Q1/Q3.
 
 ### 1.4 The "Today" View Is Sacred
 
@@ -204,7 +204,7 @@ From the Eisenhower research: Urgent items with lower payoffs consistently get p
 
 ## 4. Recommendations for Our Case
 
-Given: A daily briefing dashboard for a PM leader (Derek) who manages email (Exchange + personal Outlook + Gmail), Teams messages, iMessages, a Things 3 task list, accountability commitments, and waiting-on-others tracking.
+Given: A daily briefing dashboard for a PM leader (the user) who manages email (Exchange + personal Outlook + Gmail), Teams messages, iMessages, a Things 3 task list, accountability commitments, and waiting-on-others tracking.
 
 ### 4.1 Recommended Section Structure (5-6 sections)
 
@@ -231,7 +231,7 @@ Evidence:
 - Sunsama's "inbox is a delivery service, not a to-do list" principle
 - Things 3's Inbox is a dedicated, separate view from Today
 
-**Implementation**: The morning briefing presents new inbound items (emails, Teams messages, notifications) in a triage section. Derek processes them into either: (a) Today's Focus, (b) Action Items for later, (c) Waiting On Others, or (d) dismissed. The triage section should be empty (or nearly so) after the morning briefing.
+**Implementation**: The morning briefing presents new inbound items (emails, Teams messages, notifications) in a triage section. the user processes them into either: (a) Today's Focus, (b) Action Items for later, (c) Waiting On Others, or (d) dismissed. The triage section should be empty (or nearly so) after the morning briefing.
 
 ### 4.3 Accountability Should Be a Separate View, Not Just Metadata
 

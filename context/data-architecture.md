@@ -16,9 +16,9 @@ $ATLAS sync-things3
 All queries return JSON.
 
 - `$ATLAS commit list --direction mine --status active` (my open action items)
-- `$ATLAS commit list --direction theirs --status active` (what others owe Derek)
+- `$ATLAS commit list --direction theirs --status active` (what others owe the user)
 - `$ATLAS commit overdue` (all overdue items, both directions)
-- `$ATLAS commit search --query "Heather"` (cross-cutting search)
+- `$ATLAS commit search --query "your manager"` (cross-cutting search)
 - `$ATLAS meeting list --date YYYY-MM-DD` (meetings on a given date)
 - `$ATLAS meeting pending` (meetings needing briefs)
 - `$ATLAS meeting show --event-id ID` (single meeting detail)

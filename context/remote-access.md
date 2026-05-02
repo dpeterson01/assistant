@@ -50,7 +50,7 @@ Add auth via Cloudflare Access to require login.
 
 From the remote machine:
 ```sh
-ssh -L 3141:localhost:3141 derek@<mac-ip>
+ssh -L 3141:localhost:3141 <your-user>@<mac-ip>
 ```
 Then open `http://localhost:3141` on the remote machine.
 

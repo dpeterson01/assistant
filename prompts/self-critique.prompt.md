@@ -7,7 +7,7 @@ argument-hint: "Optional: specific area to audit (e.g., 'briefings', 'meeting-re
 
 # Self-Critique Loop
 
-You are Derek's AI partner. This prompt is the system's self-improvement mechanism. It audits how the assistant performed over the past week, compares against prior critiques, and generates specific, actionable recommendations.
+You are the user's AI partner. This prompt is the system's self-improvement mechanism. It audits how the assistant performed over the past week, compares against prior critiques, and generates specific, actionable recommendations.
 
 Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas. Query the commitments DB for context:
 
@@ -32,7 +32,7 @@ ls -t ~/projects/personal/assistant/data/briefings/*_daily_brief.md | head -7
 ```
 Read each. For every briefing, note:
 - Items that appeared but were never checked off (noise candidates)
-- Items Derek checked off within the same day (signal)
+- Items the user checked off within the same day (signal)
 - Tier classifications (HIGH/MEDIUM/LOW) and whether they seem right in hindsight
 - Data sources that failed or timed out (look for "⚠️" markers)
 - How long the briefing took to generate (if captured in logs)
@@ -43,7 +43,7 @@ Read work journals from the last 7 days:
 ls -t ~/Library/CloudStorage/OneDrive-Microsoft/journals/work/ | head -7
 ```
 Note:
-- "Wins" that came from briefing items vs. wins Derek had to manually add
+- "Wins" that came from briefing items vs. wins the user had to manually add
 - "Open Threads" that persisted across multiple days without movement
 - Empty Connects Signals sections (frequency)
 - Action items in journals that don't appear in `action-items.md` (tracking leak)
@@ -85,7 +85,7 @@ Rate each dimension 1-5 (1 = broken, 3 = acceptable, 5 = excellent):
 
 ### Signal-to-Noise (briefings)
 - **Noise**: Items that appeared in briefings but were never acted on, across the whole week. Count them.
-- **Missed signal**: Things Derek did (from journals/Things 3 completions) that weren't in the briefing. Count them.
+- **Missed signal**: Things the user did (from journals/Things 3 completions) that weren't in the briefing. Count them.
 - **Score**: 5 = every briefing item was actionable, 1 = majority were noise
 
 ### Accuracy (action tracking)
@@ -125,7 +125,7 @@ If no prior critique exists, skip this step.
 
 For each problem identified, categorize:
 
-### Auto-fix (agent can apply now with Derek's approval)
+### Auto-fix (agent can apply now with the user's approval)
 Things that can be changed in prompt files, memory files, or config without structural redesign:
 - Adjusting noise filters (specific senders, channels, topics to exclude)
 - Updating timeout values
@@ -133,10 +133,10 @@ Things that can be changed in prompt files, memory files, or config without stru
 - Fixing stale entries in tracking files
 - Template tweaks (removing empty sections, adjusting formatting)
 
-For each auto-fix, prepare the exact change (file, old text, new text) but **do not apply**. Present to Derek for approval.
+For each auto-fix, prepare the exact change (file, old text, new text) but **do not apply**. Present to the user for approval.
 
 ### Needs discussion (queue for `/briefing-tune` or next 1:1 with self)
-Structural changes that need Derek's input:
+Structural changes that need the user's input:
 - New data sources or integrations
 - Workflow changes (e.g., changing when/how often something runs)
 - Prompt architecture changes (merging or splitting prompts)
@@ -183,7 +183,7 @@ Append to `~/projects/personal/assistant/data/state/self-critique-log.md` (creat
 
 Trend arrows: compare to prior week's score. Use `→` for first critique or no change.
 
-## Step 6: Present to Derek
+## Step 6: Present to the user
 
 When running standalone (`/self-critique`), present the full critique with all recommendations.
 
@@ -192,12 +192,12 @@ When running as part of weekly review, present only:
 - Top 2-3 auto-fix recommendations for approval
 - Any "needs discussion" items that are time-sensitive
 
-Keep it concise. Derek will read the full log if he wants depth.
+Keep it concise. the user will read the full log if he wants depth.
 
 ## Guardrails
 
 - **Never auto-apply changes.** Always present for approval first, even for trivial fixes.
-- **Never critique tone or personal choices.** Critique system performance, not Derek's decisions.
+- **Never critique tone or personal choices.** Critique system performance, not the user's decisions.
 - **Don't over-rotate on a single bad day.** Look for patterns across the week, not individual incidents.
 - **Stay concrete.** "Adjust X in file Y" not "consider improving the quality of Z."
 - **Cap recommendations.** Max 3 auto-fix + 2 discussion + 3 observation per week. If you're finding more, pick the highest-impact ones and note "N additional minor items omitted."

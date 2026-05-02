@@ -153,8 +153,8 @@ $ATLAS commit complete --task-id "AI-20260421-101530"
 3. Either way, Things 3 task is marked complete with high confidence (exact ID match)
 
 ### Example 3: Complete via keyword
-1. You run: `/done finished email to Heather`
-2. Agent searches Things 3 for "email to Heather"
+1. You run: `/done finished email to your manager`
+2. Agent searches Things 3 for "email to your manager"
 3. If one match found: auto-complete
 4. If ambiguous: agent asks "Did you mean: [task 1] or [task 2]?"
 

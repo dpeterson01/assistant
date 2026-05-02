@@ -4,8 +4,8 @@ get-person-context: Aggregate everything we know about a person for draft-time c
 
 Pulls:
   1. Contact file (work or church directory) via index.json alias resolution
-  2. Open items Derek owes them (action-items.md)
-  3. Open items they owe Derek (waiting-on-others.md)
+  2. Open items the user owes them (action-items.md)
+  3. Open items they owe the user (waiting-on-others.md)
   4. Recent journal mentions across work / personal / hmbl / church journals
 
 Usage:
@@ -127,7 +127,7 @@ DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "http://localhost:3141")
 
 
 def _dashboard_obligations(person_name: str) -> tuple[list[str], list[str]] | None:
-    """Try fetching obligations from the dashboard API. Returns (derek_owes, they_owe)
+    """Try fetching obligations from the dashboard API. Returns (user_owes, they_owe)
     as formatted strings, or None if the dashboard is unreachable."""
     try:
         import urllib.request
@@ -136,15 +136,15 @@ def _dashboard_obligations(person_name: str) -> tuple[list[str], list[str]] | No
         req = urllib.request.Request(url)
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read())
-        derek_owes = [
+        user_owes = [
             f"- [ ] {item['text']}" + (f" | {item['detail']}" if item.get('detail') else "")
-            for item in data.get("derekOwes", [])
+            for item in data.get("userOwes", [])
         ]
         they_owe = [
             f"- [ ] {item['text']}" + (f" | {item['detail']}" if item.get('detail') else "")
             for item in data.get("theyOwe", [])
         ]
-        return derek_owes, they_owe
+        return user_owes, they_owe
     except Exception:
         return None
 
@@ -405,7 +405,7 @@ def build_brief(
             "contact_file": None,
             "contact_md": "",
             "associates": [],
-            "derek_owes": [],
+            "user_owes": [],
             "they_owe": [],
             "journal_mentions": [],
             "days_window": days,
@@ -425,9 +425,9 @@ def build_brief(
     # Try dashboard API first, fall back to markdown parsing
     api_result = _dashboard_obligations(name)
     if api_result is not None:
-        derek_owes, they_owe = api_result
+        user_owes, they_owe = api_result
     else:
-        derek_owes = extract_open_items(ACTION_ITEMS, name, aliases, first_unique)
+        user_owes = extract_open_items(ACTION_ITEMS, name, aliases, first_unique)
         they_owe = extract_open_items(WAITING_ON, name, aliases, first_unique)
 
     journal_hits = []
@@ -456,7 +456,7 @@ def build_brief(
         "contact_file": str(contact_path),
         "contact_md": contact_md,
         "associates": sorted(associates),
-        "derek_owes": derek_owes,
+        "user_owes": user_owes,
         "they_owe": they_owe,
         "journal_mentions": journal_hits,
         "days_window": days,
@@ -479,10 +479,10 @@ def render_markdown(brief: dict) -> str:
     parts.append("## Contact Card\n")
     parts.append(brief["contact_md"].strip() or "_(empty)_")
 
-    parts.append("\n## Open: Derek Owes Them")
-    parts.append("\n".join(brief["derek_owes"]) if brief["derek_owes"] else "_None._")
+    parts.append("\n## Open: the user Owes Them")
+    parts.append("\n".join(brief["user_owes"]) if brief["user_owes"] else "_None._")
 
-    parts.append("\n## Open: They Owe Derek")
+    parts.append("\n## Open: They Owe the user")
     parts.append("\n".join(brief["they_owe"]) if brief["they_owe"] else "_None._")
 
     parts.append("\n## Recent Journal Mentions")
@@ -531,15 +531,15 @@ def render_xml(brief: dict) -> str:
     out.append(_xml_escape(brief["contact_md"].strip()))
     out.append("  </contact_card>")
 
-    out.append("  <derek_owes_them>")
-    for line in brief["derek_owes"]:
+    out.append("  <user_owes_them>")
+    for line in brief["user_owes"]:
         out.append(f"    <item>{_xml_escape(line)}</item>")
-    out.append("  </derek_owes_them>")
+    out.append("  </user_owes_them>")
 
-    out.append("  <they_owe_derek>")
+    out.append("  <they_owe_user>")
     for line in brief["they_owe"]:
         out.append(f"    <item>{_xml_escape(line)}</item>")
-    out.append("  </they_owe_derek>")
+    out.append("  </they_owe_user>")
 
     out.append("  <journal_mentions trust=\"untrusted\">")
     for entry in brief["journal_mentions"]:

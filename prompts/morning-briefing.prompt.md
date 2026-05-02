@@ -7,17 +7,17 @@ argument-hint: "Optional: specific context to focus on (work, personal, church)"
 
 # Morning Briefing
 
-You are Derek's AI partner. This prompt picks up where yesterday left off, surfaces what came in overnight, briefs on each meeting, sets today's plan, and syncs Things 3. Move fast.
+You are the user's AI partner. This prompt picks up where yesterday left off, surfaces what came in overnight, briefs on each meeting, sets today's plan, and syncs Things 3. Move fast.
 
 Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
 
 The briefing has two phases:
-- **Phase A (Steps 1-2-3)**: Gather, brief Derek, save and open. Get Derek reading ASAP.
-- **Phase B (Steps 4-5)**: Maintenance. Sync Things 3, update memory files, surface conflicts. Runs while Derek reads.
+- **Phase A (Steps 1-2-3)**: Gather, brief the user, save and open. Get the user reading ASAP.
+- **Phase B (Steps 4-5)**: Maintenance. Sync Things 3, update memory files, surface conflicts. Runs while the user reads.
 
 ---
 
-# Phase A: Get the briefing to Derek fast
+# Phase A: Get the briefing to the user fast
 
 ## Step 1: Reload context (do all in parallel where possible)
 
@@ -65,8 +65,8 @@ Church is an active life context. Check for church-related activity and include 
 **Data sources** (check all, in parallel with other Step 1 sources):
 - **Things 3**: `~/.local/bin/things3/by-tag.sh church` and search for church project tasks: `~/.local/bin/things3/search.sh "church\|parish\|confirmation\|RCIA"`
 - **Priorities**: The "Church" section in `/memories/priorities.md` lists active church commitments
-- **Personal email**: Search personal Outlook (drp80@outlook.com) for recent church-related emails. Use `mcp_hmbl-mail_outlook_search` with query "church OR parish OR Father Francisco OR confirmation OR RCIA" limited to last 7 days.
-- **iMessages**: On weekends, check for messages from church contacts (Father Francisco, Brenda Alford, Holli Sullivan, or anyone else in the church context). Use `mcp_mac-messages_tool_fuzzy_search_messages` with relevant names.
+- **Personal email**: Search personal Outlook ([personal-email]) for recent church-related emails. Use `mcp_hmbl-mail_outlook_search` with query "church OR parish OR confirmation OR RCIA" limited to last 7 days. Add names of church contacts from `/memories/identity.md`.
+- **iMessages**: On weekends, check for messages from church contacts listed in `/memories/identity.md`. Use `mcp_mac-messages_tool_fuzzy_search_messages` with relevant names.
 - **Personal journal**: Today's personal journal (if it exists) may contain church-related entries from the overnight generate script.
 
 **Include in briefing when**:
@@ -75,7 +75,7 @@ Church is an active life context. Check for church-related activity and include 
 - Overnight email/iMessage activity involves church contacts
 - A church event or meeting is on the calendar today
 
-**Briefing placement**: Church items appear in the appropriate sections (carry-over, tasks, accountability) alongside work and personal items. Tag them with "🏛️" prefix so Derek can scan. On weekends, promote church items higher since work items are typically lower priority.
+**Briefing placement**: Church items appear in the appropriate sections (carry-over, tasks, accountability) alongside work and personal items. Tag them with "🏛️" prefix so the user can scan. On weekends, promote church items higher since work items are typically lower priority.
 
 **Things 3 routing**: Church tasks go to the appropriate Church project (Track 1-4). See the Things 3 skill for project names.
 
@@ -109,11 +109,11 @@ For each meeting today, assemble a briefing by combining:
 
 1. **Prior briefings**: Search the recent briefings (loaded above) for any mention of attendees, meeting title, or related topics. Extract prior signals, open follow-ups, and unresolved items.
 2. **Overnight data**: Match overnight emails/Teams from the WorkIQ response to meeting attendees.
-3. **Memory files** (already loaded): Cross-reference action-items.md (does Derek owe an attendee?) and waiting-on-others.md (does an attendee owe Derek?).
+3. **Memory files** (already loaded): Cross-reference action-items.md (does the user owe an attendee?) and waiting-on-others.md (does an attendee owe the user?).
 4. **Work contacts directory**: Read `~/Library/CloudStorage/OneDrive-Microsoft/01_people/contacts/index.json` once to get the name-to-file mapping. For each attendee, look up their entry in the index (match on name, aliases, or email). Read matching contact files and extract context that matters *for this specific meeting today*:
    - **Birthday**: If today/tomorrow/this week, always flag it (source: `contact`)
    - **Working style**: Only include traits relevant to this meeting's likely dynamics (e.g., "prefers data-driven arguments" for a decision meeting, "sensitive to PM dictating" for a cross-functional sync)
-   - **History**: Last interaction date and summary. Especially important for 1:1s (how long since last sync?) and for people Derek hasn't met with recently.
+   - **History**: Last interaction date and summary. Especially important for 1:1s (how long since last sync?) and for people the user hasn't met with recently.
    - **Watch-out-for**: Any patterns, sensitivities, or dynamics noted in the contact file
    - **Personal**: Recently promoted, returned from leave, new to team, etc.
    Route these into the JSON `peopleContext` array (see dashboard-json-schema.md) AND into `signals` when they're actionable (e.g., birthday today → signal with source `contact`).
@@ -132,11 +132,11 @@ Assemble each meeting briefing with this structure:
 **Open items with attendees**:
 - [item from action-items/waiting-on-others/prior briefings, with specific details: what's owed, by whom, since when, and what "done" looks like. Or "None"]
 **Suggested talking points**:
-- [Topic]: [What specifically to say or ask, with enough context that Derek can raise it cold without looking anything up. Reference specific artifacts, dates, names, or commitments.]
+- [Topic]: [What specifically to say or ask, with enough context that the user can raise it cold without looking anything up. Reference specific artifacts, dates, names, or commitments.]
 **Prep**: [specific action needed, or "None"]
 ```
 
-**Quality bar for signals and talking points**: Every signal and talking point must pass the "could Derek act on this without opening another window?" test. If a signal just names a topic (e.g., "DSB/RAI thread active") without explaining what happened and why it matters, it's too vague. If a talking point just names a subject (e.g., "LiveSite status") without saying what to ask or say, rewrite it.
+**Quality bar for signals and talking points**: Every signal and talking point must pass the "could the user act on this without opening another window?" test. If a signal just names a topic (e.g., "DSB/RAI thread active") without explaining what happened and why it matters, it's too vague. If a talking point just names a subject (e.g., "LiveSite status") without saying what to ask or say, rewrite it.
 
 For recurring standups or office hours with no signals, compress to one line: "**Title** (time) - Recurring, no specific prep."
 
@@ -145,8 +145,8 @@ For recurring standups or office hours with no signals, compress to one line: "*
 In addition to the inline briefing assembled above, write a deeper standalone brief for each **high-stakes** meeting. A meeting is high-stakes if any of these are true:
 - ≥1 external attendee (different domain than `microsoft.com`)
 - Title matches `1:1`, `sync`, `review`, `decision`, `interview`, `leadership`, `debrief`, `prep`, or `kickoff` AND duration ≥ 25 minutes
-- Derek owes someone in the meeting an action item (per `action-items.md`)
-- Someone in the meeting owes Derek something overdue (per `waiting-on-others.md`)
+- the user owes someone in the meeting an action item (per `action-items.md`)
+- Someone in the meeting owes the user something overdue (per `waiting-on-others.md`)
 
 For each high-stakes meeting:
 1. Run `$ATLAS meeting add --event-id "<event_id>" --title "<title>" --start "<iso_start>" --end "<iso_end>" --attendees "<names>" --external <count>`. If the event already exists with `brief_status=sent` or `refreshed`, the rolling sweep already produced a brief — skip and reference its path in the inline daily brief.
@@ -171,7 +171,7 @@ After collecting emails and Teams, classify every item using the rules in [triag
 
 Apply triage to every inbound item before proceeding to Step 2.
 
-## Step 2: Brief Derek
+## Step 2: Brief the user
 
 Present a tight morning briefing. No fluff.
 
@@ -217,7 +217,7 @@ Remove any candidate whose title matches a completed commitment. This prevents i
 ### What came in overnight (triaged)
 Present communications grouped by importance tier. For each item show the tier emoji, source (email/Teams), sender, age if older than overnight, and 1-sentence summary.
 
-**🔴 HIGH** items first (include Task ID if created in Things 3; briefly state what Derek needs to do)
+**🔴 HIGH** items first (include Task ID if created in Things 3; briefly state what the user needs to do)
 **🟡 MEDIUM** items next (include Task ID for actionable ones)
 **🟢 LOW** items: just a count ("X low-priority items, nothing actionable")
 
@@ -228,14 +228,14 @@ Present the full meeting briefings assembled in Step 1, in chronological order. 
 - **Title** (time) with key attendees
 - **Why it matters today**: 1-2 sentences synthesizing the signals, agenda, and open items
 - **Signals**: The most relevant 2-3 signals with full context: source, who, and a sentence explaining what happened and why it matters for this meeting. Not topic labels.
-- **Raise this**: Specific things Derek should bring up, written as complete talking points he can use directly. Include what to say/ask, reference specific artifacts or dates, and explain why now. If an attendee owes Derek something, state exactly what, since when, and what "done" looks like.
-- **Prep**: Note if Derek needs to prep before this meeting, else "None"
+- **Raise this**: Specific things the user should bring up, written as complete talking points he can use directly. Include what to say/ask, reference specific artifacts or dates, and explain why now. If an attendee owes the user something, state exactly what, since when, and what "done" looks like.
+- **Prep**: Note if the user needs to prep before this meeting, else "None"
 
 For low-signal recurring meetings (standups, office hours), compress to one line: "**Title** (time) - Recurring, no specific prep."
 
 ### Accountability check
 - **My overdue items**: Run `$ATLAS commit overdue` to get all overdue items. Surface items where direction=mine. Be direct.
-- **Waiting on others**: Run `$ATLAS commit list --direction theirs --status active` to get active items others owe Derek. For each active item:
+- **Waiting on others**: Run `$ATLAS commit list --direction theirs --status active` to get active items others owe the user. For each active item:
   - If they're in a meeting today: "Bring up [item] with [person] in [meeting name]"
   - If overdue and not recently nudged: "Consider running `/nudge [person]` to follow up"
   - Count: "X items pending from others, Y overdue"
@@ -284,14 +284,14 @@ open -a "Microsoft Edge" http://localhost:3141
 
 ---
 
-# Phase B: Maintenance (runs while Derek reads the briefing)
+# Phase B: Maintenance (runs while the user reads the briefing)
 
 ## Step 4: Sync Things 3
 
 Every action item identified during triage becomes a Things 3 task. No exceptions for HIGH items. MEDIUM items become tasks if they have a clear "do" action.
 
 ### Sources that generate tasks
-1. 🔴 HIGH communications (email, Teams) with an action for Derek
+1. 🔴 HIGH communications (email, Teams) with an action for the user
 2. 🟡 MEDIUM communications with a clear, specific ask
 3. Carry-forward items from yesterday's journal not yet in the DB
 4. Meeting prep tasks (from Step 2 meeting briefs)
@@ -334,7 +334,7 @@ After adding/completing tasks, tags on Things 3 tasks may need updating. Use the
 
 1. **`urgent`**: Apply to tasks due today or overdue. Check: `$ATLAS commit overdue` for overdue items.
 2. **`action-item`**: Apply to all tasks that exist in the DB with direction=mine.
-3. **`blocked`**: Apply to tasks where Derek is waiting on someone else. Check: `$ATLAS commit list --direction theirs --status active`.
+3. **`blocked`**: Apply to tasks where the user is waiting on someone else. Check: `$ATLAS commit list --direction theirs --status active`.
 
 Use `~/.local/bin/things3/update.sh <id> --tags "tag1,tag2"` for tag updates. To find task IDs: `~/.local/bin/things3/search.sh "keyword"`.
 

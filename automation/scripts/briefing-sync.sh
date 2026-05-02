@@ -3,7 +3,7 @@
 # 0) EMAIL CLEANUP: filter spam from journals + sweep Outlook junk
 # 1) PULL: scan for new inbound items → dashboard JSON
 #
-# Triggered by launchd: com.derekpeterson.briefing-sync.plist
+# Triggered by launchd: com.atlas.briefing-sync.plist
 
 set -euo pipefail
 
@@ -104,9 +104,9 @@ else
       -p "Inbound scan for the briefing dashboard (${BRIEFING_DATE}).
 
 Scan for NEW communications since ${LAST_UPDATED}:
-1. Check Outlook work email (depeters@microsoft.com) for unread emails
+1. Check Outlook work email ([work-email]) for unread emails
 2. Check Teams for unread mentions or direct messages
-3. Check personal Outlook (drp80@outlook.com) for anything urgent
+3. Check personal Outlook ([personal-email]) for anything urgent
 
 For each new item found:
 - Triage as HIGH/MEDIUM/LOW using the standard triage rules

@@ -7,7 +7,7 @@ argument-hint: "Optional: meeting title, calendar event, or 'last' (defaults to 
 
 # Meeting Recap
 
-You are Derek's AI partner. This prompt produces post-meeting minutes from a transcript, recording, or raw notes, then automatically updates Derek's accountability tracking. It is the backward-looking complement to `/meeting-brief`.
+You are the user's AI partner. This prompt produces post-meeting minutes from a transcript, recording, or raw notes, then automatically updates the user's accountability tracking. It is the backward-looking complement to `/meeting-brief`.
 
 Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
 
@@ -17,7 +17,7 @@ Resolve the target meeting:
 
 - If user supplied a title or event ID, use that.
 - If user supplied a transcript/notes inline, use those as the source.
-- If user said "last" or no argument, default to the most recent meeting Derek attended today (per WorkIQ calendar).
+- If user said "last" or no argument, default to the most recent meeting the user attended today (per WorkIQ calendar).
 
 For each candidate meeting, gather:
 
@@ -26,7 +26,7 @@ For each candidate meeting, gather:
   1. User-pasted transcript or notes
   2. Copilot meeting recap / intelligent recap (via WorkIQ: "Give me the Copilot recap and full transcript for [meeting] on [date].")
   3. Raw transcript (via WorkIQ)
-  4. Derek's own notes (search `~/Library/Mobile Documents/com~apple~CloudDocs/personal/journals/`, `~/Library/CloudStorage/OneDrive-Microsoft/journals/work/`, and any meeting notes folder)
+  4. the user's own notes (search `~/Library/Mobile Documents/com~apple~CloudDocs/personal/journals/`, `~/Library/CloudStorage/OneDrive-Microsoft/journals/work/`, and any meeting notes folder)
   5. None — proceed with what's known and flag gaps as "Not captured"
 
 If you cannot resolve a single meeting, list candidates and stop.
@@ -50,7 +50,7 @@ Every commitment made by anyone in the meeting. For each:
 - **Acceptance criteria**: what completes this, if discernible
 - **Linked artifacts**: tickets, docs, threads mentioned
 
-Be precise about ownership. If an action was assigned to "the team" or no specific person, flag it as **Owner: TBD**. If Derek volunteered for something but no one explicitly accepted it, flag it as **Unaccepted offer** and do not create a Things 3 task (per the unaccepted-offer filter in `/morning-briefing.prompt.md`).
+Be precise about ownership. If an action was assigned to "the team" or no specific person, flag it as **Owner: TBD**. If the user volunteered for something but no one explicitly accepted it, flag it as **Unaccepted offer** and do not create a Things 3 task (per the unaccepted-offer filter in `/morning-briefing.prompt.md`).
 
 ### Risks and blockers
 Anything raised that threatens an outcome or is currently blocked.
@@ -78,7 +78,7 @@ attendees:
 absent:
   - <name>
 recorder: agent
-source: <transcript | recap | notes | derek-notes | none>
+source: <transcript | recap | notes | user-notes | none>
 generated_at: <iso_now>
 ---
 
@@ -127,7 +127,7 @@ Style rules:
 
 This is the loop-closing step. Move every action item into the right tracking system.
 
-### For action items owned by Derek
+### For action items owned by the user
 Add each to the DB. The command auto-generates a Task ID, pushes to Things 3, and re-renders markdown:
 
 ```sh
@@ -139,14 +139,14 @@ Before adding, search for an existing item to avoid duplicates:
 $ATLAS commit search --query "<key keywords>"
 ```
 
-### For action items owned by others (commitments to Derek)
+### For action items owned by others (commitments to the user)
 Add each to the DB:
 ```sh
 $ATLAS commit add --title "<what they owe>" --direction theirs --person "<owner>" --source "meeting/YYYY-MM-DD/<meeting-slug>" --due "YYYY-MM-DD" --channel email --category work --notes "Status: pending. Committed in meeting."
 ```
 
 ### For decisions
-If a decision changes Derek's priorities or open commitments:
+If a decision changes the user's priorities or open commitments:
 - Update `/memories/priorities.md` if a top-level priority shifted
 - Complete related items in the DB if a decision made them obsolete:
   ```sh
@@ -154,7 +154,7 @@ If a decision changes Derek's priorities or open commitments:
   ```
 
 ### For risks
-If a risk needs Derek's monitoring, create a task tagged `risk-watch`:
+If a risk needs the user's monitoring, create a task tagged `risk-watch`:
 ```sh
 $ATLAS commit add --title "Monitor: <risk>" --direction mine --person "self" --source "meeting/YYYY-MM-DD/<meeting-slug>" --due "YYYY-MM-DD" --category work --notes "Risk watch from <meeting>."
 ```
@@ -170,7 +170,7 @@ $ATLAS meeting recap --event-id "<event-id or meeting-slug>" --summary "<1-line 
 $ATLAS interaction log --person "<organizer>" --type meeting --direction outbound --summary "<meeting title> recap captured"
 ```
 
-## Step 5: Surface the loop closure to Derek
+## Step 5: Surface the loop closure to the user
 
 Present a tight summary:
 
@@ -191,12 +191,12 @@ Present a tight summary:
 
 ## Edge cases
 
-**No transcript or notes available.** Ask Derek for the highlights in 3 questions: (1) What was decided? (2) Who's doing what by when? (3) Anything blocked or risky? Build the recap from his answers.
+**No transcript or notes available.** Ask the user for the highlights in 3 questions: (1) What was decided? (2) Who's doing what by when? (3) Anything blocked or risky? Build the recap from his answers.
 
 **Meeting was a 1:1 with no formal decisions.** Skip the Decisions section, focus on action items and any commitments either side made.
 
 **Meeting was a routine standup with nothing actionable.** Note in summary "Routine sync, no decisions or new action items," skip empty sections, save anyway for the audit trail.
 
-**Confidential or sensitive content.** Write the recap to the file but flag in the response if any content seems sensitive (PII, compensation, performance, legal). Ask Derek before any external distribution.
+**Confidential or sensitive content.** Write the recap to the file but flag in the response if any content seems sensitive (PII, compensation, performance, legal). Ask the user before any external distribution.
 
-**Action item ownership ambiguous.** Mark **Owner: TBD** and ask Derek to clarify in the response. Do not create a Things 3 task with TBD ownership.
+**Action item ownership ambiguous.** Mark **Owner: TBD** and ask the user to clarify in the response. Do not create a Things 3 task with TBD ownership.

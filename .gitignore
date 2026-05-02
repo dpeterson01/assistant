@@ -7,4 +7,8 @@ automation/.checkpoints/
 
 # Personal data (symlink to iCloud or local directory)
 data
+briefings/
+context/action-items.md
+context/priorities.md
+context/waiting-on-others.md
 __pycache__/

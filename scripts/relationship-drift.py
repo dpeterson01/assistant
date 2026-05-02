@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-relationship-drift: Flag contacts Derek hasn't interacted with recently.
+relationship-drift: Flag contacts the user hasn't interacted with recently.
 
 Scans journals for the most recent mention of each tracked contact, then
 applies tier-based thresholds to surface people who may need a check-in.
@@ -172,7 +172,7 @@ DASHBOARD_URL = os.environ.get("DASHBOARD_URL", "http://localhost:3141")
 
 
 def _dashboard_obligations(name: str) -> tuple[list[str], list[str]] | None:
-    """Try fetching obligations from the dashboard API. Returns (waiting_on, derek_owes)
+    """Try fetching obligations from the dashboard API. Returns (waiting_on, user_owes)
     as raw strings, or None if the dashboard is unreachable."""
     try:
         import urllib.request
@@ -187,7 +187,7 @@ def _dashboard_obligations(name: str) -> tuple[list[str], list[str]] | None:
         ]
         owes = [
             f"- [ ] {item['text']}" + (f" | {item.get('detail','')}" if item.get('detail') else "")
-            for item in data.get("derekOwes", [])
+            for item in data.get("userOwes", [])
         ]
         return waiting, owes
     except Exception:
@@ -252,7 +252,7 @@ def check_drift(days: int = 45) -> list[dict]:
                 "threshold": threshold,
                 "overdue_by": max(overdue_days, 0),
                 "waiting_on": waiting,
-                "derek_owes": owes,
+                "user_owes": owes,
             })
 
     # Sort: most overdue first, then by relationship tier importance.
@@ -279,13 +279,13 @@ def render_markdown(results: list[dict]) -> str:
                 for ln in r["waiting_on"]
             )
             line += f"\n  - Waiting on them: {items}"
-        if r["derek_owes"]:
+        if r["user_owes"]:
             items = "; ".join(
                 ln.replace("- [ ] ", "").split("|")[0].strip()
-                for ln in r["derek_owes"]
+                for ln in r["user_owes"]
             )
-            line += f"\n  - Derek owes them: {items}"
-        if not r["waiting_on"] and not r["derek_owes"]:
+            line += f"\n  - the user owes them: {items}"
+        if not r["waiting_on"] and not r["user_owes"]:
             line += ". Consider reaching out."
         lines.append(line)
 
@@ -318,7 +318,7 @@ def main() -> None:
             print(f"{r['name']} ({r['relationship']}): last {last}, {r['days_since']}d ago [threshold: {r['threshold']}d]")
             for w in r["waiting_on"]:
                 print(f"  ⏳ waiting: {w.strip()}")
-            for o in r["derek_owes"]:
+            for o in r["user_owes"]:
                 print(f"  📌 owes: {o.strip()}")
 
 

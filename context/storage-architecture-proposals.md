@@ -18,7 +18,7 @@ Good question. Short answer: **yes, but SQLite is probably the sweet spot**, not
 1. **Two files with overlapping schemas** (action-items.md, waiting-on-others.md) that differ only by direction (owed by me vs. owed to me)
 2. **Pipe-delimited fields** are fragile to parse and easy to break
 3. **Completed items** accumulate and need manual pruning
-4. **No queryability**: "show me everything overdue" or "what do I owe Heather?" requires full-text parsing
+4. **No queryability**: "show me everything overdue" or "what do I owe your manager?" requires full-text parsing
 5. **Things 3 sync** has to regex-match Task IDs from free text
 6. **Duplicate storage** between `/memories/action-items.md` and `assistant/context/action-items.md`
 
@@ -61,7 +61,7 @@ CREATE INDEX idx_person ON commitments(person);
 #### What this unlocks
 
 - `SELECT * FROM commitments WHERE status='active' AND due_date < date('now')` for overdue items
-- `SELECT * FROM commitments WHERE person='Heather' AND direction='mine'` for "what do I owe Heather?"
+- `SELECT * FROM commitments WHERE person='your manager' AND direction='mine'` for "what do I owe your manager?"
 - Briefing/EOD agents write structured rows instead of regex-editing markdown
 - Auto-pruning: `UPDATE commitments SET status='archived' WHERE completed_at < date('now', '-14 days')`
 - Nudge agent queries `last_nudge` directly instead of parsing pipe-delimited text
@@ -275,7 +275,7 @@ Looking across your full data surface, you're storing several categories of stru
 | **Waiting on others** | `waiting-on-others.md` + `/memories/waiting-on-others.md` | Same duplication problem | Same |
 | **Briefing items** | Per-day JSON with status tracking | Items carry forward by copy-paste between JSONs. Old items drift. | Stable item table spanning days |
 | **Meeting data** | Embedded in daily JSON, lost after the day | No way to query "when did I last meet with Isabella?" | Meeting history table |
-| **Contact interactions** | Scattered across journals, briefings, emails | No aggregated view of "last 5 interactions with Hui Xie" | Interaction log table |
+| **Contact interactions** | Scattered across journals, briefings, emails | No aggregated view of "last 5 interactions with [person]" | Interaction log table |
 | **Priorities** | `priorities.md` rebuilt daily | No change history, no diff tracking | Could track priority changes over time |
 | **Completion history** | In briefing JSON + Things 3 + action-items.md completed section | Three partial records | Single completion log |
 
@@ -294,7 +294,7 @@ WorkIQ should have access to this data (it can query your M365 Graph). The meeti
 
 **Nobody is currently harvesting this**. Your EOD prompt makes a WorkIQ call but asks for general "work context," not specifically for meeting recaps. This is a missed data source. A post-meeting sweep (15-30 min after each meeting ends) could:
 1. Pull the Copilot summary via WorkIQ
-2. Extract action items (both Derek's and others')
+2. Extract action items (both the user's and others')
 3. Auto-update `action-items.md` and `waiting-on-others.md`
 4. Store the recap for future reference
 
@@ -411,7 +411,7 @@ This gives you the best of both worlds: Things 3 for task lifecycle (what you in
 **New prompt: `meeting-recap-auto.prompt.md`** stripped-down version of the existing `meeting-recap.prompt.md`, optimized for unattended execution:
 1. Pull Copilot meeting recap via WorkIQ (primary), fall back to transcript summary
 2. Write structured recap to `assistant/meetings/YYYY/MM/YYYY-MM-DD_meeting-slug.md` (same path convention as the manual prompt)
-3. Auto-update `action-items.md` and `waiting-on-others.md` with the **unaccepted-offer filter** (don't create tasks for things Derek volunteered but nobody accepted)
+3. Auto-update `action-items.md` and `waiting-on-others.md` with the **unaccepted-offer filter** (don't create tasks for things the user volunteered but nobody accepted)
 4. Create Things 3 tasks for confirmed action items
 5. Store a `recap_summary` field in the ledger entry (2-3 sentence digest for EOD/weekly to reference without re-reading the full file)
 
@@ -423,7 +423,7 @@ This gives you the best of both worlds: Things 3 for task lifecycle (what you in
 
 #### 2. Self-Critique Loop
 
-**Problem**: Prompt tuning is currently reactive (Derek runs `/briefing-tune` when something feels off). FenixAGI's `critique_and_revise_instructions()` pattern shows the value of proactive, automated reflection.
+**Problem**: Prompt tuning is currently reactive (the user runs `/briefing-tune` when something feels off). FenixAGI's `critique_and_revise_instructions()` pattern shows the value of proactive, automated reflection.
 
 **Design**:
 
@@ -431,17 +431,17 @@ This gives you the best of both worlds: Things 3 for task lifecycle (what you in
 
 **What it does**:
 1. **Audit prompt performance**: Read the last 7 daily briefings, EOD journals, and any meeting recaps from the week. Score each routine on:
-   - **Signal-to-noise**: Items that appeared but were never acted on (noise). Items Derek had to manually surface (missed signal).
+   - **Signal-to-noise**: Items that appeared but were never acted on (noise). Items the user had to manually surface (missed signal).
    - **Accuracy**: Tier classifications that were wrong in hindsight. Action items assigned to wrong owners. Due dates that were off.
    - **Efficiency**: Steps that consistently failed/timed out. Data sources that returned nothing useful.
-   - **Completeness**: Things Derek did that weren't captured. Meetings without recaps. Contacts not enriched.
+   - **Completeness**: Things the user did that weren't captured. Meetings without recaps. Contacts not enriched.
 
 2. **Diff against prior critique**: Read the last critique at `assistant/data/state/self-critique-log.md` (append-only file, one entry per week). Compare: did last week's recommendations get implemented? Did they help?
 
 3. **Generate specific recommendations**: Not vague ("improve meeting prep"). Specific: "Add `@microsoft.com` filter to Teams noise list" or "Increase WorkIQ timeout from 10s to 15s for meeting queries" or "The 'Connects Signals' section was empty 4/5 days; consider removing from EOD template or adding more specific triggers."
 
 4. **Categorize recommendations**:
-   - **Auto-fix**: Things the agent can change right now (filter rules, timeout values, template tweaks). Present to Derek for approval, then apply.
+   - **Auto-fix**: Things the agent can change right now (filter rules, timeout values, template tweaks). Present to the user for approval, then apply.
    - **Needs discussion**: Structural changes (new data sources, workflow changes, prompt architecture). Queue for `/briefing-tune`.
    - **Observation only**: Patterns worth tracking but not actionable yet.
 

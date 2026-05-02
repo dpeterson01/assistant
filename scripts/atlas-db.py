@@ -222,7 +222,7 @@ def render_action_items(conn: sqlite3.Connection) -> None:
 
     lines = [
         "# Action Items (Mine)\n",
-        "Things Derek owes others. Synced to Things 3.\n",
+        "Things the user owes others. Synced to Things 3.\n",
         f"Updated: {datetime.now().strftime('%Y-%m-%d')}\n",
         "## Active\n",
     ]
@@ -273,7 +273,7 @@ def render_waiting_on(conn: sqlite3.Connection) -> None:
 
     lines = [
         "# Waiting On Others\n",
-        "Commitments others have made to Derek. Nudgeable via nudge agent.\n",
+        "Commitments others have made to the user. Nudgeable via nudge agent.\n",
         f"Updated: {datetime.now().strftime('%Y-%m-%d')}\n",
         "## Active\n",
     ]

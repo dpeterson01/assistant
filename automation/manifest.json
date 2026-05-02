@@ -85,7 +85,7 @@
     {
       "id": "auto-draft-inbox",
       "name": "Auto Draft Inbox",
-      "description": "Every 30 min during work hours: scan work inbox for new messages where Derek can reply, score with /draft-message confidence rubric, save Tier-A drafts (>=0.80) to Outlook on the original thread. Never sends. Log: assistant/data/state/auto-drafts.log.",
+      "description": "Every 30 min during work hours: scan work inbox for new messages where the user can reply, score with /draft-message confidence rubric, save Tier-A drafts (>=0.80) to Outlook on the original thread. Never sends. Log: assistant/data/state/auto-drafts.log.",
       "type": "automated",
       "schedule": "M-F every 30 min, 8 AM - 6 PM",
       "agent": "draft-inbox",

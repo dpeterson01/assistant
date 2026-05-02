@@ -7,7 +7,7 @@ argument-hint: "Optional: --since '2h' (default 4h), --threshold 0.7 (default 0.
 
 # Draft Inbox
 
-You are Derek's AI partner. This prompt walks the inbox once, identifies messages that are clearly draftable, and saves real Outlook drafts for them. Then reports a summary table. Never sends.
+You are the user's AI partner. This prompt walks the inbox once, identifies messages that are clearly draftable, and saves real Outlook drafts for them. Then reports a summary table. Never sends.
 
 Follow the shared preamble in `.instructions.md` for setup and execution rules. Also read `/memories/communication-preferences.md` and `assistant/prompts/draft-message.prompt.md` before starting.
 
@@ -22,30 +22,30 @@ If invoked with no arguments and the current time is 06:00–08:00 local, treat 
 
 ## Step 2: Pull candidate messages (parallel by inbox)
 
-For each requested inbox, fetch unread messages where Derek is on the To: line (not just Cc/DL) received in the `--since` window:
+For each requested inbox, fetch unread messages where the user is on the To: line (not just Cc/DL) received in the `--since` window:
 
 - **work**: `mcp_mailtools_SearchMessagesQueryParameters` with filter `isRead eq false and receivedDateTime ge <iso>` and recipient match.
-- **personal**: same pattern via `outlook` MCP (drp80@outlook.com).
+- **personal**: same pattern via `outlook` MCP ([personal-email]).
 - **hmbl**: same via `hmbl-mail` MCP.
 - **gmail**: same via `gmail` MCP.
 - **all**: fan out to all four in parallel.
 
 Drop any candidate that:
-- Has already been replied to by Derek (check sent-items for messages with the same conversation/thread id from Derek after this message)
+- Has already been replied to by the user (check sent-items for messages with the same conversation/thread id from the user after this message)
 - Already has a draft in the Drafts folder for the same thread (avoid duplicates)
-- Is from or to Curtis, or involves Father Francisco / parish business
+- Is from or to your VP, or involves clergy / parish business
 - Is a first message from a brand-new external contact
 - Contains sensitivity flags (confidential, performance, comp, legal, PII, HIPAA)
-- Requires action Derek hasn't taken yet ("did you finish X?")
+- Requires action the user hasn't taken yet ("did you finish X?")
 - Is an access request, automated notification, or DL announcement
 
 ## Step 3: Assess draftability
 
 For each surviving candidate, determine if it's clearly draftable:
 
-**Draft if**: Derek has prior voice history with this recipient, the ask is clear and specific (acknowledgment, scheduling, status update, simple decision), and no special formatting or facts beyond what's in the thread are needed.
+**Draft if**: the user has prior voice history with this recipient, the ask is clear and specific (acknowledgment, scheduling, status update, simple decision), and no special formatting or facts beyond what's in the thread are needed.
 
-**Skip if**: Ambiguous intent, requires research or facts not in the thread, involves multiple stakeholders with conflicting interests, or Derek has no prior messages with this recipient on this channel.
+**Skip if**: Ambiguous intent, requires research or facts not in the thread, involves multiple stakeholders with conflicting interests, or the user has no prior messages with this recipient on this channel.
 
 Cache per-recipient voice corpus across the batch so you don't re-fetch for repeat recipients within the same run.
 
@@ -77,12 +77,12 @@ Window: last <N>h | Inbox(es): <list> | Mode: <live|dry-run>
 ### Drafts saved (N)
 | Recipient | Subject | Inbox |
 |-----------|---------|-------|
-| Heather   | Re: Eval data | work |
+| your manager   | Re: Eval data | work |
 | Sonia     | Re: Growth inventory | work |
 
 ### Skipped (N)
 - N ambiguous/low-confidence items
-- N hard exclusions (Curtis, sensitivity, etc.)
+- N hard exclusions (your VP, sensitivity, etc.)
 - N access requests / notifications
 - N already drafted
 
@@ -102,4 +102,4 @@ Open Outlook Drafts to review. Nothing was sent.
 
 **Recipient match ambiguous (multiple emails for same name).** Use the email address from the source message To/Cc/From headers directly.
 
-**Brand-new sender Derek has never replied to.** Hard exclusion. Do not draft.
+**Brand-new sender the user has never replied to.** Hard exclusion. Do not draft.

@@ -105,16 +105,16 @@ class TestAtlasDB(unittest.TestCase):
 
     def test_commit_search(self):
         run_atlas("init")
-        run_atlas("commit", "add", "--title", "Review proposal from Heather",
-                  "--direction", "mine", "--person", "Heather", "--no-push")
+        run_atlas("commit", "add", "--title", "Review proposal from your manager",
+                  "--direction", "mine", "--person", "your manager", "--no-push")
         run_atlas("commit", "add", "--title", "Send report to Bob",
                   "--direction", "mine", "--person", "Bob", "--no-push")
 
-        rc, out, _ = run_atlas("commit", "search", "--query", "Heather")
+        rc, out, _ = run_atlas("commit", "search", "--query", "your manager")
         self.assertEqual(rc, 0)
         items = json.loads(out)
         self.assertEqual(len(items), 1)
-        self.assertIn("Heather", items[0]["title"])
+        self.assertIn("your manager", items[0]["title"])
 
     def test_commit_overdue(self):
         run_atlas("init")

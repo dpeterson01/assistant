@@ -7,7 +7,7 @@ argument-hint: "Optional: anything specific you want to capture or reflect on"
 
 # End of Day
 
-You are Derek's AI partner. This prompt captures the day, writes journals, syncs Things 3, and maintains accountability tracking. Move fast. Gather data in parallel where possible, write journals, sync tasks, update tracking, done.
+You are the user's AI partner. This prompt captures the day, writes journals, syncs Things 3, and maintains accountability tracking. Move fast. Gather data in parallel where possible, write journals, sync tasks, update tracking, done.
 
 Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
 
@@ -46,7 +46,7 @@ Follow the shared preamble in `.instructions.md` for setup, execution rules, and
 
 **Today's existing journals** — Read any journal files that already exist for today (personal journal may have iMessage/email data from the generate script). Merge, don't overwrite.
 
-**User input** — If Derek added notes in his prompt, those take priority.
+**User input** — If the user added notes in his prompt, those take priority.
 
 If any source fails, note it and continue.
 
@@ -54,7 +54,7 @@ If any source fails, note it and continue.
 
 Before writing journals, identify today's wins and prepare a targeted learning question.
 
-**Draft 3 candidate wins.** Rank today's activity by impact and pick the top 3. Derek's work is mostly PM leadership (not ADO-tracked), so wins come from sources like these, in rough priority order:
+**Draft 3 candidate wins.** Rank today's activity by impact and pick the top 3. the user's work is mostly PM leadership (not ADO-tracked), so wins come from sources like these, in rough priority order:
 1. Deliverables shipped (sprint kickoff emails, specs sent, docs published, PRs merged)
 2. Decisions made or unblocked (in meetings, async, or 1:1s)
 3. Cross-team alignment achieved (DevDiv, Global Skilling, partner teams)
@@ -69,20 +69,20 @@ For each win, capture three dimensions:
 - **So what**: One clause explaining why it matters beyond the task itself.
 
 Format: `- [Priority] Win statement. (Scope) So what.`
-Example: `- [Agent Skills] Shipped eval data to Heather for VP briefing. (Org) Positioned Learn's knowledge layer for executive investment decision.`
+Example: `- [Agent Skills] Shipped eval data to your manager for VP briefing. (Org) Positioned Learn's knowledge layer for executive investment decision.`
 
-Present the 3 wins to Derek for confirmation. He can swap, reword, or approve.
+Present the 3 wins to the user for confirmation. He can swap, reword, or approve.
 
 **Prepare a Learned/Shifted question.** Scan today's meetings, emails, and Teams for signals that something changed:
 - New data that contradicts a prior assumption
 - A decision that shifts direction on an initiative
-- Feedback that reframes how Derek is thinking about a problem
+- Feedback that reframes how the user is thinking about a problem
 - A new responsibility or ownership change
 - Something that surprised him
 
-Ask Derek one specific question based on what you found. Example: "The QBR showed CU data is missing. Did that change how you're approaching growth metrics?" If nothing stands out, ask: "Anything shift in your thinking today, or was it execution-mode?"
+Ask the user one specific question based on what you found. Example: "The QBR showed CU data is missing. Did that change how you're approaching growth metrics?" If nothing stands out, ask: "Anything shift in your thinking today, or was it execution-mode?"
 
-Capture Derek's answer (even if it's "nope, just execution").
+Capture the user's answer (even if it's "nope, just execution").
 
 **Scan for Connects signals.** Beyond the top 3 wins, quickly scan today's activity for anything that maps to Connects dimensions. These don't need to be wins; they just need to be captured before the details fade. Check for:
 
@@ -110,7 +110,7 @@ Determine today's date. Write or update journals by context.
 - [Priority] Win statement. (Scope) So what.
 
 ## Learned / Shifted
-[Derek's answer from Step 1b. If "just execution," write "Execution day, no major shifts." Otherwise capture the insight in 1-2 sentences.]
+[the user's answer from Step 1b. If "just execution," write "Execution day, no major shifts." Otherwise capture the insight in 1-2 sentences.]
 
 ## Meetings
 [List each meeting chronologically. For meetings with recap files, pull structured data directly from the recap — this is higher-fidelity than WorkIQ summaries.]
@@ -177,13 +177,13 @@ Skip any context with no activity. Don't create empty files.
 
 Review all meetings, emails, and Teams conversations from today. For each, identify:
 
-**My action items** (things Derek committed to or was assigned):
+**My action items** (things the user committed to or was assigned):
 - What exactly is the deliverable?
 - Who is it owed to?
 - What's the deadline (explicit or implied)?
 - Source (which meeting/email/conversation)
 
-**Others' commitments** (things someone else committed to that Derek needs to track):
+**Others' commitments** (things someone else committed to that the user needs to track):
 - What exactly did they commit to?
 - Who owns it?
 - What's the expected timeline?
@@ -194,7 +194,7 @@ Cross-reference against the DB using `$ATLAS commit search --query "keyword"` to
 
 ## Step 3b: Contacts enrichment
 
-Scan today's meetings, emails, and Teams conversations for personal details about people Derek interacted with. Look for:
+Scan today's meetings, emails, and Teams conversations for personal details about people the user interacted with. Look for:
 
 - **Birthdays** mentioned in conversation ("happy birthday", "my birthday is...", "turning X")
 - **Family mentions** (spouse/partner names, kids, parents mentioned in small talk)
@@ -206,7 +206,7 @@ For each discovery:
    - Birthday: `~/.local/bin/contacts/enrich.sh "Name" --birthday "YYYY-MM-DD"`
    - Spouse: `~/.local/bin/contacts/enrich.sh "Name" --spouse "Spouse Name"`
    - Other relations: `~/.local/bin/contacts/enrich.sh "Name" --child "Name"` (or --parent, --sibling, --friend)
-3. Use `--dry-run` first if unsure, then confirm with Derek before writing
+3. Use `--dry-run` first if unsure, then confirm with the user before writing
 
 Present any enrichments made: "Updated X contacts with new info" with details.
 
@@ -216,19 +216,19 @@ Skip this step if no personal details were surfaced today. Don't force it.
 
 Read `~/Library/CloudStorage/OneDrive-Microsoft/01_people/contacts/index.json` once to get the name-to-file mapping.
 
-For each person Derek had a meaningful interaction with today (meetings, email threads, 1:1s), look them up in the index (match on name, aliases, or email).
+For each person the user had a meaningful interaction with today (meetings, email threads, 1:1s), look them up in the index (match on name, aliases, or email).
 
 **If the file exists**: Update it with any new context learned today (decisions made, topics discussed, personal details surfaced, role changes).
 
-**If no file exists** and this is someone Derek works with regularly (not a one-off interaction): Create a new file following the template in the directory's README.md. Include name, role, org, relationship type, and any context from today's interactions. Then add the new entry to `index.json` (include aliases if the person's filename doesn't exactly match their display name).
+**If no file exists** and this is someone the user works with regularly (not a one-off interaction): Create a new file following the template in the directory's README.md. Include name, role, org, relationship type, and any context from today's interactions. Then add the new entry to `index.json` (include aliases if the person's filename doesn't exactly match their display name).
 
-**Backfill emails**: As you process today's emails and meeting invites, harvest Microsoft aliases (e.g., `curtlee@microsoft.com` from a calendar attendee or email header). For any contact in `index.json` that is missing an `"email"` field, add it. Also add the email to the contact's markdown file frontmatter. This builds up the index over time so future lookups can match on email.
+**Backfill emails**: As you process today's emails and meeting invites, harvest corporate aliases (e.g., `jsmith@contoso.com` from a calendar attendee or email header). For any contact in `index.json` that is missing an `"email"` field, add it. Also add the email to the contact's markdown file frontmatter. This builds up the index over time so future lookups can match on email.
 
 After updating files, run the sync script to push any enrichable data (birthdays, family) to iCloud contacts:
 ```sh
 ~/.local/bin/contacts/sync-to-icloud.sh --dry-run
 ```
-Present the dry-run results. If there are updates to make, ask Derek to confirm, then run without `--dry-run`.
+Present the dry-run results. If there are updates to make, ask the user to confirm, then run without `--dry-run`.
 
 ## Step 4: Sync Things 3
 
@@ -258,11 +258,11 @@ Present changes: "Completed X tasks, added Y new, rescheduled Z" with details.
 
 ## Step 5: Reflect (brief)
 
-After writing journals and syncing tasks, give Derek a spoken summary:
+After writing journals and syncing tasks, give the user a spoken summary:
 
 **What happened**: 2-3 sentence narrative of the day.
 **Wins**: Restate the 3 wins from the journal (already confirmed, don't re-ask).
-**Meeting follow-ups**: Summarize all follow-ups extracted from today's meeting recaps. Group by owner: "Derek owes X items" and "Waiting on Y items from others." Call out any open questions that need answers before tomorrow's meetings.
+**Meeting follow-ups**: Summarize all follow-ups extracted from today's meeting recaps. Group by owner: "the user owes X items" and "Waiting on Y items from others." Call out any open questions that need answers before tomorrow's meetings.
 **Stuck**: Anything blocked or unresolved.
 **Tomorrow**: 2-3 suggested priorities based on open threads + calendar + unresolved follow-ups from today's meetings.
 
@@ -284,7 +284,7 @@ Write today's date to `~/.local/share/daily-consolidation/last-session.txt`.
 
 ## Step 8: Done
 
-Tell Derek what you captured. Keep it to 5-10 lines. Include:
+Tell the user what you captured. Keep it to 5-10 lines. Include:
 - Journal summary
 - Things 3 changes (tasks added/completed/rescheduled)
 - Action items added to tracking (mine + waiting on others)

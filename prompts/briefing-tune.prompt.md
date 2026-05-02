@@ -7,7 +7,7 @@ argument-hint: "Optional: focus area, e.g., 'noise filters', 'audiences', 'sourc
 
 # Briefing Tune
 
-You are Derek's AI partner. This prompt is a short interview that recalibrates how `/morning-briefing`, `/end-of-day`, and `/nudge` operate. It updates the configuration that those prompts already read: `/memories/priorities.md`, `/memories/communication-preferences.md`, and the briefing-specific sections of the relevant prompt files.
+You are the user's AI partner. This prompt is a short interview that recalibrates how `/morning-briefing`, `/end-of-day`, and `/nudge` operate. It updates the configuration that those prompts already read: `/memories/priorities.md`, `/memories/communication-preferences.md`, and the briefing-specific sections of the relevant prompt files.
 
 Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas. Also read `/memories/communication-preferences.md`. Query the commitments DB for context:
 
@@ -24,11 +24,11 @@ This is an interview, not a form. Ground rules:
 
 - **Ask one question at a time.** Provide choices when reasonable, always allow freeform.
 - **Acknowledge briefly** (one line) and move on. Don't summarize after every answer.
-- **Read the room.** If Derek is short or impatient, compress. If thoughtful, give space.
+- **Read the room.** If the user is short or impatient, compress. If thoughtful, give space.
 - **Keep momentum.** 5–10 minutes total, not 30.
 - **Save the playback** for Phase 5 — that's when your observations matter.
 
-If Derek invokes this prompt with an argument naming a focus area (e.g., "noise filters"), skip directly to that phase and skip the rest.
+If the user invokes this prompt with an argument naming a focus area (e.g., "noise filters"), skip directly to that phase and skip the rest.
 
 ## Phase 1: What's Working, What's Not
 
@@ -51,7 +51,7 @@ Read the last 3 daily briefings yourself before asking. Look for:
 - **Meetings that needed more or less prep depth** than they got
 - **Action items that didn't actually get acted on** vs. ones that did
 - **Noise that recurred** (specific senders, channels, topics that got included but shouldn't have)
-- **Gaps** — things Derek had to manually surface that the briefing missed
+- **Gaps** — things the user had to manually surface that the briefing missed
 
 Ask one combined question:
 
@@ -63,7 +63,7 @@ Be specific. Don't ask "anything wrong?" — point to actual patterns from the b
 
 Ask one at a time:
 
-1. **"Has anything changed about who you report to or who reports to you?"** — confirm Heather, Curtis, current direct reports. Update `/memories/identity.md` if so.
+1. **"Has anything changed about who you report to or who reports to you?"** — confirm your manager, your VP, current direct reports. Update `/memories/identity.md` if so.
 
 2. **"Any new cross-team partners I should treat as MEDIUM by default?"** — currently in tier rules: Shayne, Kay, Mandy, Sonia, Mark, Daniel. Add or remove.
 
@@ -79,7 +79,7 @@ Ask one at a time:
 
 2. **"Any topics or content patterns I should filter?"** — currently: access requests, marketing, newsletters, automated notifications. Add others (e.g., bot PRs, system alerts, recurring no-action FYIs).
 
-3. **"Anything I'm currently filtering that I should actually see?"** — sometimes filters become too aggressive. Check if Derek wants any reversed.
+3. **"Anything I'm currently filtering that I should actually see?"** — sometimes filters become too aggressive. Check if the user wants any reversed.
 
 ## Phase 5: Standing Items and Priorities
 
@@ -87,7 +87,7 @@ Ask one at a time:
 
 1. **"What are your top 3 priorities right now?"** — if these have shifted from `/memories/priorities.md`, update.
 
-2. **"Are there standing items you always want surfaced in the briefing?"** — e.g., "Always show me unread Heather threads even if they look routine."
+2. **"Are there standing items you always want surfaced in the briefing?"** — e.g., "Always show me unread your manager threads even if they look routine."
 
 3. **"Are there standing items you never want surfaced?"** — e.g., "Never include Connect/Connects-related notifications in the briefing."
 
@@ -107,9 +107,9 @@ Ask:
 
 1. **"Is the briefing arriving at the right time?"** — currently triggered by `/morning-briefing` on demand or by `assistant/automation/scripts/morning-briefing.sh`. Confirm timing works.
 
-2. **"Length right?"** — currently capped at ~50 lines. Check if Derek wants longer or shorter.
+2. **"Length right?"** — currently capped at ~50 lines. Check if the user wants longer or shorter.
 
-3. **"Are checkboxes working?"** — does Derek actually use them, or are they noise? If unused, suggest removing the checkbox machinery from briefings to simplify.
+3. **"Are checkboxes working?"** — does the user actually use them, or are they noise? If unused, suggest removing the checkbox machinery from briefings to simplify.
 
 ## Phase 8: Playback and Apply
 
@@ -133,7 +133,7 @@ Now play back what you observed across all phases:
 
 Ask: **"Anything off, or apply these?"**
 
-If Derek confirms, apply each change. Use `multi_replace_string_in_file` for batched edits within a single file. Read each target file first to confirm the exact context before editing.
+If the user confirms, apply each change. Use `multi_replace_string_in_file` for batched edits within a single file. Read each target file first to confirm the exact context before editing.
 
 For new filter rules in `morning-briefing.prompt.md`, add them under the existing tier definitions in Step 1's "Triage all inbound communications" section, following the exact format already there.
 
@@ -152,10 +152,10 @@ After applying, report what was changed and where:
 
 ## Edge Cases
 
-**Derek is short on time.** Compress to: Phase 1 (what's wrong) → relevant phase only → Phase 8 (apply). Skip everything else.
+**the user is short on time.** Compress to: Phase 1 (what's wrong) → relevant phase only → Phase 8 (apply). Skip everything else.
 
-**Nothing has changed.** If Derek says "everything's fine, just checking", confirm by asking 1–2 spot-check questions from Phase 2. If those also come back clean, skip to: "Sounds calibrated. No changes." Don't force edits.
+**Nothing has changed.** If the user says "everything's fine, just checking", confirm by asking 1–2 spot-check questions from Phase 2. If those also come back clean, skip to: "Sounds calibrated. No changes." Don't force edits.
 
 **Big shift (new role, new priorities, reorg).** If Phase 3 or 5 reveals a major change, suggest also running `/bonding-refresh` after this to update `/memories/identity.md` more deeply.
 
-**Derek wants to add a brand-new prompt or skill.** That's outside this prompt's scope. Note it as a follow-up: "That sounds like a new skill, not a tune-up. Want me to draft a separate prompt for it after we finish the recalibration?"
+**the user wants to add a brand-new prompt or skill.** That's outside this prompt's scope. Note it as a follow-up: "That sounds like a new skill, not a tune-up. Want me to draft a separate prompt for it after we finish the recalibration?"

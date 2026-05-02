@@ -71,7 +71,7 @@ When carrying items forward from previous briefing's inbox to today's carryOver,
 - `title`, `time`, `endTime`, `duration` (minutes)
 - `attendees`: Array of display names
 - `attended`: `false` (set to `true` by EOD or sync)
-- `optional`: `true` if Derek is optional, omit otherwise
+- `optional`: `true` if the user is optional, omit otherwise
 - `highStakes`: `true` if meeting qualifies (see criteria below)
 - `whyItMatters`: 1-2 sentence synthesis of why this meeting matters today (from signals + open items + agenda). `null` for routine meetings.
 - `signals`: Array of signal objects (see Signal Format below)
@@ -119,10 +119,10 @@ Each signal must be a structured object, not a bare string:
 ```
 
 Bad: `"Companion DSB/RAI thread active"`
-Good: `{ "source": "teams", "who": "Collin Schedler", "summary": "Collin posted in the Companion channel asking whether DSB review ownership sits with PM or engineering after the RAI assessment was resubmitted. Needs a decision before the spec ships." }`
+Good: `{ "source": "teams", "who": "Alice Kim", "summary": "Alice posted in the product channel asking whether spec review ownership sits with PM or engineering after the compliance assessment was resubmitted. Needs a decision before the spec ships." }`
 
 Bad: `"You owe: blocked epic follow-up"`
-Good: `{ "source": "action-items", "who": "Hui Xie", "summary": "Derek committed to follow up on Hui's epic (1134xxx) that's blocked pending engineering investigation. Last discussed Apr 21, no update since. Hui will expect a status update." }`
+Good: `{ "source": "action-items", "who": "Bob Chen", "summary": "the user committed to follow up on Bob's epic (1134xxx) that's blocked pending engineering investigation. Last discussed Apr 21, no update since. Bob will expect a status update." }`
 
 ### Raise Format
 
@@ -131,12 +131,12 @@ Each raise item must be a structured object with enough detail to speak from dir
 ```json
 {
   "topic": "Short label (for display)",
-  "detail": "What specifically to say or ask, with enough context that Derek can raise it without looking anything up. Reference specific artifacts, dates, or commitments."
+  "detail": "What specifically to say or ask, with enough context that the user can raise it without looking anything up. Reference specific artifacts, dates, or commitments."
 }
 ```
 
 Bad: `"DSB/RAI status and ownership"`
-Good: `{ "topic": "DSB/RAI ownership", "detail": "Ask Collin who owns the DSB review now that RAI was resubmitted on Apr 23. If engineering owns it, confirm Collin will track in the spec. If PM owns it, Derek needs to add it to his queue." }`
+Good: `{ "topic": "spec review ownership", "detail": "Ask Alice who owns the spec review now that assessment was resubmitted on Apr 23. If engineering owns it, confirm Alice will track in the spec. If PM owns it, the user needs to add it to their queue." }`
 
 Bad: `"Any blockers"`
 Good: `{ "topic": "Experimentation blockers", "detail": "Ask Samir if the A/B test config for Learn search ranking landed in the latest deploy. Last week he said it was blocked on feature flag approval from the platform team." }`
@@ -146,8 +146,8 @@ Good: `{ "topic": "Experimentation blockers", "detail": "Ask Samir if the A/B te
 A meeting is high-stakes if any:
 - ≥1 external attendee (different domain than microsoft.com)
 - Title matches `1:1`, `sync`, `review`, `decision`, `interview`, `leadership`, `debrief`, `prep`, or `kickoff` AND duration ≥ 25 min
-- Derek owes someone in the meeting an action item
-- Someone in the meeting owes Derek something overdue
+- the user owes someone in the meeting an action item
+- Someone in the meeting owes the user something overdue
 
 ## Tasks Section
 

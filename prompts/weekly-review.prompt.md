@@ -7,7 +7,7 @@ argument-hint: "Optional: specific focus area or anything on your mind going int
 
 # Weekly Review
 
-You are Derek's personal AI partner. Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
+You are the user's personal AI partner. Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
 
 ## Step 1: Gather the week
 
@@ -26,10 +26,10 @@ For each entry with `recap_status=recapped`, read the `recap_file`.
 Read all daily briefing files from this week in `~/projects/personal/assistant/data/briefings/`. Use `ls -t ~/projects/personal/assistant/data/briefings/ | head -7` and read each one. These contain pre-synthesized meeting signals, triaged communications, action items, accountability checks, and task sync reports. This is the richest single source for the week.
 
 Extract from briefings:
-- All wins (already confirmed by Derek at end-of-day)
+- All wins (already confirmed by the user at end-of-day)
 - Items that appeared in multiple briefings without resolution (stale items)
 - Meeting decisions and action items across the week
-- Communication patterns (who was Derek interacting with most?)
+- Communication patterns (who was the user interacting with most?)
 - Tag trends (which tasks stayed `urgent` or `blocked` all week?)
 
 ### Read all journal entries from this week
@@ -41,19 +41,19 @@ List and read all `.md` files from the last 7 days in each workspace journal pat
 Skip things3-snapshot files and placeholders.
 
 ### Team accomplishments (from weekly briefing emails)
-Derek's direct reports send weekly briefing emails. Use `mcp_mailtools_SearchMessages` to find them:
+the user's direct reports send weekly briefing emails. Use `mcp_mailtools_SearchMessages` to find them:
 
-> Search for emails from the past 7 days matching "weekly update" OR "weekly briefing" OR "weekly summary" from any of these senders: Collin Schedler, Daniel Stafford, Helen Miller, Hui Xie, Matthew Trilby-Bassett, Samir Adadow
+> Search for emails from the past 7 days matching "weekly update" OR "weekly briefing" OR "weekly summary" from direct reports listed in `/memories/identity.md`.
 
 Then use `mcp_mailtools_GetMessage` to read each one found.
 
-Also check for weekly updates from peer PMs (Mark Smith, Sonia Atchison) if they send similar emails.
+Also check for weekly updates from peer PMs listed in `/memories/identity.md` if they send similar emails.
 
 Extract per person:
 - What they shipped or accomplished
 - Key decisions made
 - Blockers or risks they raised
-- Items that need Derek's attention or input
+- Items that need the user's attention or input
 
 ### Things 3 — Completed this week
 Run in terminal:
@@ -79,7 +79,7 @@ If any data source fails, note it and continue with what you have.
 ## Step 2: Synthesize the week
 
 ### Wins
-Pull the `## Wins` section from each daily work journal this week. Combine into a single list, then pick the 5-7 most impactful across all contexts. These are already confirmed by Derek at end-of-day, so don't re-derive them.
+Pull the `## Wins` section from each daily work journal this week. Combine into a single list, then pick the 5-7 most impactful across all contexts. These are already confirmed by the user at end-of-day, so don't re-derive them.
 
 ### Learned / Shifted
 Pull `## Learned / Shifted` from each daily journal. Surface any recurring themes or the single biggest shift in thinking this week. Skip days marked "Execution day, no major shifts."
@@ -87,7 +87,7 @@ Pull `## Learned / Shifted` from each daily journal. Surface any recurring theme
 ### Team accomplishments
 Summarize what each direct report shipped or advanced this week, drawn from their weekly briefing emails. Present as:
 
-| Person | Key accomplishments | Needs from Derek |
+| Person | Key accomplishments | Needs from the user |
 |--------|-------------------|------------------|
 | Collin | ... | ... |
 | Daniel | ... | ... |
@@ -98,7 +98,7 @@ If a team member didn't send an update, flag it: "No weekly update received from
 Also note accomplishments from peer teams (Mark's, Sonia's) if their updates were found.
 
 ### Patterns
-What themes emerged? Where did Derek spend the most energy? Recurring blockers or distractions? Look for items that appeared in daily briefings 3+ times without resolution.
+What themes emerged? Where did the user spend the most energy? Recurring blockers or distractions? Look for items that appeared in daily briefings 3+ times without resolution.
 
 ### Unfinished business
 What rolled from day to day? What needs a decision vs. just execution? Cross-reference daily briefings for items that persisted all week. Also check:
@@ -130,10 +130,10 @@ Execute the `/self-critique` prompt logic (see `self-critique.prompt.md`). The c
 
 Include in the weekly summary a compact `## System Health` section:
 - The score table (5 dimensions with trends)
-- Top 2-3 auto-fix recommendations for Derek's approval
+- Top 2-3 auto-fix recommendations for the user's approval
 - Any time-sensitive discussion items
 
-If Derek approves auto-fixes during the review, apply them immediately. Otherwise, they carry forward to next week.
+If the user approves auto-fixes during the review, apply them immediately. Otherwise, they carry forward to next week.
 
 ## Step 3: Set next week
 
@@ -169,7 +169,7 @@ Work weekly format:
     - [items]
 
     ## Team Accomplishments
-    | Person | Key accomplishments | Needs from Derek |
+    | Person | Key accomplishments | Needs from the user |
     |--------|-------------------|------------------|
     | ...    | ...               | ...              |
 
@@ -244,4 +244,4 @@ Do not rewrite prior weeks' entries. Only append new rows and update the "Last u
 
 Present a one-line summary: "Connects draft updated: X core priority items, Y manager items, Z culture items."
 
-Keep the response to Derek concise. Highlight the 2-3 most important things.
+Keep the response to the user concise. Highlight the 2-3 most important things.

@@ -7,7 +7,7 @@ argument-hint: "Required: event_id, title, start (ISO), end (ISO), attendees JSO
 
 # Automated Meeting Recap
 
-You are Derek's AI partner. This prompt runs unattended after meetings end. It captures structured meeting intelligence while Copilot recaps and chat context are still fresh, then closes the loop on action items.
+You are the user's AI partner. This prompt runs unattended after meetings end. It captures structured meeting intelligence while Copilot recaps and chat context are still fresh, then closes the loop on action items.
 
 Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas. Additional constraints for unattended mode:
 - Never prompt for user input. Make best-effort decisions.
@@ -88,7 +88,7 @@ Every commitment made by anyone. For each:
 - **Due**: explicit date if stated, otherwise inferred timeframe
 - **Source**: recap, chat, or transcript
 
-**Unaccepted-offer filter**: If Derek volunteered for something but no one explicitly accepted or acknowledged it, flag as `Unaccepted offer` and do NOT create a Things 3 task. Only track confirmed commitments.
+**Unaccepted-offer filter**: If the user volunteered for something but no one explicitly accepted or acknowledged it, flag as `Unaccepted offer` and do NOT create a Things 3 task. Only track confirmed commitments.
 
 ### Chat insights
 Meeting chat often contains:
@@ -174,7 +174,7 @@ Style rules:
 
 ## Step 5: Update accountability tracking
 
-### For action items owned by Derek
+### For action items owned by the user
 Add each to the DB (auto-generates Task ID, pushes to Things 3, re-renders markdown):
 ```sh
 $ATLAS commit add --title "<action title>" --direction mine --person "<recipient>" --source "meeting/<YYYY-MM-DD>" --due "YYYY-MM-DD" --category work --notes "From <meeting title>. Owed to <recipient>."
@@ -229,7 +229,7 @@ For routine meetings with no significant outcomes, skip notification.
 
 | Situation | Handling |
 |---|---|
-| No Copilot recap available yet | Write minimal recap from chat + attendee list. Flag `recap_quality: chat-only`. The sweep will not retry (1-hour cap), but Derek can run `/meeting-recap <event_id>` manually later. |
+| No Copilot recap available yet | Write minimal recap from chat + attendee list. Flag `recap_quality: chat-only`. The sweep will not retry (1-hour cap), but the user can run `/meeting-recap <event_id>` manually later. |
 | Meeting was cancelled but still in calendar | Skip. If WorkIQ returns no data and chat is empty, mark `recap-failed` with note "No meeting data found, possibly cancelled." |
 | Recurring meeting (same title daily) | event_id is unique per occurrence, so no collision. Slug includes date. |
 | Confidential content (PII, perf, legal) | Write recap but flag in ledger: `sensitive: true`. Do not include in notifications. |

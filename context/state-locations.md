@@ -39,7 +39,7 @@ These are **read-only derivatives** of the DB. Never edit manually.
 ### Briefings (`assistant/data/briefings/`)
 | Pattern | Purpose | Writer | Readers |
 |---|---|---|---|
-| `YYYY-MM-DD_daily_brief.md` | Human-readable briefing with checkboxes | `morning-briefing.prompt.md` | Derek (Typora), `check-briefing.prompt.md`, `end-of-day.prompt.md` |
+| `YYYY-MM-DD_daily_brief.md` | Human-readable briefing with checkboxes | `morning-briefing.prompt.md` | the user (Typora), `check-briefing.prompt.md`, `end-of-day.prompt.md` |
 
 ### Meeting Recaps (`assistant/meetings/`)
 | Pattern | Purpose | Writer | Readers |
@@ -123,7 +123,7 @@ All write-only. Naming pattern: `{script}-YYYY-MM-DD.log`
 | Plist | Schedule | Script |
 |---|---|---|
 | `com.atlas.morning-briefing` | M-F 6:30 AM | `morning-briefing.sh` |
-| `com.derekpeterson.briefing-sync` | Every 15 min | `briefing-sync.sh` |
+| `com.atlas.briefing-sync` | Every 15 min | `briefing-sync.sh` |
 | `com.atlas.end-of-day-auto` | M-F 8:00 PM | `end-of-day-auto.sh` |
 | `com.atlas.end-of-day-reminder` | M-F 5:15 PM | `end-of-day-reminder.sh` |
 | `com.atlas.weekly-review` | Sun 9:00 AM | `weekly-review.sh` |

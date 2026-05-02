@@ -7,10 +7,10 @@ Updated by: /morning-briefing, /end-of-day, and manual edits.
 Synced from: VS Code /memories/ system (primary source).
 
 ## Files
-- `identity.md` - Who Derek is, tools, paths, structure
+- `identity.md` - Who the user is, tools, paths, structure
 - `priorities.md` - Current priorities and next week focus
-- `action-items.md` - Things Derek owes others
-- `waiting-on-others.md` - Things others owe Derek
+- `action-items.md` - Things the user owes others
+- `waiting-on-others.md` - Things others owe the user
 
 ## Sync Note
 When editing these files via Copilot CLI automation, also update the VS Code

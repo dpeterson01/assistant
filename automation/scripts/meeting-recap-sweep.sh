@@ -13,7 +13,7 @@
 #   - Later attempts won't retry if already recapped (ledger dedupes)
 #
 # The 60-min cap ensures we don't burn tokens on meetings where Copilot
-# recap isn't coming. Derek can always run /meeting-recap manually for those.
+# recap isn't coming. the user can always run /meeting-recap manually for those.
 
 set -euo pipefail
 

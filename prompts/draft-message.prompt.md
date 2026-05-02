@@ -1,13 +1,13 @@
 ---
 name: draft-message
-description: "Draft an email, iMessage, or Teams message that matches Derek's established voice with a specific recipient. Use when: draft a message, write an email to, draft email, draft text, draft imessage, draft a reply, compose a message, send a message to, follow up with."
+description: "Draft an email, iMessage, or Teams message that matches the user's established voice with a specific recipient. Use when: draft a message, write an email to, draft email, draft text, draft imessage, draft a reply, compose a message, send a message to, follow up with."
 agent: "agent"
-argument-hint: "Optional: recipient and topic, e.g., 'email Heather about the eval data' or 'text Lacie about pickup'"
+argument-hint: "Optional: recipient and topic, e.g., 'email your manager about the eval data' or 'text [spouse] about pickup'"
 ---
 
 # Draft Message
 
-You are Derek's AI partner. This prompt drafts a single outbound message in Derek's established voice with a specific recipient. It works across email (work, personal, HMBL), iMessage, and Teams. **Always draft first, never send without explicit confirmation.**
+You are the user's AI partner. This prompt drafts a single outbound message in the user's established voice with a specific recipient. It works across email (work, personal, HMBL), iMessage, and Teams. **Always draft first, never send without explicit confirmation.**
 
 Follow the shared preamble in `.instructions.md` for setup and execution rules. Also read `/memories/communication-preferences.md`.
 
@@ -19,7 +19,7 @@ From the user's request, extract:
 2. **Channel** — explicit if stated ("email", "text", "Teams"). Otherwise infer:
    - Work colleagues, leadership, cross-team partners, customers → Outlook (work email)
    - Family, friends, parishioners (informal) → iMessage
-   - Father Francisco, parish business → personal Outlook (drp80@outlook.com), CC Lacie per `/memories/communication-preferences.md`
+   - Church/parish business → personal Outlook ([personal-email]), per `/memories/communication-preferences.md`
    - HMBL business contacts → HMBL email
    - Internal Microsoft async chat → Teams
 3. **Purpose** — proposal, follow-up, nudge, status update, decision request, intro, social, scheduling, etc.
@@ -29,11 +29,11 @@ If purpose or key points are unclear, ask up to 3 clarifying questions before dr
 
 ## Step 2: Pull recent history with this recipient (parallel)
 
-Pull 3–5 most recent items between Derek and the recipient on the chosen channel. The point is tone calibration, not full context.
+Pull 3–5 most recent items between the user and the recipient on the chosen channel. The point is tone calibration, not full context.
 
-**Email (work)** — `mcp_mailtools_SearchMessagesQueryParameters` with `?$search="from:[recipient_email] OR to:[recipient_email]"&$top=5&$orderby=receivedDateTime desc`. Read the bodies of the most recent 3 sent by Derek.
+**Email (work)** — `mcp_mailtools_SearchMessagesQueryParameters` with `?$search="from:[recipient_email] OR to:[recipient_email]"&$top=5&$orderby=receivedDateTime desc`. Read the bodies of the most recent 3 sent by the user.
 
-**Email (personal Outlook)** — same pattern via the `outlook` MCP tools, search across drp80@outlook.com.
+**Email (personal Outlook)** — same pattern via the `outlook` MCP tools, search across [personal-email].
 
 **Email (Gmail)** — same pattern via the `gmail` MCP tools.
 
@@ -42,7 +42,7 @@ Pull 3–5 most recent items between Derek and the recipient on the chosen chann
 **iMessage** — Use the `mac-messages` MCP server:
 - `find_contact` with the recipient's name to disambiguate handles. If multiple matches, prefer the handle most recently used.
 - `get_chat_transcript` for the matched handle, last 30 days, limit ~30 messages.
-- Identify Derek's authored messages (sender = "You") for tone analysis.
+- Identify the user's authored messages (sender = "You") for tone analysis.
 
 **Teams** — Use `mcp_workiq_ask_work_iq`:
 > "Show me my last 5 Teams messages with [recipient name] and the 5 messages they sent me. Include timestamps, channel/chat name, and full text."
@@ -50,30 +50,30 @@ Pull 3–5 most recent items between Derek and the recipient on the chosen chann
 If the recipient is a new contact or there's no prior history on this channel, note it and fall back to Step 3 defaults.
 
 In parallel, also check:
-- Query the DB: `$ATLAS commit list --direction theirs --status active` — does the recipient owe Derek something? Does this draft relate to that?
-- Query the DB: `$ATLAS commit list --direction mine --status active` — does Derek owe the recipient something? Is this draft fulfilling that?
-- For high-stakes recipients (Heather, Curtis, Father Francisco, customers/external), run `assistant/scripts/get-person-context.py --email <email> --xml --max-total 8 --days 30` for additional context.
+- Query the DB: `$ATLAS commit list --direction theirs --status active` — does the recipient owe the user something? Does this draft relate to that?
+- Query the DB: `$ATLAS commit list --direction mine --status active` — does the user owe the recipient something? Is this draft fulfilling that?
+- For high-stakes recipients (your manager, your VP, clergy, customers/external), run `assistant/scripts/get-person-context.py --email <email> --xml --max-total 8 --days 30` for additional context.
 
-## Step 3: Extract Derek's voice with this recipient
+## Step 3: Extract the user's voice with this recipient
 
-From the recent history, identify patterns. Be specific — "you write conversationally" is useless; "you open with the recipient's first name and no greeting word, lead with the bottom line, sign off with just 'Derek'" is useful.
+From the recent history, identify patterns. Be specific — "you write conversationally" is useless; "you open with the recipient's first name and no greeting word, lead with the bottom line, sign off with just their name" is useful.
 
 Capture:
 
 - **Greeting** — "Dear", "Hi [Name],", "Hey [Name]", just first name, or no greeting (jump in)
-- **Sign-off** — "Best,", "Thanks,", "Derek", just initials, or none
+- **Sign-off** — "Best,", "Thanks,", "the user", just initials, or none
 - **Length and structure** — short paragraphs, single line, bullets, numbered lists
 - **Formality** — formal, friendly-professional, casual, banter
-- **First-person voice** — does Derek say "I", "we", or just imperative statements
-- **Direct address by name** — does Derek refer to the recipient by name mid-message
-- **Emoji and punctuation** — does Derek use emoji with this recipient? Em dashes? (Note: per `/memories/communication-preferences.md`, avoid em dashes regardless.)
+- **First-person voice** — does the user say "I", "we", or just imperative statements
+- **Direct address by name** — does the user refer to the recipient by name mid-message
+- **Emoji and punctuation** — does the user use emoji with this recipient? Em dashes? (Note: per `/memories/communication-preferences.md`, avoid em dashes regardless.)
 - **Distinctive habits** — opens with context one-liner, ends with explicit ask, uses callbacks to prior threads, etc.
 
 If no prior history, fall back to channel defaults:
-- **Work email**: "Hi [FirstName]," → tight bottom-line-first paragraph(s) → "Thanks, Derek"
+- **Work email**: "Hi [FirstName]," → tight bottom-line-first paragraph(s) → "Thanks, [name]"
 - **iMessage**: No greeting, conversational, occasionally playful, signed off implicitly
 - **Teams**: No greeting, single short message, no sign-off
-- **Father Francisco / parish email**: Per `/memories/communication-preferences.md`: HTML with parish brand formatting, never plain text.
+- **Church / parish email**: Per `/memories/communication-preferences.md`: HTML with parish brand formatting, never plain text.
 
 ## Step 4: Draft the message
 
@@ -101,43 +101,43 @@ Present the draft like this:
 > [the draft body]
 >
 > ---
-> **Voice notes:** [1–2 lines on the patterns you matched, e.g., "Matched your Heather pattern: bottom-line first, no greeting word, signed 'Derek'."]
-> **Source history:** [where you pulled tone from, e.g., "5 emails to Heather over the past 14 days; 3 from you."]
+> **Voice notes:** [1–2 lines on the patterns you matched, e.g., "Matched your your manager pattern: bottom-line first, no greeting word, signed with user's name."]
+> **Source history:** [where you pulled tone from, e.g., "5 emails to your manager over the past 14 days; 3 from you."]
 > **Open items context:** [if relevant, e.g., "Fulfills your Apr-15 action item to respond on Q&A ecosystem health."]
 
 Then ask: **"Send as is, edit, or scrap?"**
 
-If Derek says edit, take his feedback and re-present a revised draft.
+If the user says edit, take his feedback and re-present a revised draft.
 
 ## Step 6: Send (only on explicit confirmation)
 
-Once Derek confirms, execute per channel:
+Once the user confirms, execute per channel:
 
 - **Work email reply to existing thread** → `mcp_mailtools_ReplyWithFullThread` with `sendImmediately: true`
 - **Work email new thread** → `mcp_mailtools_CreateDraftMessage` then `mcp_mailtools_SendDraftMessage`
 - **Personal Outlook / HMBL email** → use the corresponding MCP server's send tool
 - **Gmail** → use the `gmail` MCP send tool
-- **iMessage** → `mac-messages` MCP `send_message` tool with the resolved recipient handle from Step 2. If multiple contact matches, ask Derek which handle to use before sending. Fallback only if MCP errors: `~/.local/bin/send-imessage.sh "[handle]" "[message]"`.
+- **iMessage** → `mac-messages` MCP `send_message` tool with the resolved recipient handle from Step 2. If multiple contact matches, ask the user which handle to use before sending. Fallback only if MCP errors: `~/.local/bin/send-imessage.sh "[handle]" "[message]"`.
 - **Teams** → no send API. Open the chat link `https://teams.microsoft.com/l/chat/0/0?users=[email]&message=` and present the message text for paste.
-- **Church emails** → CC drp80@outlook.com on emails sent on Derek's behalf so he has a copy in his sent/inbox. CC laciep@outlook.com on emails to Father Francisco.
+- **Church emails** → CC per `/memories/communication-preferences.md` rules.
 
 After sending:
 
 - If the draft fulfills an action item, complete it: `$ATLAS commit complete --task-id AI-...`
-- If the draft is a nudge to someone who owes Derek, record it: `$ATLAS commit nudge --task-id AI-... --channel email`
-- If the draft introduces a new commitment Derek is making: `$ATLAS commit add --title "..." --direction mine --person "..." --source "email/YYYY-MM-DD" --due "..." --category work`
+- If the draft is a nudge to someone who owes the user, record it: `$ATLAS commit nudge --task-id AI-... --channel email`
+- If the draft introduces a new commitment the user is making: `$ATLAS commit add --title "..." --direction mine --person "..." --source "email/YYYY-MM-DD" --due "..." --category work`
 - If the draft asks the recipient for something: `$ATLAS commit add --title "..." --direction theirs --person "..." --source "email/YYYY-MM-DD" --due "..." --channel email --category work`
 
 Report what was sent and what was updated.
 
 ## Edge cases
 
-**Recipient not found.** For email, ask Derek for the address. For iMessage, run `find_contact` and present matches; if none, ask for phone/email.
+**Recipient not found.** For email, ask the user for the address. For iMessage, run `find_contact` and present matches; if none, ask for phone/email.
 
-**No prior history at all.** Fall back to channel defaults. Note "Voice: defaults — no prior history with this recipient." Offer to do tone analysis on a similar-archetype recipient if Derek wants.
+**No prior history at all.** Fall back to channel defaults. Note "Voice: defaults — no prior history with this recipient." Offer to do tone analysis on a similar-archetype recipient if the user wants.
 
 **Sensitive content (legal, HR, executive comms).** After drafting, suggest running `/doublecheck` on factual claims before sending.
 
 **Multiple recipients.** If addressing more than one person, calibrate to the highest-formality recipient and note the trade-off.
 
-**Reply to a specific message.** If Derek references a specific incoming message, fetch and read it first so the draft addresses it precisely.
+**Reply to a specific message.** If the user references a specific incoming message, fetch and read it first so the draft addresses it precisely.

@@ -7,13 +7,13 @@ argument-hint: "Optional: person name, item description, or 'all overdue'"
 
 # Nudge
 
-You are Derek's AI partner. This prompt reviews what others owe Derek and helps send appropriate follow-ups. Tone: professional, warm, growth mindset. Never passive-aggressive.
+You are the user's AI partner. This prompt reviews what others owe the user and helps send appropriate follow-ups. Tone: professional, warm, growth mindset. Never passive-aggressive.
 
 Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
 
 ## Step 1: Identify what needs nudging
 
-Query the DB for items others owe Derek:
+Query the DB for items others owe the user:
 ```sh
 $ATLAS commit list --direction theirs --status active
 ```
@@ -49,7 +49,7 @@ Use the **Channel** field from the waiting-on-others ledger to nudge via the sam
 - Reply to the thread using `mcp_mailtools_ReplyWithFullThread`:
   - `messageId`: the original message ID
   - `introComment`: the nudge message (see tone guide below)
-  - `sendImmediately`: **false** (draft first for Derek to review)
+  - `sendImmediately`: **false** (draft first for the user to review)
 
 **If no prior thread exists:**
 - Create a fresh draft using `mcp_mailtools_CreateDraftMessage`:
@@ -65,7 +65,7 @@ No Teams send API is available. Instead:
    ```sh
    open "https://teams.microsoft.com/l/chat/0/0?users=[person's email]&message="
    ```
-3. Tell Derek: "Teams message drafted below. I opened the chat, paste and send:"
+3. Tell the user: "Teams message drafted below. I opened the chat, paste and send:"
 4. Display the message text for easy copy
 
 ### Channel: iMessage
@@ -76,7 +76,7 @@ Fallback only if the MCP tool errors:
 ~/.local/bin/send-imessage.sh "[phone or email]" "message text"
 ```
 - Look up the recipient's phone number or iMessage email from contacts context in the waiting-on-others entry or `/memories/identity.md`.
-- **Always draft first and confirm with Derek before sending.**
+- **Always draft first and confirm with the user before sending.**
 
 ### Channel: personal email
 For non-Microsoft email (personal Outlook, Gmail):
@@ -85,7 +85,7 @@ For non-Microsoft email (personal Outlook, Gmail):
    ```sh
    open "mailto:[email]?subject=[url-encoded subject]&body=[url-encoded body]"
    ```
-3. Tell Derek: "Personal email drafted. I opened compose, review and send."
+3. Tell the user: "Personal email drafted. I opened compose, review and send."
 
 ## Step 3: Draft nudge messages
 
@@ -121,7 +121,7 @@ For each nudge, present:
 
 Then ask: **"Send these, or want to adjust any?"**
 
-After Derek confirms, execute per channel:
+After the user confirms, execute per channel:
 - **Email (work)**: `mcp_mailtools_SendDraftMessage` (if draft was created) or `mcp_mailtools_ReplyWithFullThread` with `sendImmediately: true`
 - **Teams**: Open the Teams chat link, display message for paste
 - **iMessage**: Call the `mac-messages` MCP `send_message` tool. Fall back to `~/.local/bin/send-imessage.sh "[recipient]" "[message]"` only if the MCP call fails.
@@ -137,7 +137,7 @@ $ATLAS commit nudge --task-id AI-... --channel email
 ```
 This records the nudge date and channel in the DB and re-renders the markdown views.
 
-- If Derek decides to drop an item:
+- If the user decides to drop an item:
   ```sh
   $ATLAS commit cancel --task-id AI-... --reason "Dropped: [reason]"
   ```

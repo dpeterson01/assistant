@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.derekpeterson.briefing-sync</string>
+    <string>com.atlas.briefing-sync</string>
     <key>ProgramArguments</key>
     <array>
         <string>/bin/zsh</string>

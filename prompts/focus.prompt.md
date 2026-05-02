@@ -9,7 +9,7 @@ tools:
 
 # Focus Mode
 
-Strip away the noise and surface only what matters right now. Use when Derek says "I need to focus" or "what should I work on next."
+Strip away the noise and surface only what matters right now. Use when the user says "I need to focus" or "what should I work on next."
 
 Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
 

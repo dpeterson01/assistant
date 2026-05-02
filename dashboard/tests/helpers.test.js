@@ -109,8 +109,8 @@ test('searchTermForItem extracts names from common phrasings', () => {
     'Tara Kaelin'
   );
   assert.equal(
-    searchTermForItem({ text: "Review Heather's AXE promo card" }),
-    'Heather'
+    searchTermForItem({ text: "Review your manager's AXE promo card" }),
+    'your manager'
   );
   assert.equal(
     searchTermForItem({ text: 'Reply to Bob about the spec' }),

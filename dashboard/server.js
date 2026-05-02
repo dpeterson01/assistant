@@ -234,8 +234,8 @@ app.post('/api/regenerate', (_req, res) => {
   const env = {
     ...process.env,
     ATLAS_FORCE_REGEN: '1',
-    HOME: process.env.HOME || '/Users/derekpeterson',
-    PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:' + (process.env.HOME || '/Users/derekpeterson') + '/.local/bin',
+    HOME: process.env.HOME,
+    PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:' + (process.env.HOME || '') + '/.local/bin',
   };
 
   regenProc = execFile('/bin/zsh', [script], { env, timeout: 720_000, cwd: __dirname }, (err) => {
@@ -293,8 +293,8 @@ app.post('/api/jobs/run', (req, res) => {
   const env = {
     ...process.env,
     ATLAS_FORCE_REGEN: '1',
-    HOME: process.env.HOME || '/Users/derekpeterson',
-    PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:' + (process.env.HOME || '/Users/derekpeterson') + '/.local/bin',
+    HOME: process.env.HOME,
+    PATH: '/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:' + (process.env.HOME || '') + '/.local/bin',
   };
 
   const proc = execFile('/bin/zsh', [scriptPath], { env, timeout: 720_000, cwd: SCRIPTS_DIR }, (err) => {
@@ -1291,7 +1291,7 @@ app.post('/api/mark-read/:id', (req, res) => {
 
 // GET /api/obligations?person=Name — open items involving a person
 // Used by get-person-context.py and relationship-drift.py instead of regex-parsing markdown.
-// Returns { derekOwes: [...items], theyOwe: [...items] } filtered by name match.
+// Returns { userOwes: [...items], theyOwe: [...items] } filtered by name match.
 app.get('/api/obligations', (req, res) => {
   const person = (req.query.person || '').toLowerCase().trim();
   if (!person) return res.status(400).json({ error: 'person query param required' });
@@ -1315,17 +1315,17 @@ app.get('/api/obligations', (req, res) => {
     return false;
   }
 
-  // Items Derek owes (carryOver + tasks where item mentions the person)
-  const derekOwes = [];
+  // Items the user owes (carryOver + tasks where item mentions the person)
+  const userOwes = [];
   for (const section of ['carryOver', 'tasks']) {
     for (const item of data[section] || []) {
       if (item.status === 'open' && matches(item)) {
-        derekOwes.push({ id: item.id, text: item.text, detail: item.detail, section });
+        userOwes.push({ id: item.id, text: item.text, detail: item.detail, section });
       }
     }
   }
 
-  // Items they owe Derek (inbox items from that person still open)
+  // Items they owe the user (inbox items from that person still open)
   const theyOwe = [];
   for (const item of data.inbox || []) {
     if (item.status === 'open' && matches(item)) {
@@ -1344,7 +1344,7 @@ app.get('/api/obligations', (req, res) => {
   }
 
   trackHealth('GET /api/obligations', true);
-  res.json({ person: req.query.person, derekOwes, theyOwe });
+  res.json({ person: req.query.person, userOwes, theyOwe });
 });
 
 // --- Start ---
