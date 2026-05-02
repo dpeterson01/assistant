@@ -765,13 +765,13 @@ def cmd_interaction_list(args) -> int:
 
 # Channel values that map to Things 3 tags
 CHANNEL_TAG_MAP = {
-    "email": "email",
-    "outlook-work": "email",
-    "outlook-personal": "email",
-    "gmail": "email",
-    "hmbl": "email",
-    "teams": "teams",
-    "meeting": "meeting",
+    "email": "MS-Email",
+    "outlook-work": "MS-Email",
+    "outlook-personal": "Personal-Email",
+    "gmail": "Personal-Email",
+    "hmbl": "HMBL-Email",
+    "teams": "Teams",
+    "meeting": "Teams",
 }
 
 # Reverse map: Things 3 area name -> category
