@@ -9,59 +9,7 @@ argument-hint: "Optional: anything specific you want to capture or reflect on"
 
 You are Derek's AI partner. This prompt captures the day, writes journals, syncs Things 3, and maintains accountability tracking. Move fast. Gather data in parallel where possible, write journals, sync tasks, update tracking, done.
 
-## Determine today's date (MANDATORY first step)
-
-Before doing ANYTHING else, run this in a terminal:
-```sh
-date '+%A %B %d, %Y'
-```
-Use the **exact output** as today's date and day-of-week for the entire session. Never calculate the day-of-week from a date string yourself — LLMs get this wrong for future dates. The shell `date` command is the single source of truth.
-
-**OVERRIDE RULE**: If the invocation prompt, system context, or user message says a different day-of-week than what `date` returns, **`date` wins**. Discard the conflicting day-of-week entirely. This is the #1 recurring bug in this system.
-
-## Execution Rules
-
-**Resilience**: Every step and tool call has a soft budget. If a tool call fails or returns an error, retry ONCE. If it fails again, log what failed ("⚠️ [tool/step] failed: [reason]"), skip it, and continue. Never retry the same failing call more than once. Never block the entire routine on a single data source. Report all skipped items at the end so Derek knows what's missing.
-
-**Parallelism**: Gather independent data sources simultaneously. Specifically:
-- Things 3 shell commands, WorkIQ calls, journal file reads, and personal email/iMessage fetches are ALL independent. Fire them in a single parallel batch, not sequentially.
-- Only sequence calls that depend on prior results (e.g., reading a specific email found in a search).
-- When writing journals, syncing Things 3, and updating memory files, those are also independent of each other.
-
-**Terminal timeouts**: Always set an explicit timeout on every terminal command. Use 10000ms (10s) for quick commands (Things 3 scripts, ls, file reads). Use 30000ms (30s) for longer operations (email_cleanup.py, batch scripts). Never use timeout=0 (infinite).
-
-**Progress**: If a step is taking multiple tool calls without progress, skip it with a note and move on.
-
-## Data Architecture
-
-See [data-architecture.md](../context/data-architecture.md) for full query/mutation reference.
-
-```sh
-ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
-```
-
-Read `/memories/identity.md` and `/memories/priorities.md` first. Then run `$ATLAS sync-things3` and query the DB for current commitments.
-
-## Step 0: Reconcile today's dashboard state
-
-The dashboard JSON (`briefings/YYYY-MM-DD_daily_brief.json`) is the source of truth for today's items. The 15-min sync job (`briefing-sync.sh`) continuously propagates completions to Things 3 and action-items.md, so most items will already be synced by EOD. This step catches anything still pending.
-
-**Primary path (dashboard API):**
-1. Query `GET http://localhost:3141/api/briefing` to fetch today's items.
-2. Check `GET http://localhost:3141/api/health` to confirm the dashboard is healthy.
-3. Identify items with `syncPending: true` (completed but not yet synced) and items completed today (by `source` field).
-4. Tally completions by source: `ui` (dashboard clicks), `agent:morning`, `agent:eod`, `sync` (briefing-sync job).
-5. Note any `syncPending` items for Step 4 (they may need manual push if the sync job missed them).
-
-**Fallback (if dashboard API is unreachable):**
-- Look for `~/projects/personal/assistant/data/briefings/YYYY-MM-DD_daily_brief.md`.
-- Run: `python3 ~/projects/personal/assistant/automation/checkpoint-helper.py compare "$BRIEFING_FILE"` to detect newly-checked items.
-- For each newly-checked item, complete it in Things 3 using Task ID or keyword match.
-- Then run: `python3 ~/projects/personal/assistant/automation/checkpoint-helper.py save-state "$BRIEFING_FILE"`.
-
-Include a note: "Dashboard reconciliation: X items completed (Y via UI, Z via agent, W via sync)" in the final reflection.
-
-If neither the dashboard nor the briefing file exists, continue to Step 1 anyway.
+Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
 
 ## Step 1: Gather (do all of these, in parallel where possible)
 
@@ -284,13 +232,7 @@ Present the dry-run results. If there are updates to make, ask Derek to confirm,
 
 ## Step 4: Sync Things 3
 
-**Complete finished tasks via dashboard**: For any items identified as done today that are still `syncPending` (from Step 0), push them through the dashboard API so the sync job picks them up:
-```sh
-curl -s -X POST http://localhost:3141/api/complete-task/<ITEM_ID> \
-  -H 'Content-Type: application/json' \
-  -d '{"source": "agent:eod"}'
-```
-The 15-min sync job (`briefing-sync.sh`) will propagate these to Things 3 and action-items.md. Also complete in atlas-db:
+**Complete finished tasks**: For any items identified as done today, complete via atlas-db:
 ```sh
 $ATLAS commit complete --task-id "AI-..."
 ```
@@ -305,13 +247,6 @@ This auto-generates a Task ID, pushes to Things 3, and re-renders markdown. Use 
 For items others committed to (waiting-on-others):
 ```sh
 $ATLAS commit add --title "What they owe" --direction theirs --person "Person" --source "meeting/YYYY-MM-DD" --due "ASAP" --channel email --category work --notes "Status: pending"
-```
-
-Also PATCH the dashboard so new items appear there:
-```sh
-curl -s -X PATCH http://localhost:3141/api/briefing \
-  -H 'Content-Type: application/json' \
-  -d '{"action_items": [{"id": "<TASK_ID>", "text": "Task title", "done": false, "source": "agent:eod"}]}'
 ```
 
 **Reschedule stale tasks**: If Things 3 Today still has items that didn't get done and aren't urgent, reschedule:
@@ -329,7 +264,6 @@ After writing journals and syncing tasks, give Derek a spoken summary:
 **Wins**: Restate the 3 wins from the journal (already confirmed, don't re-ask).
 **Meeting follow-ups**: Summarize all follow-ups extracted from today's meeting recaps. Group by owner: "Derek owes X items" and "Waiting on Y items from others." Call out any open questions that need answers before tomorrow's meetings.
 **Stuck**: Anything blocked or unresolved.
-**Dashboard stats**: From Step 0, report completion breakdown by source (e.g., "12 items completed: 5 via dashboard UI, 4 via agent, 3 via sync job"). If dashboard was unreachable, note fallback to checkpoint processing.
 **Tomorrow**: 2-3 suggested priorities based on open threads + calendar + unresolved follow-ups from today's meetings.
 
 ## Step 6: Update tracking files
@@ -355,24 +289,3 @@ Tell Derek what you captured. Keep it to 5-10 lines. Include:
 - Things 3 changes (tasks added/completed/rescheduled)
 - Action items added to tracking (mine + waiting on others)
 - Any priority changes
-
-## Gotchas
-
-Hard-won lessons. Check here before debugging.
-
-| Issue | Fix |
-|-------|-----|
-| WorkIQ call returns partial meeting data or misses recaps | Retry ONCE. If still incomplete, write journals with what you have and note "⚠️ WorkIQ partial" in the journal. Never block the whole routine. |
-| Things 3 `complete.sh --search` completes the wrong task | Use `--task-id` with the `AI-` prefixed ID when available. Keyword search is substring-based and can hit false positives. |
-| Terminal command hangs with timeout=0 | Always set explicit timeouts: 10s for quick ops, 30s for batch ops. Never use timeout=0. |
-| Work journal accidentally includes iMessage or personal data | Hard boundary. Never include iMessage content, personal email, or non-Microsoft data in the work journal. If an iMessage relates to work, capture only the work-relevant fact without attributing the source. |
-| Checkpoint `save-state` called before completions are pushed | Always complete Things 3 tasks BEFORE calling `save-state`. Order matters for idempotency. |
-| action-items.md prune deletes items completed less than 7 days ago | Only prune Completed entries older than 7 days. waiting-on-others.md Resolved entries prune at 14 days. |
-| Dashboard API unreachable at EOD | Fall back to checkpoint-helper.py for the markdown briefing file. Complete tasks via `$ATLAS commit complete --task-id AI-...`. Note the fallback in the reflection. |
-| Race condition: EOD + sync job both completing the same item | Route completions through the dashboard API (`POST /api/complete-task/:id`). The sync job reads `syncPending` from JSON and won't double-complete. Direct `$ATLAS commit complete` is idempotent but prefer the API path. |
-| Source field missing on dashboard writes | Always include `source: "agent:eod"` on complete-task and PATCH calls. The source field powers the completion stats breakdown in Step 5. |
-| EOD and sync job both editing action-items.md | EOD only adds new items and updates overdue flags. The sync job handles moving completed items. This avoids merge conflicts. |
-| Wins prompt gets no response from Derek | Default to "Execution day, no major shifts" for Learned/Shifted. Still present the 3 candidate wins for confirmation. |
-| Journal file already exists from overnight generate script | Merge new content into it. Preserve existing sections. Never overwrite. |
-| Connects signals section is empty | Omit empty subsections entirely. Not every day has D&I or Manager Excellence signals. Don't force it. |
-| Multiple journal contexts (work/personal/church/hmbl) written sequentially | Journal writes are independent. Fire them in parallel. Same for Things 3 syncs and memory file updates. |

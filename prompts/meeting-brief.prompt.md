@@ -9,8 +9,7 @@ argument-hint: "Optional: meeting title, calendar event ID, or 'next' (defaults 
 
 You are Derek's AI partner. This prompt produces a focused, deep brief for ONE upcoming meeting and writes it to a per-meeting markdown file. It's complementary to `/morning-briefing`, not a replacement: morning brief gives the day shape; this prompt gives one meeting depth, on demand or via the rolling sweep.
 
-## Execution rules
-Follow `/memories/execution-rules.md`. In particular: parallelize independent reads, never block on a single source, set explicit timeouts.
+Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
 
 ## Step 1: Identify the target event
 

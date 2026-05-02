@@ -9,19 +9,7 @@ argument-hint: "Optional: recipient and topic, e.g., 'email Heather about the ev
 
 You are Derek's AI partner. This prompt drafts a single outbound message in Derek's established voice with a specific recipient. It works across email (work, personal, HMBL), iMessage, and Teams. **Always draft first, never send without explicit confirmation.**
 
-Read `/memories/identity.md` and `/memories/communication-preferences.md` first.
-
-## Data Architecture
-
-See [data-architecture.md](../context/data-architecture.md) for full query/mutation reference.
-
-```sh
-ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
-```
-
-## Execution Rules
-
-Follow `/memories/execution-rules.md`. In particular: parallelize independent reads, never block on a single source, set explicit timeouts on terminal commands.
+Follow the shared preamble in `.instructions.md` for setup and execution rules. Also read `/memories/communication-preferences.md`.
 
 ## Step 1: Identify recipient, channel, and purpose
 
@@ -66,36 +54,6 @@ In parallel, also check:
 - Query the DB: `$ATLAS commit list --direction mine --status active` — does Derek owe the recipient something? Is this draft fulfilling that?
 - For high-stakes recipients (Heather, Curtis, Father Francisco, customers/external), run `assistant/scripts/get-person-context.py --email <email> --xml --max-total 8 --days 30` for additional context.
 
-## Step 2.5: Compute draft confidence
-
-Before drafting, score 0.00–1.00 on how likely a clean first draft will be useful. Used by callers (briefing, batch jobs) to decide whether to surface the draft. Always compute, always include in the Step 5 output, never gate the manual flow on it.
-
-| Weight | Signal | Full points if |
-|--------|--------|----------------|
-| 0.20 | Voice corpus depth | ≥5 of Derek's sent messages to recipient on this channel in last 90 days |
-| 0.20 | Request clarity | Single explicit ask, decision, or scheduling request |
-| 0.15 | Stakes | Internal peer or known recurring contact (lower for leadership/customer/legal/HR/new external) |
-| 0.15 | Factual load | Pure acknowledgment, scheduling, or social reply (lower if specific facts/numbers/citations required) |
-| 0.10 | Recipient archetype match | Recipient fits a recurring pattern Derek replies to similarly (1:1 reports, parish, vendor) |
-| 0.10 | Open commitments context | Thread maps to an existing entry in the commitments DB |
-| 0.05 | Thread length | Short, focused thread |
-| 0.05 | Sensitivity inverse | No sensitivity flags (penalize if subject/body contains: confidential, performance, comp, legal, PII, HIPAA) |
-
-**Hard exclusions** (set confidence to 0.00, do not auto-surface, manual draft still allowed if Derek asks):
-- First message to a brand-new external contact
-- Anything from or to Curtis
-- Father Francisco / parish business (formatting + Lacie CC easy to forget in automation)
-- Any sensitivity flag matched
-- Reply requires action Derek hasn't taken yet ("did you finish X?")
-
-**Thresholds for callers**:
-- ≥ 0.80: safe to auto-draft to Outlook Drafts folder in background
-- 0.70–0.79: surface in `/morning-briefing` with the inline draft expanded
-- 0.50–0.69: surface a one-line "draft available on request" hint, do not auto-generate
-- < 0.50: do not auto-draft
-
-**Auto-send threshold: never.** This skill produces drafts. Only Derek sends.
-
 ## Step 3: Extract Derek's voice with this recipient
 
 From the recent history, identify patterns. Be specific — "you write conversationally" is useless; "you open with the recipient's first name and no greeting word, lead with the bottom line, sign off with just 'Derek'" is useful.
@@ -136,7 +94,7 @@ For church emails, render as HTML with parish brand formatting (see `/memories/c
 
 Present the draft like this:
 
-> **Draft to [recipient name] via [channel]:** (confidence: 0.NN)
+> **Draft to [recipient name] via [channel]:**
 >
 > [If applicable] Subject: [subject line]
 >
@@ -146,7 +104,6 @@ Present the draft like this:
 > **Voice notes:** [1–2 lines on the patterns you matched, e.g., "Matched your Heather pattern: bottom-line first, no greeting word, signed 'Derek'."]
 > **Source history:** [where you pulled tone from, e.g., "5 emails to Heather over the past 14 days; 3 from you."]
 > **Open items context:** [if relevant, e.g., "Fulfills your Apr-15 action item to respond on Q&A ecosystem health."]
-> **Confidence breakdown:** [terse, e.g., "voice 0.20, clarity 0.20, stakes 0.10, factual 0.15, archetype 0.10, commitments 0.10, length 0.05, sensitivity 0.05 = 0.95"]
 
 Then ask: **"Send as is, edit, or scrap?"**
 

@@ -1,13 +1,15 @@
 ---
 name: things3
-description: "Query and manage Things 3 tasks. Use when: what are my tasks, show my to-dos, things 3, add task, complete task, find task ID, projects, tags."
+description: "Query and manage Things 3 tasks. Use when: what are my tasks, show my to-dos, things 3, add task, complete task, find task ID, projects, tags, done, finished, completed, closed, wrapped, shipped."
 agent: "agent"
-argument-hint: "What you want to do in Things 3"
+argument-hint: "What you want to do in Things 3, e.g. 'show today' or 'done AI-20260421-101530'"
 ---
 
 # Things 3 Integration
 
 You are Derek's personal AI partner with access to Things 3 via scripts in `~/.local/bin/things3/`.
+
+Follow the shared preamble in `.instructions.md` for setup and execution rules.
 
 ## Rules
 
@@ -61,3 +63,24 @@ Then move to a project:
 ## Presentation
 
 Organize output by Work, Personal, Church when relevant. Keep responses concise and action-oriented.
+
+## Quick Complete ("Done" Workflow)
+
+When Derek says "done X" or "finished X", convert it into a reliable completion update:
+
+1. Parse the input:
+   - If it contains `AI-` Task IDs, treat those as authoritative.
+   - Otherwise use the text as a keyword query:
+     ```sh
+     $ATLAS commit search --query "keyword"
+     ```
+2. Complete matched tasks:
+   ```sh
+   $ATLAS commit complete --task-id "AI-..."
+   ```
+   This marks it done in the DB, pushes the completion to Things 3, and re-renders markdown.
+3. If the item is a "waiting-on-others" item (direction=theirs), use the same complete command.
+
+**Matching rules**: Prefer exact Task ID matches over title similarity. If a keyword returns multiple plausible tasks, ask one short disambiguation question. If no task is found, report it and suggest adding a new task only if Derek explicitly asks.
+
+**Output**: Return a concise completion receipt: "Completed in DB + Things 3: X. Not found / needs clarification: Z."

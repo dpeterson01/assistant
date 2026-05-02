@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Briefing Sync — runs every 15 min during work hours.
-# 1) PUSH: propagate dashboard completions → Things 3, action-items.md
-# 2) PULL: (stub) scan for new inbound items → dashboard JSON
+# 0) EMAIL CLEANUP: filter spam from journals + sweep Outlook junk
+# 1) PULL: scan for new inbound items → dashboard JSON
 #
 # Triggered by launchd: com.derekpeterson.briefing-sync.plist
 
@@ -81,207 +81,16 @@ else
 fi
 
 # ──────────────────────────────────────────────
-# PHASE 1: PUSH — propagate completions outward
+# PHASE 1: PULL — scan for new inbound items
 # ──────────────────────────────────────────────
 
-echo "--- Phase 1: Push completions ---"
-
-# Get all items with syncPending across all sections
-BRIEFING=$(curl -sf "$DASHBOARD_URL/api/briefing")
-
-# Extract syncPending items using python (available on macOS)
-PENDING=$(echo "$BRIEFING" | python3 -c "
-import sys, json
-
-data = json.load(sys.stdin)
-pending = []
-for section in ['carryOver', 'inbox', 'tasks']:
-    for item in data.get(section, []):
-        if item.get('syncPending'):
-            pending.append({
-                'id': item['id'],
-                'text': item.get('text', ''),
-                'status': item['status'],
-                'section': section,
-                'channel': item.get('channel'),
-                'emailId': item.get('emailId'),
-            })
-json.dump(pending, sys.stdout)
-")
-
-PENDING_COUNT=$(echo "$PENDING" | python3 -c "import sys,json; print(len(json.load(sys.stdin)))")
-echo "Found $PENDING_COUNT items to sync"
-
-if [[ "$PENDING_COUNT" -gt 0 ]]; then
-  # Process each pending item and write synced IDs to temp file
-  echo "$PENDING" | python3 -c "
-import sys, json, subprocess, os
-
-items = json.load(sys.stdin)
-things3_dir = os.path.expanduser('~/.local/bin/things3')
-synced_ids = []
-
-for item in items:
-    item_id = item['id']
-    text = item['text']
-    status = item['status']
-    print(f'  Syncing: {text} ({status})', file=sys.stderr)
-
-    if status == 'done':
-        # 1. Complete in Things 3
-        try:
-            # Try task-id first (AI- prefixed IDs)
-            if item_id.startswith('AI-'):
-                subprocess.run(
-                    [os.path.join(things3_dir, 'complete.sh'), '--task-id', item_id],
-                    timeout=10, capture_output=True
-                )
-            else:
-                subprocess.run(
-                    [os.path.join(things3_dir, 'complete.sh'), '--search', text],
-                    timeout=10, capture_output=True
-                )
-            print(f'    ✓ Things 3', file=sys.stderr)
-        except Exception as e:
-            print(f'    ✗ Things 3: {e}', file=sys.stderr)
-
-    synced_ids.append(item_id)
-
-# Write synced IDs to temp file
-with open('/tmp/briefing-synced-ids.json', 'w') as f:
-    json.dump(synced_ids, f)
-" 2>&1
-
-  # Read synced IDs and build PATCH payload to clear syncPending + stamp syncedAt
-  python3 -c "
-import sys, json, urllib.request, datetime
-
-with open('/tmp/briefing-synced-ids.json') as f:
-    synced_ids = json.load(f)
-
-if not synced_ids:
-    sys.exit(0)
-
-# Read current briefing to find items and their sections
-req = urllib.request.Request('$DASHBOARD_URL/api/briefing')
-with urllib.request.urlopen(req) as resp:
-    data = json.load(resp)
-
-ts = datetime.datetime.now().isoformat()
-patch = {'date': data['date']}
-
-for section in ['carryOver', 'inbox', 'tasks']:
-    updates = []
-    for item in data.get(section, []):
-        if item['id'] in synced_ids:
-            updates.append({
-                'id': item['id'],
-                'syncPending': False,
-                'syncedAt': ts
-            })
-    if updates:
-        patch[section] = updates
-
-payload = json.dumps(patch).encode()
-req = urllib.request.Request(
-    '$DASHBOARD_URL/api/briefing',
-    data=payload,
-    headers={'Content-Type': 'application/json'},
-    method='PATCH'
-)
-with urllib.request.urlopen(req) as resp:
-    result = json.load(resp)
-    print(f'  PATCH result: updateCount={result.get(\"updateCount\")}')
-"
-
-  # Update action-items.md: move completed items to Completed section
-  # Uses the dashboard API for item text lookup (no regex parsing of markdown)
-  python3 -c "
-import json, re, datetime, os, urllib.request
-
-with open('/tmp/briefing-synced-ids.json') as f:
-    synced_ids = json.load(f)
-
-if not synced_ids:
-    exit(0)
-
-action_items_path = os.path.expanduser('$ACTION_ITEMS')
-if not os.path.exists(action_items_path):
-    print('  - action-items.md not found, skipping')
-    exit(0)
-
-with open(action_items_path, 'r') as f:
-    content = f.read()
-
-# Get item details from dashboard API
-req = urllib.request.Request('$DASHBOARD_URL/api/briefing')
-with urllib.request.urlopen(req) as resp:
-    data = json.load(resp)
-
-# Build id->text map
-id_text = {}
-for section in ['carryOver', 'inbox', 'tasks']:
-    for item in data.get(section, []):
-        id_text[item['id']] = item.get('text', item['id'])
-
-today = datetime.date.today().strftime('%Y-%m-%d')
-completed_lines = []
-
-for sid in synced_ids:
-    text = id_text.get(sid, sid)
-    moved = False
-
-    # Match by Task ID first (deterministic, no regex fragility)
-    if sid.startswith('AI-'):
-        pattern = rf'^- \[ \] .*Task ID:\s*{re.escape(sid)}.*\n?'
-        content, n = re.subn(pattern, '', content, count=1, flags=re.MULTILINE)
-        if n > 0:
-            moved = True
-
-    # Fall back to item id in line
-    if not moved:
-        pattern = rf'^- \[ \] .*\b{re.escape(sid)}\b.*\n?'
-        content, n = re.subn(pattern, '', content, count=1, flags=re.MULTILINE)
-        if n > 0:
-            moved = True
-
-    # Last resort: match first 30 chars of text
-    if not moved and text:
-        escaped = re.escape(text[:30])
-        pattern = rf'^- \[ \] .*{escaped}.*\n?'
-        content, n = re.subn(pattern, '', content, count=1, flags=re.MULTILINE)
-        if n > 0:
-            moved = True
-
-    if moved:
-        completed_lines.append(f'- [x] {text} | Completed: {today}')
-        print(f'  ✓ action-items.md: moved \"{text}\" to completed')
-    else:
-        print(f'  - action-items.md: \"{text}\" not found in active (may already be moved)')
-
-if completed_lines:
-    marker = '## Completed (last 7 days, auto-pruned)'
-    if marker in content:
-        insert_point = content.index(marker) + len(marker)
-        insert_text = '\n' + '\n'.join(completed_lines)
-        content = content[:insert_point] + insert_text + content[insert_point:]
-    with open(action_items_path, 'w') as f:
-        f.write(content)
-" 2>&1
-
-  rm -f /tmp/briefing-synced-ids.json
-fi
-
-# ──────────────────────────────────────────────
-# PHASE 2: PULL — scan for new inbound items
-# ──────────────────────────────────────────────
-
-echo "--- Phase 2: Pull new items ---"
+echo "--- Phase 1: Pull new items ---"
 
 if ! command -v copilot &>/dev/null; then
   echo "Copilot CLI not found. Skipping pull."
 else
     # Get lastUpdated from briefing JSON to scope the scan
+    BRIEFING=$(curl -sf "$DASHBOARD_URL/api/briefing")
     LAST_UPDATED=$(echo "$BRIEFING" | python3 -c "import sys,json; print(json.load(sys.stdin).get('lastUpdated',''))")
     BRIEFING_DATE=$(echo "$BRIEFING" | python3 -c "import sys,json; print(json.load(sys.stdin).get('date',''))")
 
@@ -301,7 +110,6 @@ Scan for NEW communications since ${LAST_UPDATED}:
 
 For each new item found:
 - Triage as HIGH/MEDIUM/LOW using the standard triage rules
-- Score draft confidence (0.0-1.0)
 - Skip LOW items (just count them)
 
 Then PATCH the dashboard at ${DASHBOARD_URL}/api/briefing with this payload format:
@@ -318,9 +126,7 @@ Then PATCH the dashboard at ${DASHBOARD_URL}/api/briefing with this payload form
       \"channel\": \"outlook-work|outlook-personal|teams\",
       \"sender\": \"<display name>\",
       \"emailId\": \"<message ID or null>\",
-      \"threadId\": null,
-      \"draftConfidence\": <0.0-1.0 or null>,
-      \"draftReason\": \"<one line or null>\"
+      \"threadId\": null
     }
   ],
   \"inboxLowCount\": <add to existing count>

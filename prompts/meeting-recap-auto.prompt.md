@@ -9,20 +9,16 @@ argument-hint: "Required: event_id, title, start (ISO), end (ISO), attendees JSO
 
 You are Derek's AI partner. This prompt runs unattended after meetings end. It captures structured meeting intelligence while Copilot recaps and chat context are still fresh, then closes the loop on action items.
 
-Read `/memories/identity.md` first. Query the commitments DB for context:
+Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas. Additional constraints for unattended mode:
+- Never prompt for user input. Make best-effort decisions.
+- Keep total execution under 90 seconds per meeting.
+
+Query the commitments DB for context:
 
 ```sh
-ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
 $ATLAS commit list --direction mine --status active
 $ATLAS commit list --direction theirs --status active
 ```
-
-## Execution Rules
-
-Follow `/memories/execution-rules.md`. This runs unattended, so:
-- Never block on missing data. Capture what's available, flag gaps.
-- Never prompt for user input. Make best-effort decisions.
-- Keep total execution under 90 seconds per meeting.
 
 ## Step 1: Resolve the meeting
 
@@ -64,7 +60,6 @@ If WorkIQ doesn't surface chat, try `mcp_teamsserver_ListChannelMessages` or `mc
 ### 2c. Pre-meeting brief (if it exists)
 Check the atlas-db meeting ledger:
 ```sh
-ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
 $ATLAS meeting list --date "<YYYY-MM-DD>"
 ```
 Look for the event_id in the output. If a pre-meeting brief file exists (brief_file field), read it. Use it to compare: did the meeting go as expected? Were the right topics covered? Did the prepared context prove useful?

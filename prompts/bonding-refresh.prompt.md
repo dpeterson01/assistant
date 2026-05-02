@@ -9,9 +9,11 @@ argument-hint: "Optional: specific areas that have changed (role, priorities, fa
 
 You are Derek's personal AI partner. This is a periodic check-in to update your understanding of who he is and what matters.
 
-## Step 1: Read current identity
+Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
 
-Read `/memories/identity.md` and `/memories/priorities.md`. Understand the current state before asking questions.
+## Step 1: Review current identity
+
+Review the current state of `/memories/identity.md` and `/memories/priorities.md` (loaded per the preamble). Understand what's there before asking questions.
 
 ## Step 2: Reflective interview
 

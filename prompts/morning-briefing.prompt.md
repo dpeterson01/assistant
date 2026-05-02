@@ -9,55 +9,11 @@ argument-hint: "Optional: specific context to focus on (work, personal, church)"
 
 You are Derek's AI partner. This prompt picks up where yesterday left off, surfaces what came in overnight, briefs on each meeting, sets today's plan, and syncs Things 3. Move fast.
 
-## Determine today's date (MANDATORY first step)
-
-Before doing ANYTHING else, run this in a terminal:
-```sh
-date '+%A %B %d, %Y'
-```
-Use the **exact output** as today's date and day-of-week for the entire briefing. Never calculate the day-of-week from a date string yourself — LLMs get this wrong for future dates. The shell `date` command is the single source of truth.
-
-**OVERRIDE RULE**: If the invocation prompt, system context, or user message says a different day-of-week than what `date` returns, **`date` wins**. Discard the conflicting day-of-week entirely. This is the #1 recurring bug in this system.
-
-## How Checkboxes Work
-
-Every actionable item in the briefing gets a checkbox: `- [ ]`. Derek can check items as he completes them throughout the day. When ready to push completions immediately to Things 3 and action-items (instead of waiting for the 15-min sync), he runs:
-```
-/check-briefing
-```
-This detects newly-checked items, completes matching Things 3 tasks by Task ID, and updates action tracking. Scheduled syncs (midday at noon, end-of-day) won't reprocess checked items (checkpoint state prevents duplicates).
-
-**Three ways to mark complete:**
-1. **Check in briefing**: `- [x]` in Typora → run `/check-briefing` to push immediately
-2. **Quick command**: `/done "task name"` or `/done AI-task-id` mid-work without reopening briefing
-3. **Scheduled sync**: Items automatically close at midday/EOD if still unchecked
-
-## Execution Rules
-
-**Resilience**: Every step and tool call has a soft budget. If a tool call fails or returns an error, retry ONCE. If it fails again, log what failed ("⚠️ [tool/step] failed: [reason]"), skip it, and continue. Never retry the same failing call more than once. Never block the entire briefing on a single data source. Report all skipped items at the end so Derek knows what's missing.
-
-**Parallelism**: Gather independent data sources simultaneously. Specifically:
-- Personal email (Outlook MCP), work email (Gmail MCP), HMBL email, iMessages, Things 3 shell commands, and WorkIQ calls are ALL independent. Fire them in a single parallel batch, not sequentially.
-- Only sequence calls that depend on prior results (e.g., reading a specific email found in a search).
-- When writing journals, syncing Things 3, and updating memory files, those are also independent of each other.
-
-**Terminal timeouts**: Always set an explicit timeout on every terminal command. Use 10000ms (10s) for quick commands (Things 3 scripts, ls, file reads). Use 30000ms (30s) for longer operations (email_cleanup.py, batch scripts). Never use timeout=0 (infinite).
-
-**Progress**: If a step is taking multiple tool calls without progress, skip it with a note and move on.
-
-## Data Architecture
-
-See [data-architecture.md](../context/data-architecture.md) for full query/mutation reference.
-
-```sh
-ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
-```
-
-Read `/memories/identity.md` and `/memories/priorities.md` first. Then run `$ATLAS sync-things3` and query the DB for commitments. Hold these in context for the entire briefing.
+Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
 
 The briefing has two phases:
-- **Phase A (Steps 1-2-3)**: Gather, brief Derek, save and open in Typora. Get Derek reading ASAP.
-- **Phase B (Steps 4-5-6)**: Maintenance. Sync Things 3, update memory files, surface conflicts. Runs while Derek reads.
+- **Phase A (Steps 1-2-3)**: Gather, brief Derek, save and open. Get Derek reading ASAP.
+- **Phase B (Steps 4-5)**: Maintenance. Sync Things 3, update memory files, surface conflicts. Runs while Derek reads.
 
 ---
 
@@ -256,22 +212,16 @@ $ATLAS commit list --status completed
 ```
 Remove any candidate whose title matches a completed commitment. This prevents items completed mid-day (after the briefing was written but before EOD) from reappearing the next morning via journal or prior-briefing references. Do not skip this step even if the tool call fails; if it fails, note "⚠️ Could not verify completions, carryOver may include resolved items" at the top of this section.
 
-**Display**: Prefix each surviving item with `- [ ]` checkbox so Derek can check them as he tackles them throughout the day.
+**Display**: Prefix each surviving item with `- ` (plain bullet, no checkbox). Use `✅` prefix for items already completed.
 
 ### What came in overnight (triaged)
 Present communications grouped by importance tier. For each item show the tier emoji, source (email/Teams), sender, age if older than overnight, and 1-sentence summary.
 
-**🔴 HIGH** items first (prefix with `- [ ]` checkbox and Task ID if created in Things 3; briefly state what Derek needs to do)
-**🟡 MEDIUM** items next (prefix actionable ones with `- [ ]` checkbox and Task ID)
-**🟢 LOW** items: just a count ("X low-priority items, nothing actionable"; no checkboxes)
+**🔴 HIGH** items first (include Task ID if created in Things 3; briefly state what Derek needs to do)
+**🟡 MEDIUM** items next (include Task ID for actionable ones)
+**🟢 LOW** items: just a count ("X low-priority items, nothing actionable")
 
 If there are unread items from prior days, call them out: "N unread items aged 2+ days, escalated."
-
-#### Inline draft replies (high-confidence only)
-
-Score each 🔴/🟡 email item using the `/draft-message` Step 2.5 confidence model. Follow the confidence thresholds and exclusions defined in [triage-rules.md](../context/triage-rules.md#inline-draft-replies).
-
-Log every auto-saved draft to `assistant/data/state/auto-drafts.log` as `YYYY-MM-DDTHH:MM:SS | <recipient> | <subject> | <confidence> | <thread-id>` so Derek and `/briefing-tune` can audit hit rate.
 
 ### Today's meetings
 Present the full meeting briefings assembled in Step 1, in chronological order. For each meeting show:
@@ -279,28 +229,26 @@ Present the full meeting briefings assembled in Step 1, in chronological order. 
 - **Why it matters today**: 1-2 sentences synthesizing the signals, agenda, and open items
 - **Signals**: The most relevant 2-3 signals with full context: source, who, and a sentence explaining what happened and why it matters for this meeting. Not topic labels.
 - **Raise this**: Specific things Derek should bring up, written as complete talking points he can use directly. Include what to say/ask, reference specific artifacts or dates, and explain why now. If an attendee owes Derek something, state exactly what, since when, and what "done" looks like.
-- **Prep**: Prefix with `- [ ]` checkbox if Derek needs to prep before this meeting, else "None"
+- **Prep**: Note if Derek needs to prep before this meeting, else "None"
 
 For low-signal recurring meetings (standups, office hours), compress to one line: "**Title** (time) - Recurring, no specific prep."
 
-For meetings with prep needed, prefix with `- [ ]` checkbox so Derek can check it off once prepped.
-
 ### Accountability check
-- **My overdue items**: Run `$ATLAS commit overdue` to get all overdue items. Surface items where direction=mine. Prefix each with `- [ ]` checkbox. Be direct.
+- **My overdue items**: Run `$ATLAS commit overdue` to get all overdue items. Surface items where direction=mine. Be direct.
 - **Waiting on others**: Run `$ATLAS commit list --direction theirs --status active` to get active items others owe Derek. For each active item:
-  - If they're in a meeting today: `- [ ]` "Bring up [item] with [person] in [meeting name]"
+  - If they're in a meeting today: "Bring up [item] with [person] in [meeting name]"
   - If overdue and not recently nudged: "Consider running `/nudge [person]` to follow up"
   - Count: "X items pending from others, Y overdue"
 - **Auto-nudge candidates**: Items where `daysOpen >= 5` AND `last_nudge` is null or older than 3 days are auto-nudge candidates. For each:
   - Set `stale: true` in the JSON `accountability.waitingOn` entry
-  - In the .md, append: "⏰ Stale 5+ days. Run `/nudge [person]` or use the dashboard nudge button."
+  - Append: "⏰ Stale 5+ days. Run `/nudge [person]` or use the dashboard nudge button."
   - If the person is in a meeting today, prefer the in-meeting approach over a nudge message.
 
 ### Birthdays
 If any birthdays are coming up in the next 7 days, list them. Today/tomorrow birthdays get a 🎂 callout. If a birthday person is a meeting attendee or direct report, suggest acknowledging it.
 
 ### Today's tasks
-- Prefix each Things 3 Today item with `- [ ]` checkbox
+- List each Things 3 Today item
 - Suggested priorities: rank the top 3 things to focus on today, considering meetings, carry-forward items, deadlines, and action items
 
 ### Upcoming (next 2-3 days)
@@ -309,39 +257,19 @@ If any birthdays are coming up in the next 7 days, list them. Today/tomorrow bir
 
 Keep the briefing under 50 lines. Lead with what matters most.
 
-## Step 3: Save and open briefing
+## Step 3: Save briefing JSON and open dashboard
 
-Save the full briefing output to `~/projects/personal/assistant/data/briefings/YYYY-MM-DD_daily_brief.md` where YYYY-MM-DD is today's date.
-
-The file should contain:
-- A YAML frontmatter block with `date`, `meetings_count`, `action_items_count`, `high_priority_count`, and `checkpoint_id` (format: `AI-YYYYMMDD-HHMMSS`)
-- After frontmatter, add a hidden checkpoint state comment:
-  ```markdown
-  <!-- checkpoint_state: {"initialized": true, "sync_count": 0} -->
-  ```
-- The complete briefing as presented to Derek (Step 2 output)
-
-Note: checkpoint_id and checkpoint state are used by `/check-briefing` and scheduled syncs to track which items have been processed and prevent duplicate completions.
-
-Open it in Typora immediately so Derek can start reading:
-```sh
-open -a Typora ~/projects/personal/assistant/data/briefings/YYYY-MM-DD_daily_brief.md
-```
-
-## Step 3b: Generate dashboard JSON
-
-Also save a structured JSON file to `~/projects/personal/assistant/data/briefings/YYYY-MM-DD_daily_brief.json`. This powers the interactive dashboard at `http://localhost:3141`.
+Save a structured JSON file to `~/projects/personal/assistant/data/briefings/YYYY-MM-DD_daily_brief.json`. This powers the interactive dashboard at `http://localhost:3141`.
 
 Build the JSON from the same data gathered in Steps 1-2. Follow the schema defined in [dashboard-json-schema.md](../context/dashboard-json-schema.md), which specifies:
 - Top-level structure (dayFit, carryOver, inbox, meetings, tasks, accountability, upcoming)
 - Per-item fields and deep link fields
 - Meeting fields and high-stakes criteria
 - Accountability structure
-- Reconciliation rules (every .md checkbox must have a matching JSON entry)
 
 The `carryOver` array must only contain items that survived the hard filter in Step 2 (i.e., not present in the DB as completed). Do not re-derive carryOver from raw sources for the JSON; use the same filtered list.
 
-Then continue to Phase B while Derek reads.
+Also save a human-readable markdown render to `~/projects/personal/assistant/data/briefings/YYYY-MM-DD_daily_brief.md`. This is a **disposable render** of the JSON for quick reading. It does not need frontmatter, checkpoint IDs, or hidden state comments. Just the briefing content from Step 2.
 
 ### Open the dashboard
 After saving the JSON, ensure the dashboard server is running and open it:
@@ -368,6 +296,8 @@ Every action item identified during triage becomes a Things 3 task. No exception
 3. Carry-forward items from yesterday's journal not yet in the DB
 4. Meeting prep tasks (from Step 2 meeting briefs)
 
+**Never create tasks for**: GitHub pull requests or code reviews (PRs). Surface PR review requests in the briefing as informational items only — do not add them to Things 3 or action-items.md.
+
 ### Batch deduplication
 Before adding tasks, search the DB for existing matches:
 ```sh
@@ -380,9 +310,9 @@ For each task to add, use atlas-db which auto-generates a Task ID, pushes to Thi
 ```sh
 $ATLAS commit add --title "Task title" --direction mine --person "Person" --source "email/Teams from [person]" --due "YYYY-MM-DD" --category work
 ```
-The output JSON includes the `task_id` and `things3_uuid`. Use the `task_id` in the briefing checkbox text so `/check-briefing` can complete the task deterministically:
+The output JSON includes the `task_id` and `things3_uuid`. Use the `task_id` in the briefing so completions can be tracked deterministically:
 ```markdown
-- [ ] Review ADO report from Tanvi (Task ID: AI-20260421-082145)
+- Review ADO report from Tanvi (Task ID: AI-20260421-082145)
 ```
 
 To add items for the waiting-on-others direction:
@@ -457,7 +387,7 @@ cat ~/.local/share/pod-assignments/needs-mcp-refresh 2>/dev/null
 
 **If no marker file exists**, skip this step entirely. The launchd script handled it.
 
-## Step 5: Update files
+## Step 5: Update files and surface conflicts
 
 **Update `/memories/priorities.md`:**
 - Replace "Tomorrow's Meetings" with today's actual meeting list
@@ -467,48 +397,10 @@ cat ~/.local/share/pod-assignments/needs-mcp-refresh 2>/dev/null
 
 **Action items and waiting-on-others are updated automatically** by the `$ATLAS commit add/complete/nudge` commands in Step 4. Every mutation re-renders `assistant/data/context/action-items.md` and `assistant/data/context/waiting-on-others.md`. Do NOT manually edit these files.
 
-**If you discover new overdue items** (items in the DB with past due dates that haven't been flagged), the rendered markdown already marks them with "(OVERDUE)" automatically.
-
-## Step 6: Surface conflicts or suggestions
-
+**Surface conflicts:**
 - Flag any scheduling conflicts or overloaded days
 - Note if a priority from yesterday hasn't moved in several days
 - Suggest 1-2 things to tackle, defer, or delegate
 - If a meeting today involves someone who owes you something, suggest raising it
 
-Append the Phase B report (task sync + conflicts) to the briefing file already saved.
-
-## Checkpoint System
-
-The briefing uses a checkpoint system to track which items have been processed:
-- **checkpoint_id**: Unique ID for today's briefing (format: `AI-YYYYMMDD-HHMMSS`)
-- **checkpoint_state**: Hidden comment tracking checkbox state changes
-
-When Derek runs `/check-briefing`, the system:
-1. Reads the current briefing
-2. Compares to last checkpoint state (stored in `~/.checkpoints/YYYY-MM-DD.json`)
-3. Detects newly-checked items
-4. Completes matching Things 3 tasks by Task ID
-5. Saves new checkpoint state
-
-Scheduled syncs (midday, EOD) won't reprocess items already handled by `/check-briefing` because checkpoint state prevents duplicates. This is idempotent—running `/check-briefing` multiple times won't create duplicate completions.
-
-## Gotchas
-
-Hard-won lessons. Check here before debugging.
-
-| Issue | Fix |
-|-------|-----|
-| WorkIQ call returns partial or empty data | Retry ONCE. If still empty, proceed without it and note "⚠️ WorkIQ unavailable" in briefing. Never block the whole routine. |
-| Things 3 `search.sh` matches wrong task (substring match) | Use `$ATLAS commit complete --task-id AI-...` which matches by exact Task ID in the DB. Only fall back to Things 3 keyword search when no ID exists. |
-| Terminal command hangs with timeout=0 | Always set explicit timeouts: 10s for quick ops, 30s for batch ops. Never use timeout=0. |
-| JSON and markdown briefings drift out of sync | Every checkbox item in the .md MUST have a matching entry in the .json. The `id` field is the link. Generate both from the same data in Step 3/3b. |
-| Triage creates tasks for FYI emails with no actual ask | Apply the 5-point action item extraction tests (explicit ask, announcement filter, meeting prep, group ask, unaccepted offer) before creating any task. |
-| Access requests appear in briefing | Hard exclusion. Filter silently, never surface in any section. |
-| Draft confidence scoring saves a draft Derek didn't want | Never auto-send. Outlook's send button is the gate. Log all auto-drafts to `assistant/data/state/auto-drafts.log`. |
-| Parallel tool calls include WorkIQ + shell + MCP in same batch | Correct. These are independent. Do not serialize them. |
-| Contact lookup fails because filename doesn't match display name | Read `index.json` first to get the name-to-file mapping. Match on name, aliases, or email. |
-| Meeting brief ledger `claim` returns non-zero | The rolling sweep already produced a brief. Skip generation and reference the existing path. |
-| atlas-db commit add fails with "task_id already exists" | The item is already tracked. Use `$ATLAS commit search` to find it. |
-| Completed item reappears in next day's carryOver | Journals and prior briefings are static artifacts. An item completed mid-day still appears as unchecked in those files. Always run `$ATLAS commit list --status completed` and filter carryOver candidates against it before display. |
-| Briefing shows wrong day-of-week (e.g. Sunday instead of Monday) | LLMs cannot reliably compute day-of-week from date strings. Always run `date '+%A %B %d, %Y'` in a terminal as the first step. Never derive it yourself. |
+Append the Phase B report (task sync + conflicts) to the end of the conversation.

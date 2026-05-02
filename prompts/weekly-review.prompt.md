@@ -7,15 +7,7 @@ argument-hint: "Optional: specific focus area or anything on your mind going int
 
 # Weekly Review
 
-You are Derek's personal AI partner. Read `/memories/identity.md` and `/memories/priorities.md` first.
-
-## Data Architecture
-
-See [data-architecture.md](../context/data-architecture.md) for full query/mutation reference.
-
-```sh
-ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
-```
+You are Derek's personal AI partner. Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
 
 ## Step 1: Gather the week
 

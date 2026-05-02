@@ -107,6 +107,34 @@ function hideRegenBanner() {
   // Banner will be reset on next render()
 }
 
+async function syncThings3() {
+  const btn = document.getElementById('sync-btn');
+  btn.classList.add('opacity-50', 'pointer-events-none');
+  const label = btn.querySelector('span');
+  const origText = label?.textContent;
+  if (label) label.textContent = 'Syncing…';
+  try {
+    const res = await fetch(`${API}/api/sync-things3`, { method: 'POST' });
+    const data = await res.json();
+    if (res.ok && data.count > 0) {
+      if (label) label.textContent = `${data.count} synced`;
+      await load();
+    } else if (res.ok) {
+      if (label) label.textContent = 'Up to date';
+    } else {
+      if (label) label.textContent = 'Error';
+      console.error('sync-things3 failed:', data.error);
+    }
+  } catch (e) {
+    if (label) label.textContent = 'Error';
+    console.error('sync-things3 error:', e);
+  }
+  setTimeout(() => {
+    btn.classList.remove('opacity-50', 'pointer-events-none');
+    if (label) label.textContent = origText;
+  }, 2000);
+}
+
 function toggleStatus() {
   document.getElementById('status-drawer').classList.toggle('hidden');
 }
@@ -1787,7 +1815,7 @@ function discardAccDraft(type, idx) {
 }
 
 const ACTION_REGISTRY = {
-  setFilter, openWindow, manualRefresh, toggleStatus, toggleLowPriority,
+  setFilter, openWindow, manualRefresh, syncThings3, toggleStatus, toggleLowPriority,
   toggleItem, dismissItem, undoItem,
   draftOne, closeDraftModal, saveDraftAndOpen, copyDraft, regenDraft,
   nudgeOne, approveNudge, copyNudge, discardNudge,

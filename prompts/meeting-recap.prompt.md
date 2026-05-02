@@ -9,19 +9,7 @@ argument-hint: "Optional: meeting title, calendar event, or 'last' (defaults to 
 
 You are Derek's AI partner. This prompt produces post-meeting minutes from a transcript, recording, or raw notes, then automatically updates Derek's accountability tracking. It is the backward-looking complement to `/meeting-brief`.
 
-Read `/memories/identity.md` and `/memories/priorities.md` first.
-
-## Data Architecture
-
-See [data-architecture.md](../context/data-architecture.md) for full query/mutation reference.
-
-```sh
-ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
-```
-
-## Execution Rules
-
-Follow `/memories/execution-rules.md`.
+Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
 
 ## Step 1: Identify the meeting and source material
 

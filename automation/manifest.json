@@ -12,8 +12,8 @@
       "script": "scripts/morning-briefing.sh",
       "plist": "com.atlas.morning-briefing",
       "enabled": true,
-      "last_run": null,
-      "last_status": null
+      "last_run": "2026-05-01T14:57:31Z",
+      "last_status": "success"
     },
     {
       "id": "end-of-day-reminder",

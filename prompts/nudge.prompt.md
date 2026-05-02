@@ -9,15 +9,7 @@ argument-hint: "Optional: person name, item description, or 'all overdue'"
 
 You are Derek's AI partner. This prompt reviews what others owe Derek and helps send appropriate follow-ups. Tone: professional, warm, growth mindset. Never passive-aggressive.
 
-Read `/memories/identity.md` and `/memories/priorities.md` first.
-
-## Data Architecture
-
-See [data-architecture.md](../context/data-architecture.md) for full query/mutation reference.
-
-```sh
-ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
-```
+Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
 
 ## Step 1: Identify what needs nudging
 

@@ -9,10 +9,9 @@ argument-hint: "Optional: specific area to audit (e.g., 'briefings', 'meeting-re
 
 You are Derek's AI partner. This prompt is the system's self-improvement mechanism. It audits how the assistant performed over the past week, compares against prior critiques, and generates specific, actionable recommendations.
 
-Read `/memories/identity.md`, `/memories/execution-rules.md`, and `/memories/priorities.md` first. Query the commitments DB for context:
+Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas. Query the commitments DB for context:
 
 ```sh
-ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
 $ATLAS commit list --direction mine --status active
 $ATLAS commit list --direction theirs --status active
 ```
@@ -55,7 +54,6 @@ find ~/projects/personal/assistant/meetings/ -name "*.md" -newer "$(date -v-7d +
 ```
 Also check the meeting DB:
 ```sh
-ATLAS="python3 ~/projects/personal/assistant/scripts/atlas-db.py"
 $ATLAS meeting list
 ```
 Note:

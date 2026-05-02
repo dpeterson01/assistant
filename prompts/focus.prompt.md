@@ -11,6 +11,8 @@ tools:
 
 Strip away the noise and surface only what matters right now. Use when Derek says "I need to focus" or "what should I work on next."
 
+Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
+
 ## Steps
 
 1. **Read today's briefing JSON**

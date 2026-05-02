@@ -646,15 +646,19 @@ app.post('/api/complete-task/:id', (req, res) => {
     setItemStatus(data, req.params.id, 'done', source);
 
     // Cross-complete: remove matching accountability overdue/approaching entry
+    // Uses substring matching: if either text starts with the other (after
+    // lowercasing and trimming), it's considered a match. This handles cases
+    // where inbox text includes extra detail (e.g. "Review X submission
+    // (manager comments)") while accountability just says "Review X".
     const acc = data.accountability || {};
     const textLower = text.toLowerCase().trim();
     for (const aType of ['overdue', 'approaching']) {
       const aList = acc[aType] || [];
       const aIdx = aList.findIndex(s => {
-        const core = typeof s === 'string'
+        const core = (typeof s === 'string'
           ? (s.includes('—') ? s.split('—')[0].trim() : s.trim())
-          : (s.text || '');
-        return core.toLowerCase() === textLower;
+          : (s.text || '')).toLowerCase();
+        return core === textLower || textLower.startsWith(core) || core.startsWith(textLower);
       });
       if (aIdx !== -1) {
         const [removed] = aList.splice(aIdx, 1);
@@ -733,6 +737,78 @@ app.post('/api/undo/:id', (req, res) => {
     res.json({ ok: true, id: req.params.id, restoredStatus: entry.previousStatus });
   }).catch(err => {
     trackHealth('POST /api/undo', false, err.message);
+    if (!res.headersSent) res.status(500).json({ error: err.message });
+  });
+});
+
+// POST /api/sync-things3 — pull Things 3 completed-today and mark matching
+// briefing items as done. Returns the list of items that were updated.
+app.post('/api/sync-things3', (_req, res) => {
+  withBriefingLock(null, async () => {
+    const data = readBriefing();
+    if (!data) {
+      trackHealth('POST /api/sync-things3', false, 'No briefing');
+      return res.status(404).json({ error: 'No briefing found' });
+    }
+
+    // 1. Get completed tasks from Things 3
+    let completedRaw;
+    try {
+      completedRaw = execFileSync(
+        join(THINGS3_DIR, 'completed-today.sh'), [],
+        { timeout: 15000, encoding: 'utf-8' }
+      );
+    } catch (err) {
+      trackHealth('POST /api/sync-things3', false, err.message);
+      return res.status(502).json({ error: 'Failed to read Things 3: ' + err.message });
+    }
+
+    const completedNames = completedRaw
+      .split('\n')
+      .filter(Boolean)
+      .map(line => {
+        // Format: "project | task name" — extract task name
+        const parts = line.split('|');
+        return (parts.length > 1 ? parts.slice(1).join('|') : parts[0]).trim().toLowerCase();
+      })
+      .filter(Boolean);
+
+    if (!completedNames.length) {
+      trackHealth('POST /api/sync-things3', true, 'No completions found');
+      return res.json({ ok: true, synced: [], message: 'No completed tasks in Things 3 today' });
+    }
+
+    // 2. Match against open briefing items
+    const synced = [];
+    for (const section of ['carryOver', 'inbox', 'tasks']) {
+      for (const item of (data[section] || [])) {
+        if (item.status !== 'open') continue;
+        const text = (item.text || '').toLowerCase().trim();
+        if (!text) continue;
+        // Match if Things 3 name starts with briefing text or vice versa
+        const matched = completedNames.some(cn =>
+          cn === text || cn.startsWith(text) || text.startsWith(cn)
+          || cn.includes(text) || text.includes(cn)
+        );
+        if (matched) {
+          item.status = 'done';
+          item.updatedAt = now();
+          item.source = 'things3-sync';
+          synced.push({ id: item.id, text: item.text, section });
+        }
+      }
+    }
+
+    if (synced.length > 0) {
+      data.lastUpdated = now();
+      data.updateCount = (data.updateCount || 0) + synced.length;
+      writeBriefing(data);
+    }
+
+    trackHealth('POST /api/sync-things3', true, `Synced ${synced.length} items`);
+    res.json({ ok: true, synced, count: synced.length });
+  }).catch(err => {
+    trackHealth('POST /api/sync-things3', false, err.message);
     if (!res.headersSent) res.status(500).json({ error: err.message });
   });
 });
