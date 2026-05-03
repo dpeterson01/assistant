@@ -12,7 +12,7 @@
       "script": "scripts/morning-briefing.sh",
       "plist": "com.atlas.morning-briefing",
       "enabled": true,
-      "last_run": "2026-05-01T14:57:31Z",
+      "last_run": "2026-05-03T15:16:12Z",
       "last_status": "success"
     },
     {

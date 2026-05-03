@@ -45,15 +45,182 @@ from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
 
+# ---- config ------------------------------------------------------------------
+
+
+def _parse_simple_yaml(text: str) -> dict:
+    """Parse a minimal YAML subset (scalars, flat dicts, lists of flat dicts).
+
+    Handles only the structure used by config.yaml. NOT a general YAML parser.
+    """
+    result: dict = {}
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.split("#")[0].rstrip() if "#" in line and not (line.strip().startswith('"') or line.strip().startswith("'")) else line.rstrip()
+        # More careful comment stripping: only strip # outside quotes
+        raw = lines[i].rstrip()
+        if not raw or raw.lstrip().startswith("#"):
+            i += 1
+            continue
+        # Top-level key (no leading whitespace)
+        if raw[0] not in (" ", "\t", "-"):
+            colon_idx = raw.find(":")
+            if colon_idx == -1:
+                i += 1
+                continue
+            key = raw[:colon_idx].strip()
+            rest = raw[colon_idx + 1 :].strip()
+            # Strip inline comments (outside quotes)
+            rest = _strip_comment(rest)
+            if rest:
+                result[key] = _unquote(rest)
+                i += 1
+                continue
+            # Peek ahead to determine if list or dict
+            j = i + 1
+            while j < len(lines) and (not lines[j].strip() or lines[j].strip().startswith("#")):
+                j += 1
+            if j < len(lines) and lines[j].lstrip().startswith("- "):
+                # List of dicts
+                items: list[dict] = []
+                while j < len(lines):
+                    ln = lines[j]
+                    if not ln.strip() or ln.strip().startswith("#"):
+                        j += 1
+                        continue
+                    if ln[0] not in (" ", "\t", "-") and not ln.startswith("  "):
+                        break
+                    if ln.lstrip().startswith("- "):
+                        item: dict = {}
+                        entry = ln.lstrip()[2:]
+                        ck, cv = _split_kv(entry)
+                        if ck:
+                            item[ck] = _unquote(_strip_comment(cv))
+                        j += 1
+                        # Continuation lines for this list item
+                        while j < len(lines):
+                            cl = lines[j]
+                            if not cl.strip() or cl.strip().startswith("#"):
+                                j += 1
+                                continue
+                            indent = len(cl) - len(cl.lstrip())
+                            if indent < 4 and not cl.lstrip().startswith("- "):
+                                break
+                            if cl.lstrip().startswith("- "):
+                                break
+                            ck2, cv2 = _split_kv(cl.strip())
+                            if ck2:
+                                item[ck2] = _unquote(_strip_comment(cv2))
+                            j += 1
+                        items.append(item)
+                    else:
+                        j += 1
+                result[key] = items
+                i = j
+                continue
+            else:
+                # Nested dict
+                sub: dict = {}
+                while j < len(lines):
+                    ln = lines[j]
+                    if not ln.strip() or ln.strip().startswith("#"):
+                        j += 1
+                        continue
+                    if ln[0] not in (" ", "\t"):
+                        break
+                    indent = len(ln) - len(ln.lstrip())
+                    sk, sv = _split_kv(ln.strip())
+                    if sk and sv:
+                        sub[sk] = _unquote(_strip_comment(sv))
+                    elif sk and not sv:
+                        # Sub-sub dict (e.g., workflows.ado)
+                        inner: dict = {}
+                        j += 1
+                        while j < len(lines):
+                            il = lines[j]
+                            if not il.strip() or il.strip().startswith("#"):
+                                j += 1
+                                continue
+                            ii = len(il) - len(il.lstrip())
+                            if ii <= indent:
+                                break
+                            ik, iv = _split_kv(il.strip())
+                            if ik:
+                                inner[ik] = _unquote(_strip_comment(iv))
+                            j += 1
+                        sub[sk] = inner
+                        continue
+                    j += 1
+                result[key] = sub
+                i = j
+                continue
+        i += 1
+    return result
+
+
+def _split_kv(s: str) -> tuple[str, str]:
+    idx = s.find(":")
+    if idx == -1:
+        return ("", "")
+    return s[:idx].strip(), s[idx + 1 :].strip()
+
+
+def _unquote(s: str) -> str:
+    if len(s) >= 2 and s[0] == s[-1] and s[0] in ('"', "'"):
+        return s[1:-1]
+    return s
+
+
+def _strip_comment(s: str) -> str:
+    """Strip trailing # comments, respecting quoted strings."""
+    if not s:
+        return s
+    in_quote = None
+    for i, ch in enumerate(s):
+        if ch in ('"', "'") and in_quote is None:
+            in_quote = ch
+        elif ch == in_quote:
+            in_quote = None
+        elif ch == "#" and in_quote is None:
+            return s[:i].rstrip()
+    return s
+
+
+def _load_config() -> dict:
+    """Load config.yaml from data/ or data-templates/. Returns {} on failure."""
+    for candidate in (_DATA_DIR / "config.yaml", ASSISTANT_ROOT / "data-templates" / "config.yaml"):
+        if candidate.is_file():
+            try:
+                return _parse_simple_yaml(candidate.read_text())
+            except Exception:
+                return {}
+    return {}
+
+
+def _derive_categories(cfg: dict) -> tuple[tuple[str, ...], dict[str, str]]:
+    """Derive CATEGORIES tuple and CATEGORY_AREA_MAP from config."""
+    cats_list = cfg.get("categories", [])
+    if not cats_list or not isinstance(cats_list, list):
+        return (("work", "personal"), {"work": "Work", "personal": "Personal"})
+    ids = tuple(c["id"] for c in cats_list if "id" in c)
+    area_map = {c["id"]: c.get("label", c["id"].title()) for c in cats_list if "id" in c}
+    return ids, area_map
+
+
+def _derive_channel_tags(cfg: dict) -> dict[str, str]:
+    """Derive CHANNEL_TAG_MAP from config."""
+    return cfg.get("channel_tags", {})
+
+
 # ---- constants ---------------------------------------------------------------
 
 DIRECTIONS = ("mine", "theirs")
 COMMIT_STATUSES = ("active", "completed", "cancelled")
-CATEGORIES = ("work", "personal", "church", "hmbl")
 INTERACTION_DIRECTIONS = ("inbound", "outbound")
 INTERACTION_TYPES = ("email", "teams", "meeting", "imessage", "phone", "nudge")
 BRIEF_STATUSES = ("pending", "sent", "skipped", "failed", "refreshed")
-CATEGORY_AREA_MAP = {"work": "Work", "personal": "Personal", "church": "Church", "hmbl": "HMBL"}
 
 # ---- paths -------------------------------------------------------------------
 
@@ -70,6 +237,12 @@ THINGS3_DB = Path.home() / "Library" / "Group Containers" / \
 THINGS3_ADD = ASSISTANT_ROOT / "things3" / "add.sh"
 THINGS3_COMPLETE = ASSISTANT_ROOT / "things3" / "complete.sh"
 
+# ---- config-derived constants ------------------------------------------------
+
+_CONFIG = _load_config()
+CATEGORIES, CATEGORY_AREA_MAP = _derive_categories(_CONFIG)
+CHANNEL_TAG_MAP_CFG = _derive_channel_tags(_CONFIG)
+
 # ---- schema ------------------------------------------------------------------
 
 SCHEMA_VERSION = 1
@@ -85,7 +258,7 @@ CREATE TABLE IF NOT EXISTS commitments (
     things3_uuid  TEXT UNIQUE,
     title         TEXT NOT NULL,
     direction     TEXT NOT NULL CHECK(direction IN ('mine', 'theirs')),
-    category      TEXT CHECK(category IN ('work', 'personal', 'church', 'hmbl')),
+    category      TEXT,
     person        TEXT,
     source        TEXT,
     channel       TEXT,
@@ -106,7 +279,7 @@ CREATE TABLE IF NOT EXISTS meetings (
     end_time             TEXT,
     attendees            TEXT,
     external_count       INTEGER DEFAULT 0,
-    category             TEXT CHECK(category IN ('work', 'personal', 'church', 'hmbl')),
+    category             TEXT,
     brief_status         TEXT,
     brief_file           TEXT,
     recap_status         TEXT,
@@ -129,7 +302,7 @@ CREATE TABLE IF NOT EXISTS interactions (
     direction TEXT CHECK(direction IN ('inbound', 'outbound')),
     summary   TEXT,
     source_id TEXT,
-    category  TEXT CHECK(category IN ('work', 'personal', 'church', 'hmbl')),
+    category  TEXT,
     timestamp TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
@@ -763,13 +936,12 @@ def cmd_interaction_list(args) -> int:
 
 # ---- sync things 3 ----------------------------------------------------------
 
-# Channel values that map to Things 3 tags
-CHANNEL_TAG_MAP = {
+# Channel-to-tag map: prefer config, fall back to defaults
+CHANNEL_TAG_MAP = CHANNEL_TAG_MAP_CFG or {
     "email": "MS-Email",
     "outlook-work": "MS-Email",
     "outlook-personal": "Personal-Email",
     "gmail": "Personal-Email",
-    "hmbl": "HMBL-Email",
     "teams": "Teams",
     "meeting": "Teams",
 }
@@ -1406,7 +1578,7 @@ def main() -> int:
     s.add_argument("--title", required=True)
     s.add_argument("--direction", required=True, choices=["mine", "theirs"])
     s.add_argument("--person")
-    s.add_argument("--category", choices=["work", "personal", "church", "hmbl"])
+    s.add_argument("--category", choices=list(CATEGORIES))
     s.add_argument("--source")
     s.add_argument("--channel")
     s.add_argument("--due")
@@ -1428,7 +1600,7 @@ def main() -> int:
     s.add_argument("--direction", choices=["mine", "theirs"])
     s.add_argument("--status", choices=["active", "completed", "cancelled"])
     s.add_argument("--person")
-    s.add_argument("--category", choices=["work", "personal", "church", "hmbl"])
+    s.add_argument("--category", choices=list(CATEGORIES))
 
     s = csub.add_parser("overdue", help="List overdue commitments")
 
@@ -1451,7 +1623,7 @@ def main() -> int:
     s.add_argument("--end")
     s.add_argument("--attendees")
     s.add_argument("--external", type=int, default=0)
-    s.add_argument("--category", choices=["work", "personal", "church", "hmbl"])
+    s.add_argument("--category", choices=list(CATEGORIES))
 
     s = msub.add_parser("mark", help="Update brief status")
     s.add_argument("--event-id", dest="event_id", required=True)
@@ -1491,7 +1663,7 @@ def main() -> int:
     s.add_argument("--direction", choices=["inbound", "outbound"])
     s.add_argument("--summary")
     s.add_argument("--source-id", dest="source_id")
-    s.add_argument("--category", choices=["work", "personal", "church", "hmbl"])
+    s.add_argument("--category", choices=list(CATEGORIES))
     s.add_argument("--timestamp")
 
     s = isub.add_parser("last", help="Last interaction with a person")
@@ -1500,7 +1672,7 @@ def main() -> int:
     s = isub.add_parser("list", help="List interactions")
     s.add_argument("--person")
     s.add_argument("--type", dest="type")
-    s.add_argument("--category", choices=["work", "personal", "church", "hmbl"])
+    s.add_argument("--category", choices=list(CATEGORIES))
     s.add_argument("--days", type=int)
     s.add_argument("--limit", type=int)
 

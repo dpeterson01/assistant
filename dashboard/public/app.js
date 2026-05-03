@@ -4,6 +4,18 @@ let healthData = null;
 let automationHealth = null;
 let showLowPriority = false;
 let activeFilter = 'all';
+let siteConfig = null; // loaded from /api/config
+
+// --- Config loader ---
+async function loadSiteConfig() {
+  try {
+    const res = await fetch(`${API}/api/config`);
+    if (res.ok) {
+      siteConfig = await res.json();
+      setSiteConfig(siteConfig);
+    }
+  } catch { /* use fallbacks */ }
+}
 
 // --- Job run handler ---
 async function runJob(script) {
@@ -46,6 +58,7 @@ async function loadHealth() {
 }
 
 async function load() {
+  await loadSiteConfig();
   await loadHealth();
   const res = await fetch(`${API}/api/briefing`);
   if (!res.ok) {
@@ -152,6 +165,7 @@ import {
   formatDate, shortDate, shortTime, shortDateTime,
   parseMeetingTime, formatMeetingTime,
   searchTermForItem,
+  setSiteConfig,
 } from './helpers.js';
 
 function openWindow(url) { window.open(url, '_blank', 'noopener,width=1200,height=800'); }
@@ -171,8 +185,8 @@ function getCategories() {
   for (const item of briefing?.accountability?.waitingOn || []) {
     if (item.category) cats.add(item.category);
   }
-  // Stable order: work, personal, church, hmbl, then any extras
-  const order = ['work', 'personal', 'church', 'hmbl'];
+  // Stable order: from config, then any extras alphabetically
+  const order = siteConfig?.categories?.map(c => c.id) || ['work', 'personal'];
   return [...order.filter(c => cats.has(c)), ...[...cats].filter(c => !order.includes(c)).sort()];
 }
 
@@ -205,20 +219,20 @@ function getSourceUrl(item) {
   if (!item) return null;
   const ch = item.channel, eid = item.emailId;
   if (item.teamsDeepLink) return item.teamsDeepLink;
-  if (ch === 'teams' && item.threadId) return `https://teams.microsoft.com/l/message/${encodeURIComponent(item.threadId)}`;
-  if (ch === 'outlook-work' && eid) return `https://outlook.office365.com/mail/deeplink/read/${encodeURIComponent(eid)}`;
-  if (ch === 'outlook-personal' && eid) return `https://outlook.live.com/mail/deeplink/read/${encodeURIComponent(eid)}`;
-  if (ch === 'gmail' && eid) return `https://mail.google.com/mail/u/0/#inbox/${encodeURIComponent(eid)}`;
-  if (ch === 'hmbl' && eid) return `https://outlook.office365.com/mail/deeplink/read/${encodeURIComponent(eid)}`;
+
+  // Look up channel config for deep links
+  const chCfg = siteConfig?.channels?.find(c => c.id === ch);
+  if (chCfg) {
+    if (chCfg.deep_link && eid) return chCfg.deep_link.replace('{emailId}', encodeURIComponent(eid));
+    if (chCfg.deep_link && item.threadId) return chCfg.deep_link.replace('{threadId}', encodeURIComponent(item.threadId));
+  }
 
   // Fallback: no deep link but source is known — generate a search URL
   if (ch) {
     const q = encodeURIComponent(searchTermForItem(item));
-    if (ch === 'teams') return `https://teams.microsoft.com/_#/search?q=${q}`;
-    if (ch === 'gmail') return `https://mail.google.com/mail/u/0/#search/${q}`;
-    if (ch === 'outlook-work' || ch === 'outlook-personal' || ch === 'hmbl' || ch === 'email') {
-      return `https://outlook.office365.com/mail/0/search?q=${q}`;
-    }
+    if (chCfg?.search_link) return chCfg.search_link.replace('{query}', q);
+    // Generic fallback for unknown channels
+    return null;
   }
   return null;
 }
@@ -656,9 +670,8 @@ function renderCommitments(acc) {
       if (match.channel) {
         const mch = match.channel.toLowerCase();
         const searchTerm = encodeURIComponent(item.person || item.text || item.item || '');
-        if (mch === 'teams') return { url: `https://teams.microsoft.com/_#/search?q=${searchTerm}`, label: 'Teams' };
-        if (mch === 'gmail') return { url: `https://mail.google.com/mail/u/0/#search/${searchTerm}`, label: 'Gmail' };
-        if (mch.startsWith('outlook') || mch === 'email') return { url: `https://outlook.office365.com/mail/0/search?q=${searchTerm}`, label: 'Outlook' };
+        const matchCfg = siteConfig?.channels?.find(c => c.id === mch);
+        if (matchCfg?.search_link) return { url: matchCfg.search_link.replace('{query}', searchTerm), label: matchCfg.label || mch };
       }
     }
 
@@ -666,24 +679,24 @@ function renderCommitments(acc) {
     const ch = (item.channel || '').toLowerCase();
     const personEnc = encodeURIComponent(item.person || '');
     const searchTerm = personEnc || encodeURIComponent(item.text || item.item || '');
-    if (ch === 'teams') {
-      return { url: `https://teams.microsoft.com/_#/search?q=${searchTerm}`, label: 'Teams' };
-    }
-    if (ch === 'gmail') {
-      return { url: `https://mail.google.com/mail/u/0/#search/${searchTerm}`, label: 'Gmail' };
-    }
-    if (ch === 'hmbl' || ch.startsWith('outlook') || ch === 'email') {
-      return { url: `https://outlook.office365.com/mail/0/search?q=${searchTerm}`, label: 'Outlook' };
+    const chCfg = siteConfig?.channels?.find(c => c.id === ch);
+    if (chCfg?.search_link) {
+      return { url: chCfg.search_link.replace('{query}', searchTerm), label: chCfg.label || ch };
     }
 
     // Last resort: infer from text content
     const blob = (item.text || '') + ' ' + (item.detail || '');
     const lower = blob.toLowerCase();
-    if (lower.includes('teams')) {
-      return { url: `https://teams.microsoft.com/_#/search?q=${searchTerm}`, label: 'Teams' };
+    // Try to find any configured channel matching a keyword in the text
+    for (const cfgCh of (siteConfig?.channels || [])) {
+      if (cfgCh.search_link && lower.includes(cfgCh.id)) {
+        return { url: cfgCh.search_link.replace('{query}', searchTerm), label: cfgCh.label || cfgCh.id };
+      }
     }
     if (person) {
-      return { url: `https://outlook.office365.com/mail/0/search?q=${personEnc}`, label: 'Outlook' };
+      // Default search fallback for first configured channel
+      const fallbackCh = siteConfig?.channels?.find(c => c.search_link);
+      if (fallbackCh) return { url: fallbackCh.search_link.replace('{query}', personEnc), label: fallbackCh.label || 'Search' };
     }
     return null;
   }
@@ -1248,19 +1261,14 @@ function openDraftModal(itemId) {
   document.getElementById('dm-btn-regen').disabled = true;
   document.getElementById('dm-status').textContent = '';
 
-  // Update save button label based on source
+  // Update save button label based on source (config-driven)
   const saveBtn = document.getElementById('dm-btn-save');
-  const saveLabelMap = {
-    'outlook-work': 'Save Draft & Open Outlook',
-    'outlook-personal': 'Save Draft & Open Outlook',
-    email: 'Save Draft & Open Outlook',
-    gmail: 'Save Draft & Open Gmail',
-    hmbl: 'Save Draft & Open HMBL',
-    teams: 'Copy to Clipboard',
-  };
+  const chLabel = siteConfig?.channels?.find(c => c.id === ch)?.label || ch;
+  const saveLabelText = ch === 'teams' ? 'Copy to Clipboard'
+    : chLabel ? `Save Draft & Open ${chLabel}` : 'Save Draft';
   saveBtn.innerHTML = `
     <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-    ${saveLabelMap[ch] || 'Save Draft'}`;
+    ${saveLabelText}`;
 
   // Show modal
   document.getElementById('draft-modal-overlay').classList.remove('hidden');
@@ -1424,16 +1432,19 @@ async function saveDraftAndOpen() {
     if (!data.ok) throw new Error(data.error || 'Save failed');
     status.innerHTML = '<span class="text-ios-green">Draft saved! Opening mail client...</span>';
 
-    // Open the mail client to the drafts folder
-    const draftUrls = {
-      'outlook-work': 'https://outlook.office365.com/mail/drafts',
-      'outlook-personal': 'https://outlook.live.com/mail/drafts',
-      email: 'https://outlook.office365.com/mail/drafts',
-      gmail: 'https://mail.google.com/#drafts',
-      hmbl: 'https://outlook.office365.com/mail/drafts',
-    };
-    const url = draftUrls[ch] || draftUrls.email;
-    setTimeout(() => openWindow(url), 500);
+    // Open the mail client to the drafts folder (config-driven)
+    // Build draft URLs from config deep_link patterns, falling back to search_link host
+    let draftUrl = null;
+    const chCfg = siteConfig?.channels?.find(c => c.id === ch);
+    if (chCfg?.deep_link) {
+      try {
+        const u = new URL(chCfg.deep_link.replace(/{[^}]+}/g, ''));
+        draftUrl = `${u.origin}/mail/drafts`;
+        if (u.hostname.includes('mail.google')) draftUrl = 'https://mail.google.com/#drafts';
+      } catch { /* fall through */ }
+    }
+    if (!draftUrl) draftUrl = 'https://outlook.office365.com/mail/drafts';
+    setTimeout(() => openWindow(draftUrl), 500);
   } catch (e) {
     status.innerHTML = `<span class="text-ios-red">Save failed: ${escapeHtml(e.message)}</span>`;
     saveBtn.disabled = false;

@@ -2,27 +2,49 @@
 // Imported by app.js and exercised by tests/helpers.test.js so the test suite
 // can run under plain Node with no browser shim.
 
-export const sourceMap = {
-  'outlook-work': 'Outlook',
-  'outlook-personal': 'Outlook (personal)',
-  gmail: 'Gmail',
-  hmbl: 'HMBL',
+// Default source maps — extended at runtime by setSiteConfig() when config loads.
+const _sourceMapDefaults = {
   teams: 'Teams',
   task: 'Things 3',
   github: 'GitHub',
 };
+let _sourceMapExtended = { ..._sourceMapDefaults };
+
+export const sourceMap = _sourceMapDefaults;
+
+// Called by app.js after fetching /api/config. Extends source labels and category maps.
+export function setSiteConfig(cfg) {
+  if (cfg?.channels) {
+    for (const ch of cfg.channels) {
+      if (ch.id && ch.label) _sourceMapExtended[ch.id] = ch.label;
+    }
+    Object.assign(sourceMap, _sourceMapExtended);
+  }
+  if (cfg?.categories) {
+    for (const cat of cfg.categories) {
+      if (cat.id && cat.label) _categoryLabels[cat.id] = cat.label;
+    }
+  }
+}
 
 export const sourceLabel = ch => sourceMap[ch] || ch || '';
 
-export const sourceTint = ch => ({
-  'outlook-work': 'bg-ios-blue/15 text-ios-blue',
-  'outlook-personal': 'bg-ios-indigo/15 text-ios-indigo',
-  gmail: 'bg-ios-red/15 text-ios-red',
-  hmbl: 'bg-ios-teal/15 text-ios-teal',
+// Color tints cycle through a palette for unknown channels.
+const _tintPalette = [
+  'bg-ios-blue/15 text-ios-blue',
+  'bg-ios-indigo/15 text-ios-indigo',
+  'bg-ios-red/15 text-ios-red',
+  'bg-ios-teal/15 text-ios-teal',
+  'bg-ios-orange/15 text-ios-orange',
+];
+const _sourceTintOverrides = {
   teams: 'bg-ios-indigo/15 text-ios-indigo',
   task: 'bg-ios-orange/15 text-ios-orange',
   github: 'bg-white/10 text-zinc-300',
-}[ch] || 'bg-white/10 text-zinc-300');
+};
+export const sourceTint = ch => _sourceTintOverrides[ch] || _tintPalette[
+  ([...ch || ''].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0) >>> 0) % _tintPalette.length
+] || 'bg-white/10 text-zinc-300';
 
 export const priorityTint = p => ({
   high: 'bg-ios-red/15 text-ios-red ring-ios-red/20',
@@ -34,16 +56,20 @@ export const priorityTint = p => ({
 // signal isn't carried by color alone.
 export const priorityGlyph = p => ({ high: '●', medium: '◐', low: '○' }[p] || '');
 
-export const categoryTint = cat => ({
-  work: 'bg-ios-blue/15 text-ios-blue border-ios-blue/30',
-  personal: 'bg-ios-green/15 text-ios-green border-ios-green/30',
-  church: 'bg-ios-indigo/15 text-ios-indigo border-ios-indigo/30',
-  hmbl: 'bg-ios-teal/15 text-ios-teal border-ios-teal/30',
-}[cat] || 'bg-white/10 text-zinc-300 border-white/15');
+const _catTintPalette = [
+  'bg-ios-blue/15 text-ios-blue border-ios-blue/30',
+  'bg-ios-green/15 text-ios-green border-ios-green/30',
+  'bg-ios-indigo/15 text-ios-indigo border-ios-indigo/30',
+  'bg-ios-teal/15 text-ios-teal border-ios-teal/30',
+  'bg-ios-orange/15 text-ios-orange border-ios-orange/30',
+  'bg-ios-red/15 text-ios-red border-ios-red/30',
+];
+export const categoryTint = cat => _catTintPalette[
+  ([...cat || ''].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0) >>> 0) % _catTintPalette.length
+] || 'bg-white/10 text-zinc-300 border-white/15';
 
-export const categoryLabel = cat => ({
-  work: 'Work', personal: 'Personal', church: 'Church', hmbl: 'HMBL',
-}[cat] || (cat ? cat.charAt(0).toUpperCase() + cat.slice(1) : ''));
+const _categoryLabels = {};
+export const categoryLabel = cat => _categoryLabels[cat] || (cat ? cat.charAt(0).toUpperCase() + cat.slice(1) : '');
 
 export const dayFitPalette = lvl => ({
   red: { bg: 'bg-ios-red/10', border: 'border-ios-red/20', text: 'text-ios-red', glow: 'shadow-ios-red/10' },

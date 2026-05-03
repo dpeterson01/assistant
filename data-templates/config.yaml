@@ -1,0 +1,118 @@
+# Atlas Assistant Configuration
+# Copy this file to data/config.yaml and customize for your setup.
+# The assistant reads this at startup to know your life contexts,
+# email accounts, and channel routing.
+
+# --- Life Contexts (Categories) ---
+# Each category becomes a filter pill on the dashboard and a Things 3 Area.
+# Order here controls display order on the dashboard.
+categories:
+  - id: work               # internal key used in DB, JSON, and prompts
+    label: Work             # display name (dashboard pills, Things 3 Area)
+    emoji: "💼"             # optional prefix for briefing items
+  - id: personal
+    label: Personal
+    emoji: "🏠"
+  # Add more contexts as needed:
+  # - id: side-project
+  #   label: Side Project
+  #   emoji: "🚀"
+  # - id: community
+  #   label: Community
+  #   emoji: "🏛️"
+
+# --- Email Channels ---
+# Each channel maps to an MCP tool prefix and a deep-link URL pattern.
+# The assistant uses these to send/search email and generate clickable links.
+#
+# MCP tool prefixes (common options):
+#   mailtools   — Microsoft Graph (Exchange/Outlook work accounts)
+#   outlook     — Outlook.com personal accounts (outlook MCP)
+#   hmbl-mail   — additional Outlook-type account (hmbl-mail MCP)
+#   gmail       — Gmail accounts (gmail MCP)
+channels:
+  - id: outlook-work
+    label: Work Email
+    category: work          # which life context this channel belongs to
+    mcp_prefix: mailtools   # MCP tool prefix for send/search/read
+    deep_link: "https://outlook.office365.com/mail/deeplink/read/{emailId}"
+    search_link: "https://outlook.office365.com/mail/0/search?q={query}"
+    placeholder: "[work-email]"   # used in prompts instead of real address
+
+  - id: outlook-personal
+    label: Personal Email
+    category: personal
+    mcp_prefix: outlook
+    deep_link: "https://outlook.live.com/mail/deeplink/read/{emailId}"
+    search_link: "https://outlook.office365.com/mail/0/search?q={query}"
+    placeholder: "[personal-email]"
+
+  # Uncomment and customize additional channels:
+  # - id: gmail
+  #   label: Gmail
+  #   category: personal
+  #   mcp_prefix: gmail
+  #   deep_link: "https://mail.google.com/mail/u/0/#inbox/{emailId}"
+  #   search_link: "https://mail.google.com/mail/u/0/#search/{query}"
+  #   placeholder: "[gmail]"
+
+  # - id: side-biz
+  #   label: Side Business Email
+  #   category: side-project
+  #   mcp_prefix: hmbl-mail
+  #   deep_link: "https://outlook.office365.com/mail/deeplink/read/{emailId}"
+  #   search_link: "https://outlook.office365.com/mail/0/search?q={query}"
+  #   placeholder: "[side-biz-email]"
+
+  - id: teams
+    label: Teams
+    category: work
+    mcp_prefix: teamsserver
+    deep_link: "https://teams.microsoft.com/l/message/{threadId}"
+    search_link: "https://teams.microsoft.com/_#/search?q={query}"
+
+  - id: imessage
+    label: iMessage
+    category: personal
+    mcp_prefix: mac-messages
+
+# --- Channel Tags ---
+# Maps channel IDs to Things 3 tag names for task routing.
+# When a task originates from a channel, it gets this tag in Things 3.
+channel_tags:
+  outlook-work: MS-Email
+  outlook-personal: Personal-Email
+  gmail: Personal-Email
+  teams: Teams
+  email: MS-Email          # generic "email" fallback
+  meeting: Teams
+
+# --- Journal Paths ---
+# Where daily journals are stored for each context.
+# Use ~ for home directory. Supports strftime format codes.
+journals:
+  work: "~/Library/CloudStorage/OneDrive-Microsoft/journals/work/%Y-%m-%d.md"
+  personal: "~/Library/Mobile Documents/com~apple~CloudDocs/personal/journals/%Y-%m-%d.md"
+  # side-project: "~/journals/side-project/%Y-%m-%d.md"
+
+# --- Employer Domain ---
+# Used to classify meeting attendees as internal vs external.
+# Set to your primary work email domain.
+employer_domain: ""    # e.g., "microsoft.com", "google.com", "example.com"
+
+# --- Contacts ---
+# Paths to contact index files. Each has a name-to-file JSON mapping.
+contacts:
+  work: "~/Library/CloudStorage/OneDrive-Microsoft/01_people/contacts/index.json"
+  # personal: "~/Library/Mobile Documents/com~apple~CloudDocs/personal/contacts/index.json"
+
+# --- Employer-Specific Workflows ---
+# These are optional workflow integrations specific to your employer.
+# Remove or replace with your own. The core assistant works without them.
+workflows:
+  # Example: ADO (Azure DevOps) integration for pod assignments
+  # ado:
+  #   organization: "your-org"
+  #   project: "your-project"
+  # Example: Performance review cycle name
+  # performance_review: "Connects"

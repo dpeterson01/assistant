@@ -15,6 +15,119 @@ const ARCHIVE_DIR = join(BRIEFINGS_DIR, 'archive');
 const ASSISTANT_DIR = join(__dirname, '..');
 const ATLAS_DB = join(DATA_DIR, 'state', 'assistant.db');
 
+// --- Config loading -----------------------------------------------------------
+// Reads config.yaml (simple subset parser) for categories and channels.
+function loadConfig() {
+  for (const candidate of [join(DATA_DIR, 'config.yaml'), join(ASSISTANT_DIR, 'data-templates', 'config.yaml')]) {
+    if (!existsSync(candidate)) continue;
+    try {
+      const text = readFileSync(candidate, 'utf8');
+      return parseSimpleYaml(text);
+    } catch { /* fall through */ }
+  }
+  return {};
+}
+
+function parseSimpleYaml(text) {
+  const result = {};
+  const lines = text.split('\n');
+  let i = 0;
+  while (i < lines.length) {
+    const raw = lines[i];
+    if (!raw.trim() || raw.trim().startsWith('#')) { i++; continue; }
+    if (raw[0] === ' ' || raw[0] === '\t') { i++; continue; }
+    const colonIdx = raw.indexOf(':');
+    if (colonIdx === -1) { i++; continue; }
+    const key = raw.slice(0, colonIdx).trim();
+    const rest = stripYamlComment(raw.slice(colonIdx + 1).trim());
+    if (rest) { result[key] = unquoteYaml(rest); i++; continue; }
+    // Peek ahead for list or dict
+    let j = i + 1;
+    while (j < lines.length && (!lines[j].trim() || lines[j].trim().startsWith('#'))) j++;
+    if (j < lines.length && lines[j].trimStart().startsWith('- ')) {
+      const items = [];
+      while (j < lines.length) {
+        if (!lines[j].trim() || lines[j].trim().startsWith('#')) { j++; continue; }
+        if (lines[j][0] !== ' ' && lines[j][0] !== '\t') break;
+        if (lines[j].trimStart().startsWith('- ')) {
+          const item = {};
+          const entry = lines[j].trimStart().slice(2);
+          const [ek, ev] = splitKV(entry);
+          if (ek) item[ek] = unquoteYaml(stripYamlComment(ev));
+          j++;
+          while (j < lines.length) {
+            if (!lines[j].trim() || lines[j].trim().startsWith('#')) { j++; continue; }
+            if (lines[j].trimStart().startsWith('- ') || (lines[j][0] !== ' ' && lines[j][0] !== '\t')) break;
+            const [ck, cv] = splitKV(lines[j].trim());
+            if (ck) item[ck] = unquoteYaml(stripYamlComment(cv));
+            j++;
+          }
+          items.push(item);
+        } else { j++; }
+      }
+      result[key] = items; i = j; continue;
+    } else {
+      const sub = {};
+      while (j < lines.length) {
+        if (!lines[j].trim() || lines[j].trim().startsWith('#')) { j++; continue; }
+        if (lines[j][0] !== ' ' && lines[j][0] !== '\t') break;
+        const indent = lines[j].length - lines[j].trimStart().length;
+        const [sk, sv] = splitKV(lines[j].trim());
+        if (sk && sv) { sub[sk] = unquoteYaml(stripYamlComment(sv)); j++; }
+        else if (sk && !sv) {
+          const inner = {};
+          j++;
+          while (j < lines.length) {
+            if (!lines[j].trim() || lines[j].trim().startsWith('#')) { j++; continue; }
+            const ii = lines[j].length - lines[j].trimStart().length;
+            if (ii <= indent) break;
+            const [ik, iv] = splitKV(lines[j].trim());
+            if (ik) inner[ik] = unquoteYaml(stripYamlComment(iv));
+            j++;
+          }
+          sub[sk] = inner; continue;
+        } else { j++; }
+      }
+      result[key] = sub; i = j; continue;
+    }
+  }
+  return result;
+}
+
+function splitKV(s) {
+  const idx = s.indexOf(':');
+  if (idx === -1) return ['', ''];
+  return [s.slice(0, idx).trim(), s.slice(idx + 1).trim()];
+}
+
+function unquoteYaml(s) {
+  if (s.length >= 2 && s[0] === s[s.length - 1] && (s[0] === '"' || s[0] === "'")) return s.slice(1, -1);
+  return s;
+}
+
+function stripYamlComment(s) {
+  if (!s) return s;
+  let inQuote = null;
+  for (let i = 0; i < s.length; i++) {
+    if ((s[i] === '"' || s[i] === "'") && !inQuote) inQuote = s[i];
+    else if (s[i] === inQuote) inQuote = null;
+    else if (s[i] === '#' && !inQuote) return s.slice(0, i).trimEnd();
+  }
+  return s;
+}
+
+const SITE_CONFIG = loadConfig();
+
+function getConfigChannels() {
+  return Array.isArray(SITE_CONFIG.channels) ? SITE_CONFIG.channels : [];
+}
+
+function getConfigCategories() {
+  return Array.isArray(SITE_CONFIG.categories) ? SITE_CONFIG.categories : [
+    { id: 'work', label: 'Work' }, { id: 'personal', label: 'Personal' },
+  ];
+}
+
 // --- Meeting artifact lookup (recap / transcript) -----------------------------
 // Reads atlas-db's meetings table to attach artifact links to each meeting in
 // the briefing response. The dashboard turns these into RECAP / TRANSCRIPT
@@ -89,16 +202,15 @@ function promptSafe(s, maxLen = 500) {
   return s.replace(/[\x00-\x1f\x7f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLen);
 }
 
-// Centralized channel → MCP mail tool map. Used by every Copilot CLI shell-out
-// so the routing rules live in one place.
-const MAIL_TOOL_BY_CHANNEL = {
-  'outlook-work': 'outlook',
-  'outlook-personal': 'outlook',
-  email: 'outlook',
-  gmail: 'gmail',
-  hmbl: 'hmbl-mail',
-};
-function mailToolFor(channel) { return MAIL_TOOL_BY_CHANNEL[channel] || 'outlook'; }
+// Centralized channel → MCP mail tool map. Built from config, with fallbacks.
+const MAIL_TOOL_BY_CHANNEL = Object.fromEntries(
+  getConfigChannels()
+    .filter(ch => ch.mcp_prefix)
+    .map(ch => [ch.id, ch.mcp_prefix])
+);
+// Ensure generic fallbacks exist
+if (!MAIL_TOOL_BY_CHANNEL.email) MAIL_TOOL_BY_CHANNEL.email = MAIL_TOOL_BY_CHANNEL['outlook-work'] || 'mailtools';
+function mailToolFor(channel) { return MAIL_TOOL_BY_CHANNEL[channel] || MAIL_TOOL_BY_CHANNEL['outlook-work'] || 'mailtools'; }
 
 // --- LLM prompt templates ---
 //
@@ -185,6 +297,14 @@ const health = {};
 function trackHealth(name, ok, detail) {
   health[name] = { ok, detail: detail || null, at: now() };
 }
+
+// GET /api/config — expose categories and channels to the frontend
+app.get('/api/config', (_req, res) => {
+  res.json({
+    categories: getConfigCategories(),
+    channels: getConfigChannels().map(ch => ({ id: ch.id, label: ch.label, category: ch.category, deep_link: ch.deep_link, search_link: ch.search_link })),
+  });
+});
 
 // GET /api/health — stoplight status for all tracked operations
 app.get('/api/health', (_req, res) => {
@@ -968,12 +1088,12 @@ function runCopilotDraft(item, { stream = false } = {}) {
       contextLine: detail ? `Context: ${detail}` : '',
     });
 
+    // Build allow-tool list from configured channel MCP prefixes
+    const mailPrefixes = [...new Set(getConfigChannels().filter(ch => ch.mcp_prefix).map(ch => ch.mcp_prefix))];
     const args = [
       '-p', prompt,
       '--allow-tool=workiq',
-      '--allow-tool=outlook',
-      '--allow-tool=gmail',
-      '--allow-tool=hmbl-mail',
+      ...mailPrefixes.map(p => `--allow-tool=${p}`),
       '--allow-tool=memory',
       '--allow-tool=shell(cat)',
       '--deny-tool=shell(rm)',

@@ -1,8 +1,8 @@
 ---
 name: morning-briefing
-description: "Start the day with a briefing across work, personal, and church contexts. Use when: good morning, start my day, what's on my plate, morning briefing, daily briefing, what do I have today, brief me."
+description: "Start the day with a briefing across all life contexts. Use when: good morning, start my day, what's on my plate, morning briefing, daily briefing, what do I have today, brief me."
 agent: "agent"
-argument-hint: "Optional: specific context to focus on (work, personal, church)"
+argument-hint: "Optional: specific context to focus on (e.g., work, personal)"
 ---
 
 # Morning Briefing
@@ -10,6 +10,13 @@ argument-hint: "Optional: specific context to focus on (work, personal, church)"
 You are the user's AI partner. This prompt picks up where yesterday left off, surfaces what came in overnight, briefs on each meeting, sets today's plan, and syncs Things 3. Move fast.
 
 Follow the shared preamble in `.instructions.md` for setup, execution rules, and gotchas.
+
+**Read config first**: Read `data/config.yaml` (relative to the assistant root). This defines:
+- **Categories**: the user's life contexts (e.g., work, personal, church). Each maps to a Things 3 Area.
+- **Channels**: email accounts and messaging platforms with MCP tool prefixes.
+- **Journals**: paths for each category's daily journal files.
+- **Contacts**: paths to contact index files.
+Use these throughout the briefing instead of hardcoded values.
 
 The briefing has two phases:
 - **Phase A (Steps 1-2-3)**: Gather, brief the user, save and open. Get the user reading ASAP.
@@ -33,41 +40,33 @@ Check if any briefings exist: `ls ~/projects/personal/assistant/data/briefings/ 
 **If no briefings exist**: Skip this section entirely. Prior context will come from journals and memory files only.
 
 ### Last weekly review (Monday mornings, or if no briefings exist from prior week)
-If today is Monday (or the most recent daily briefing is 3+ days old), also read the most recent weekly review:
-- Work: `ls -t ~/Library/CloudStorage/OneDrive-Microsoft/journals/weekly/ | head -1`
-- Personal: `ls -t ~/Library/Mobile\ Documents/com~apple~CloudDocs/personal/weekly/ | head -1`
-
-These contain the prior week's wins, team accomplishments, patterns, unfinished items, and priorities for this week. Use them to anchor today's focus.
+If today is Monday (or the most recent daily briefing is 3+ days old), also read the most recent weekly review from each journal path defined in config (check for a `weekly/` subdirectory alongside the daily journals).
 
 ### Yesterday's close-out
 Read `~/.local/share/daily-consolidation/last-session.txt` to get the last end-of-day date.
-Read that date's journals:
-- Work: `~/Library/CloudStorage/OneDrive-Microsoft/journals/work/YYYY-MM-DD.md`
-- Personal: `~/Library/Mobile Documents/com~apple~CloudDocs/personal/journals/YYYY-MM-DD.md`
+Read that date's journals from each path in config's `journals` section (substitute the date into the strftime pattern).
 
 Extract: open threads, action items, "tomorrow" suggestions, anything unresolved.
 
 If the file doesn't exist or there was no end-of-day session, read the most recent journal from each path instead.
 
 ### Today's existing data
-Read today's journals if they exist (the generate script may have already created personal journals with iMessage/email data overnight):
-- Personal: `~/Library/Mobile Documents/com~apple~CloudDocs/personal/journals/YYYY-MM-DD.md`
-- Work: `~/Library/CloudStorage/OneDrive-Microsoft/journals/work/YYYY-MM-DD.md`
+Read today's journals if they exist (the generate script may have already created journals with iMessage/email data overnight). Check each path in config's `journals` section.
 
 ### Things 3 — what's already queued
 Run both in terminal:
 - `~/.local/bin/things3/today.sh` (today's task list)
 - `~/.local/bin/things3/upcoming.sh` (next 7 days)
 
-### Church workstreams
-Church is an active life context. Check for church-related activity and include it in the briefing when relevant.
+### Additional life contexts
+For each category beyond work defined in config (e.g., personal, church, community), check for relevant activity:
 
 **Data sources** (check all, in parallel with other Step 1 sources):
-- **Things 3**: `~/.local/bin/things3/by-tag.sh church` and search for church project tasks: `~/.local/bin/things3/search.sh "church\|parish\|confirmation\|RCIA"`
-- **Priorities**: The "Church" section in `/memories/priorities.md` lists active church commitments
-- **Personal email**: Search personal Outlook ([personal-email]) for recent church-related emails. Use `mcp_hmbl-mail_outlook_search` with query "church OR parish OR confirmation OR RCIA" limited to last 7 days. Add names of church contacts from `/memories/identity.md`.
-- **iMessages**: On weekends, check for messages from church contacts listed in `/memories/identity.md`. Use `mcp_mac-messages_tool_fuzzy_search_messages` with relevant names.
-- **Personal journal**: Today's personal journal (if it exists) may contain church-related entries from the overnight generate script.
+- **Things 3**: `~/.local/bin/things3/by-tag.sh <category>` and search for tasks related to that context
+- **Priorities**: The relevant section in `/memories/priorities.md` lists active commitments
+- **Email channels**: For each channel in config mapped to this category, search recent emails using the channel's MCP prefix. Limit to last 7 days.
+- **iMessages**: Check for messages from contacts related to this context listed in `/memories/identity.md`. Use `mcp_mac-messages_tool_fuzzy_search_messages` with relevant names.
+- **Journals**: Check the category's journal path from config for existing entries.
 
 **Include in briefing when**:
 - There are open church tasks in Things 3 (always surface)
@@ -85,24 +84,29 @@ Run in terminal:
 
 Surface any birthdays happening today, tomorrow, or this week. If a birthday contact is also a meeting attendee today, flag it in their meeting briefing as both a `peopleContext` entry (type: `birthday`) AND a signal (source: `contact`) so it appears on the dashboard.
 
-### Overnight activity and today's meetings (single WorkIQ call)
-Make ONE call to `mcp_workiq_ask_work_iq`. This is the only WorkIQ call in the entire briefing. Do not make per-meeting follow-up calls.
+### Overnight activity and today's meetings
+Gather meetings, emails, and Teams activity. Start with the direct MCP tools (historically more reliable), then enrich with WorkIQ if available.
+
+#### Step A: Calendar and email (primary)
+Run these two calls in parallel:
+1. **Meetings**: `mcp_calendartools_ListCalendarView` with today's date range (start: `YYYY-MM-DDT00:00:00`, end: `YYYY-MM-DDT23:59:59`).
+2. **Overnight emails**: `mcp_mailtools_SearchMessages` with query `received:yesterday..now` (or equivalent date filter) to get recent emails. Exclude marketing, newsletters, automated notifications, mass distribution.
+
+#### Step B: WorkIQ enrichment (optional, often unavailable)
+If `mcp_workiq_ask_work_iq` is available, make ONE call to enrich with Teams activity and any details the direct tools missed:
 
 > Give me everything I need to start my day for YYYY-MM-DD.
 >
 > **Overnight activity (since 5pm yesterday):**
-> - Emails received (exclude marketing, newsletters, automated notifications, mass distribution)
 > - Teams messages and channel activity
+> - Any emails or meetings not already covered
 >
 > **Unread items from prior days:**
-> - Any unread emails from the past 5 business days (exclude marketing, newsletters, automated notifications)
 > - Any unread Teams messages from the past 3 days
 >
-> **Today's meetings:**
-> List every meeting with: title, time, duration, full attendee list with roles/titles if known, and meeting description/agenda.
->
-> Format emails as: **Subject** | From: [name] | Summary: [1 sentence]
 > Format Teams as: **Chat/Channel** | From: [name] | Summary: [1 sentence]
+
+If WorkIQ fails or is unavailable, note "⚠️ Teams activity unavailable (WorkIQ down)" and proceed. Do not block the briefing on WorkIQ.
 
 ### Build meeting briefings (from briefing archive + overnight data)
 For each meeting today, assemble a briefing by combining:
@@ -110,7 +114,7 @@ For each meeting today, assemble a briefing by combining:
 1. **Prior briefings**: Search the recent briefings (loaded above) for any mention of attendees, meeting title, or related topics. Extract prior signals, open follow-ups, and unresolved items.
 2. **Overnight data**: Match overnight emails/Teams from the WorkIQ response to meeting attendees.
 3. **Memory files** (already loaded): Cross-reference action-items.md (does the user owe an attendee?) and waiting-on-others.md (does an attendee owe the user?).
-4. **Work contacts directory**: Read `~/Library/CloudStorage/OneDrive-Microsoft/01_people/contacts/index.json` once to get the name-to-file mapping. For each attendee, look up their entry in the index (match on name, aliases, or email). Read matching contact files and extract context that matters *for this specific meeting today*:
+4. **Contacts directory**: For each contacts path in config, read the `index.json` once to get the name-to-file mapping. For each attendee, look up their entry in the index (match on name, aliases, or email). Read matching contact files and extract context that matters *for this specific meeting today*:
    - **Birthday**: If today/tomorrow/this week, always flag it (source: `contact`)
    - **Working style**: Only include traits relevant to this meeting's likely dynamics (e.g., "prefers data-driven arguments" for a decision meeting, "sensitive to PM dictating" for a cross-functional sync)
    - **History**: Last interaction date and summary. Especially important for 1:1s (how long since last sync?) and for people the user hasn't met with recently.
@@ -250,6 +254,7 @@ If any birthdays are coming up in the next 7 days, list them. Today/tomorrow bir
 ### Today's tasks
 - List each Things 3 Today item
 - Suggested priorities: rank the top 3 things to focus on today, considering meetings, carry-forward items, deadlines, and action items
+- **Overload check**: If Today has more than 30 items, flag it prominently: "⚠️ Today list has [N] items. That's too many to realistically complete. Recommend moving lower-priority items to Anytime or rescheduling to specific future dates." Then suggest 5-10 items to defer, picking items without deadlines or external commitments first.
 
 ### Upcoming (next 2-3 days)
 - Deadlines approaching
