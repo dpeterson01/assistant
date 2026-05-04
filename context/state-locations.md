@@ -2,7 +2,7 @@
 
 Complete inventory of where Atlas stores and reads persistent state. Use this to debug data flow, avoid duplicating state, and understand which component owns what.
 
-Updated: 2026-04-24
+Updated: 2026-05-05
 
 ## Source of Truth: SQLite (`assistant/data/state/assistant.db`)
 
@@ -11,7 +11,10 @@ Updated: 2026-04-24
 | `commitments` | Action items (mine + theirs). Primary task tracker. | `atlas-db.py`, `server.js`, all prompts via `$ATLAS` CLI |
 | `meetings` | Per-event state: brief status, recap status, file paths, action items | `atlas-db.py`, `meeting-brief-ledger.py`, meeting sweeps |
 | `interactions` | Relationship log: person, type, direction, summary, timestamp | `atlas-db.py`, `nudge.prompt.md`, `relationship-drift.py` |
-| `meta` | Schema version tracking | `atlas-db.py` |
+| `objectives` | Weekly top-3 objectives with scoring (status, score, week) | `atlas-db.py`, morning/EOD/weekly/focus prompts |
+| `objective_tasks` | Links objectives to commitment task_ids | `atlas-db.py`, focus prompt |
+| `daily_mits` | Daily top-3 Most Important Tasks with optional objective link | `atlas-db.py`, morning/EOD/focus prompts |
+| `meta` | Schema version tracking (current: v2) | `atlas-db.py` |
 
 WAL mode: `assistant.db-shm`, `assistant.db-wal` alongside.
 
@@ -23,6 +26,7 @@ These are **read-only derivatives** of the DB. Never edit manually.
 |---|---|---|
 | `context/action-items.md` | `commitments WHERE direction='mine'` | All prompts, `briefing-sync.sh` |
 | `context/waiting-on-others.md` | `commitments WHERE direction='theirs'` | `nudge.prompt.md`, `end-of-day.prompt.md` |
+| `context/objectives.md` | `objectives` + `daily_mits` (active week + today) | `morning-briefing.prompt.md`, `focus.prompt.md`, `end-of-day.prompt.md` |
 | `/memories/action-items.md` | Same (user memory copy) | Loaded into agent context automatically |
 
 ## JSON State Files

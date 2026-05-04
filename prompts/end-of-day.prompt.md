@@ -260,11 +260,40 @@ Present changes: "Completed X tasks, added Y new, rescheduled Z" with details.
 
 After writing journals and syncing tasks, give the user a spoken summary:
 
+**MIT scorecard**: Run `$ATLAS mit score` and present:
+> 📊 **Today's MITs**: [X/3 completed]
+> - ✅ / ❌ MIT 1
+> - ✅ / ❌ MIT 2
+> - ✅ / ❌ MIT 3
+
+Growth framing: 3/3 = "Clean sweep." 2/3 = "Solid day, one carried." 1/3 = "Tough day. Tomorrow's a fresh start." 0/3 = "The day went sideways. That happens. Reset tomorrow."
+
+**Objective progress** (brief): Which objectives did today's work advance? One line per objective touched.
+
 **What happened**: 2-3 sentence narrative of the day.
 **Wins**: Restate the 3 wins from the journal (already confirmed, don't re-ask).
 **Meeting follow-ups**: Summarize all follow-ups extracted from today's meeting recaps. Group by owner: "the user owes X items" and "Waiting on Y items from others." Call out any open questions that need answers before tomorrow's meetings.
 **Stuck**: Anything blocked or unresolved.
 **Tomorrow**: 2-3 suggested priorities based on open threads + calendar + unresolved follow-ups from today's meetings.
+
+**Friday week-close** (Friday only):
+If today is Friday, also run the week-close:
+```sh
+$ATLAS objective score
+```
+Present the weekly scorecard:
+> 🏁 **Week close**: [X/3 objectives completed]
+> - ✅ / ❌ / 🔄 Objective 1
+> - ✅ / ❌ / 🔄 Objective 2
+> - ✅ / ❌ / 🔄 Objective 3
+
+For incomplete objectives (🔄), ask: "Carry to next week or drop?" Then:
+```sh
+$ATLAS objective carry --rank N  # if carry
+$ATLAS objective complete --rank N --status dropped  # if drop
+```
+
+This primes the weekly review on Sunday with cleaner data.
 
 ## Step 6: Update tracking files
 

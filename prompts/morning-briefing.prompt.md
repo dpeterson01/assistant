@@ -251,16 +251,67 @@ For low-signal recurring meetings (standups, office hours), compress to one line
 ### Birthdays
 If any birthdays are coming up in the next 7 days, list them. Today/tomorrow birthdays get a 🎂 callout. If a birthday person is a meeting attendee or direct report, suggest acknowledging it.
 
+### Weekly objectives and daily MITs
+
+**Read current objectives:**
+```sh
+$ATLAS objective list
+```
+
+**Monday — Weekly Kickoff:**
+If today is Monday, this is the weekly kickoff. The objectives set during Sunday's weekly review are in "proposed" status. Present them:
+
+> 🎯 **Weekly Objectives (proposed)**
+> 1. [objective 1]
+> 2. [objective 2]
+> 3. [objective 3]
+>
+> Confirm, edit, or swap? Once confirmed, I'll activate them for the week.
+
+After the user confirms (or edits), promote to active:
+```sh
+$ATLAS objective set --rank 1 --title "Confirmed objective 1" --context work --status active
+$ATLAS objective set --rank 2 --title "Confirmed objective 2" --context work --status active
+$ATLAS objective set --rank 3 --title "Confirmed objective 3" --context personal --status active
+```
+
+If it's Monday after 11:00 AM and objectives are still "proposed" (user ran briefing late), auto-promote them without asking: the user already approved them during Sunday review.
+
+**Tuesday-Friday — Objectives Banner:**
+Show a compact objectives banner (already active, no confirmation needed):
+
+> 🎯 **This week's objectives**: 1) [obj1] 2) [obj2] 3) [obj3]
+
+**Daily MITs (every day including Monday):**
+After confirming objectives (Monday) or showing the banner (Tue-Fri), suggest 3 MITs: the Most Important Tasks for today. Select them by:
+1. Tasks that directly advance an active objective
+2. Overdue commitments from accountability
+3. HIGH items with deadlines today
+4. Meeting prep needed in the next 4 hours
+
+Present as:
+> **Today's MITs** (propose, then confirm):
+> 1. [MIT 1] — advances objective #1
+> 2. [MIT 2] — overdue commitment
+> 3. [MIT 3] — advances objective #2
+
+After user confirms (or edits):
+```sh
+$ATLAS mit set --rank 1 --title "MIT 1 text" --objective-id "OBJ-2026W20-1"
+$ATLAS mit set --rank 2 --title "MIT 2 text"
+$ATLAS mit set --rank 3 --title "MIT 3 text" --objective-id "OBJ-2026W20-2"
+```
+
 ### Today's tasks
 - List each Things 3 Today item
-- Suggested priorities: rank the top 3 things to focus on today, considering meetings, carry-forward items, deadlines, and action items
+- The top 3 should align with the MITs above. Other tasks are supporting work.
 - **Overload check**: If Today has more than 30 items, flag it prominently: "⚠️ Today list has [N] items. That's too many to realistically complete. Recommend moving lower-priority items to Anytime or rescheduling to specific future dates." Then suggest 5-10 items to defer, picking items without deadlines or external commitments first.
 
 ### Upcoming (next 2-3 days)
 - Deadlines approaching
 - Things 3 Upcoming items worth noting
 
-Keep the briefing under 50 lines. Lead with what matters most.
+Keep the briefing under 50 lines (excluding the objectives/MIT confirmation exchange). Lead with what matters most.
 
 ## Step 3: Save briefing JSON and open dashboard
 

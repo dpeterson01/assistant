@@ -78,6 +78,18 @@ If any data source fails, note it and continue with what you have.
 
 ## Step 2: Synthesize the week
 
+### Score prior week's objectives
+Check if objectives exist for the outgoing week:
+```sh
+$ATLAS objective score --week "$(date -v-7d +%GW%V)"
+```
+If results come back (e.g., "2/3 completed"), present a brief scorecard:
+- Which objectives were completed, dropped, or carried
+- One sentence on what made the difference (or didn't)
+- Growth framing: "That's progress" even if 1/3
+
+If no objectives existed (first week of the system), skip this section.
+
 ### Wins
 Pull the `## Wins` section from each daily work journal this week. Combine into a single list, then pick the 5-7 most impactful across all contexts. These are already confirmed by the user at end-of-day, so don't re-derive them.
 
@@ -135,13 +147,34 @@ Include in the weekly summary a compact `## System Health` section:
 
 If the user approves auto-fixes during the review, apply them immediately. Otherwise, they carry forward to next week.
 
-## Step 3: Set next week
+## Step 3: Set next week's objectives
 
-Propose 3-5 priorities for next week across contexts. Weight toward impact.
+Propose **exactly 3 objectives** for next week. These are the outcomes that, if achieved, would make the week a success. They must be:
+- **Outcome-framed**: What done looks like, not just an activity (e.g., "Ship agent skills eval doc to leadership" not "Work on agent skills")
+- **Achievable in 5 days**: Big enough to matter, small enough to finish
+- **Spread across contexts**: Ideally 2 work + 1 personal/church/HMBL, but 3 work is fine if the week demands it
+
+For each objective, specify:
+1. The outcome statement (concise, verb-led)
+2. The context (work, personal, church, HMBL)
+3. How you'll know it's done (measurable signal)
+
+Present the 3 proposed objectives to the user for confirmation. Once confirmed (or after user edits), write them:
+```sh
+$ATLAS objective set --rank 1 --title "Objective 1 text" --context work --status proposed
+$ATLAS objective set --rank 2 --title "Objective 2 text" --context work --status proposed
+$ATLAS objective set --rank 3 --title "Objective 3 text" --context personal --status proposed
+```
+
+Also carry any incomplete objectives from this week that the user wants to retry:
+```sh
+$ATLAS objective carry --from-week "$(date -v-7d +%GW%V)" --rank 1
+```
+(Only carry objectives the user explicitly approves. Don't auto-carry without asking.)
 
 ## Step 4: Update memory
 
-Update `/memories/priorities.md` with revised priorities for the coming week.
+Update `/memories/priorities.md` with revised priorities for the coming week. The 3 objectives set in Step 3 should anchor the priorities file. Also include any lower-priority items that don't rise to objective level but still need tracking.
 
 ## Step 5: Write weekly summaries
 
@@ -189,10 +222,10 @@ Work weekly format:
     | Freshness | X/5 | ↑/↓/→ |
     [Top recommendations, if any]
 
-    ## Next Week Priorities
-    1. [item]
-    2. [item]
-    3. [item]
+    ## Next Week Objectives
+    1. [objective 1 — with measurable done signal]
+    2. [objective 2 — with measurable done signal]
+    3. [objective 3 — with measurable done signal]
 
 Personal/Church/HMBL weekly format:
 
@@ -207,8 +240,8 @@ Personal/Church/HMBL weekly format:
     ## Unfinished
     - [items]
 
-    ## Next Week Priorities
-    1. [item]
+    ## Next Week Objectives
+    1. [objective if applicable]
 
 After writing all summaries, open the work weekly in Typora:
 ```sh

@@ -330,6 +330,9 @@ function render() {
     <!-- Day Fit hero (mobile only on small, full on all) -->
     ${safe('day fit', () => renderDayFitHero(d.dayFit))}
 
+    <!-- Objectives & MITs banner -->
+    ${safe('objectives', () => renderObjectivesBanner(d.weeklyObjectives, d.dailyMITs))}
+
     <!-- Category filter -->
     ${safe('filter bar', () => renderFilterBar())}
 
@@ -416,6 +419,54 @@ function renderDayFitHero(df) {
     ${df.recoveryMoves?.length ? `<div class="mt-4 pt-4 border-t border-white/10 hairline text-[13px] text-zinc-300">
       <span class="text-ios-yellow font-semibold">Recovery → </span>${escapeHtml(df.recoveryMoves.join(' '))}
     </div>` : ''}
+  </section>`;
+}
+
+function renderObjectivesBanner(weeklyObjectives, dailyMITs) {
+  if (!weeklyObjectives && !dailyMITs) return '';
+
+  const objItems = weeklyObjectives?.items || [];
+  const mitItems = dailyMITs?.items || [];
+  const objScore = weeklyObjectives?.score || '0/0';
+  const mitScore = dailyMITs?.score || '0/0';
+
+  const statusIcon = (s) => s === 'completed' ? '✅' : s === 'dropped' ? '❌' : s === 'carried' ? '🔄' : '🎯';
+  const mitIcon = (s) => s === 'completed' ? '✅' : s === 'deferred' ? '⏭️' : '⬜';
+
+  const objRows = objItems.map(o =>
+    `<div class="flex items-center gap-2 py-1">
+      <span class="text-sm">${statusIcon(o.status)}</span>
+      <span class="text-[12px] text-zinc-300 flex-1">${escapeHtml(o.title)}</span>
+      <span class="text-[10px] px-1.5 py-0.5 rounded bg-white/5 text-zinc-500">${escapeHtml(o.context)}</span>
+    </div>`
+  ).join('');
+
+  const mitRows = mitItems.map(m =>
+    `<div class="flex items-center gap-2 py-1">
+      <span class="text-sm">${mitIcon(m.status)}</span>
+      <span class="text-[12px] text-zinc-300 flex-1">${escapeHtml(m.title)}</span>
+      ${m.objectiveId ? `<span class="text-[10px] text-ios-blue/70">#${m.objectiveId.split('-').pop()}</span>` : ''}
+    </div>`
+  ).join('');
+
+  return `
+  <section class="mb-6 rounded-2xl bg-gradient-to-br from-ios-indigo/5 to-ios-blue/5 border border-ios-indigo/20 hairline p-5 animate-fade-in">
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-[11px] font-semibold uppercase tracking-wider text-ios-indigo">Weekly Objectives</span>
+          <span class="text-[11px] text-zinc-500 tabular-nums">${escapeHtml(objScore)}</span>
+        </div>
+        ${objRows || '<div class="text-[11px] text-zinc-600 italic">No objectives set this week</div>'}
+      </div>
+      <div>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-[11px] font-semibold uppercase tracking-wider text-ios-blue">Today's MITs</span>
+          <span class="text-[11px] text-zinc-500 tabular-nums">${escapeHtml(mitScore)}</span>
+        </div>
+        ${mitRows || '<div class="text-[11px] text-zinc-600 italic">No MITs set today</div>'}
+      </div>
+    </div>
   </section>`;
 }
 

@@ -2,7 +2,7 @@
 """
 atlas-db: Unified data store for the personal assistant system.
 
-Source of truth for commitments, meetings, and interactions.
+Source of truth for commitments, meetings, interactions, objectives, and MITs.
 Things 3 is a push target for mobile access.
 Markdown files are generated views rendered on every write.
 
@@ -40,7 +40,7 @@ import re
 import sqlite3
 import subprocess
 import sys
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 from contextlib import contextmanager
 from pathlib import Path
 from textwrap import dedent
@@ -231,6 +231,7 @@ _CONTEXT_DIR = Path(os.environ.get("ATLAS_CONTEXT_DIR", "")) if os.environ.get("
 ACTION_ITEMS_PATH = _CONTEXT_DIR / "action-items.md"
 WAITING_ON_PATH = _CONTEXT_DIR / "waiting-on-others.md"
 LEDGER_PATH = _DATA_DIR / "state" / "meeting-briefs.json"
+OBJECTIVES_PATH = _CONTEXT_DIR / "objectives.md"
 THINGS3_DB = Path.home() / "Library" / "Group Containers" / \
     "JLMPQHK86H.com.culturedcode.ThingsMac" / "ThingsData-BX8ZL" / \
     "Things Database.thingsdatabase" / "main.sqlite"
@@ -242,10 +243,12 @@ THINGS3_COMPLETE = ASSISTANT_ROOT / "things3" / "complete.sh"
 _CONFIG = _load_config()
 CATEGORIES, CATEGORY_AREA_MAP = _derive_categories(_CONFIG)
 CHANNEL_TAG_MAP_CFG = _derive_channel_tags(_CONFIG)
+OBJECTIVE_STATUSES = ("proposed", "active", "completed", "dropped", "carried")
+MIT_STATUSES = ("active", "completed", "deferred")
 
 # ---- schema ------------------------------------------------------------------
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 SCHEMA_SQL = """\
 CREATE TABLE IF NOT EXISTS meta (
@@ -306,6 +309,35 @@ CREATE TABLE IF NOT EXISTS interactions (
     timestamp TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
+CREATE TABLE IF NOT EXISTS objectives (
+    id            TEXT PRIMARY KEY,
+    week          TEXT NOT NULL,
+    rank          INTEGER NOT NULL CHECK(rank BETWEEN 1 AND 3),
+    title         TEXT NOT NULL,
+    outcome       TEXT,
+    category      TEXT,
+    status        TEXT DEFAULT 'proposed' CHECK(status IN ('proposed', 'active', 'completed', 'dropped', 'carried')),
+    created_at    TEXT DEFAULT (datetime('now', 'localtime')),
+    completed_at  TEXT
+);
+
+CREATE TABLE IF NOT EXISTS objective_tasks (
+    objective_id  TEXT NOT NULL,
+    task_id       TEXT NOT NULL,
+    PRIMARY KEY (objective_id, task_id)
+);
+
+CREATE TABLE IF NOT EXISTS daily_mits (
+    id            TEXT PRIMARY KEY,
+    date          TEXT NOT NULL,
+    rank          INTEGER NOT NULL CHECK(rank BETWEEN 1 AND 3),
+    objective_id  TEXT,
+    task_id       TEXT,
+    title         TEXT NOT NULL,
+    status        TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed', 'deferred')),
+    completed_at  TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_commitments_direction ON commitments(direction);
 CREATE INDEX IF NOT EXISTS idx_commitments_status    ON commitments(status);
 CREATE INDEX IF NOT EXISTS idx_commitments_person    ON commitments(person);
@@ -314,6 +346,9 @@ CREATE INDEX IF NOT EXISTS idx_commitments_due       ON commitments(due_date);
 CREATE INDEX IF NOT EXISTS idx_meetings_date         ON meetings(date);
 CREATE INDEX IF NOT EXISTS idx_interactions_person    ON interactions(person);
 CREATE INDEX IF NOT EXISTS idx_interactions_timestamp ON interactions(timestamp);
+CREATE INDEX IF NOT EXISTS idx_objectives_week       ON objectives(week);
+CREATE INDEX IF NOT EXISTS idx_objectives_status     ON objectives(status);
+CREATE INDEX IF NOT EXISTS idx_daily_mits_date       ON daily_mits(date);
 """
 
 # ---- db helpers --------------------------------------------------------------
@@ -342,27 +377,85 @@ def open_db(readonly: bool = False):
 
 
 def ensure_schema(conn: sqlite3.Connection) -> None:
-    conn.executescript(SCHEMA_SQL)
-    row = conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
-    current = int(row["value"]) if row else 0
+    # Detect if connection is read-only by attempting a no-op write
+    try:
+        conn.execute("CREATE TABLE IF NOT EXISTS _ping_test (x INTEGER)")
+        conn.execute("DROP TABLE IF EXISTS _ping_test")
+        writable = True
+    except sqlite3.OperationalError:
+        writable = False
 
-    if current < SCHEMA_VERSION:
-        _run_migrations(conn, current)
+    if writable:
+        conn.executescript(SCHEMA_SQL)
+        row = conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
+        current = int(row["value"]) if row else 0
 
-    if not row:
-        conn.execute("INSERT INTO meta (key, value) VALUES ('schema_version', ?)",
-                      (str(SCHEMA_VERSION),))
-    elif current < SCHEMA_VERSION:
-        conn.execute("UPDATE meta SET value=? WHERE key='schema_version'",
-                      (str(SCHEMA_VERSION),))
-    conn.commit()
+        if current < SCHEMA_VERSION:
+            _run_migrations(conn, current)
+
+        if not row:
+            conn.execute("INSERT INTO meta (key, value) VALUES ('schema_version', ?)",
+                          (str(SCHEMA_VERSION),))
+        elif current < SCHEMA_VERSION:
+            conn.execute("UPDATE meta SET value=? WHERE key='schema_version'",
+                          (str(SCHEMA_VERSION),))
+        conn.commit()
+    else:
+        # Read-only: just check version for compatibility warning
+        try:
+            row = conn.execute("SELECT value FROM meta WHERE key='schema_version'").fetchone()
+            current = int(row["value"]) if row else 0
+            if current < SCHEMA_VERSION:
+                sys.stderr.write(
+                    f"warning: DB schema v{current} < v{SCHEMA_VERSION}; "
+                    f"run a write command to auto-migrate\n")
+        except sqlite3.OperationalError:
+            pass
 
 
 # Migration registry: version -> callable(conn)
 # Each migration brings the DB from version N-1 to N.
 # Add new migrations here as the schema evolves.
+
+
+def _migrate_v2(conn: sqlite3.Connection) -> None:
+    """Add objectives, objective_tasks, and daily_mits tables."""
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS objectives (
+            id            TEXT PRIMARY KEY,
+            week          TEXT NOT NULL,
+            rank          INTEGER NOT NULL CHECK(rank BETWEEN 1 AND 3),
+            title         TEXT NOT NULL,
+            outcome       TEXT,
+            category      TEXT,
+            status        TEXT DEFAULT 'proposed' CHECK(status IN ('proposed', 'active', 'completed', 'dropped', 'carried')),
+            created_at    TEXT DEFAULT (datetime('now', 'localtime')),
+            completed_at  TEXT
+        );
+        CREATE TABLE IF NOT EXISTS objective_tasks (
+            objective_id  TEXT NOT NULL,
+            task_id       TEXT NOT NULL,
+            PRIMARY KEY (objective_id, task_id)
+        );
+        CREATE TABLE IF NOT EXISTS daily_mits (
+            id            TEXT PRIMARY KEY,
+            date          TEXT NOT NULL,
+            rank          INTEGER NOT NULL CHECK(rank BETWEEN 1 AND 3),
+            objective_id  TEXT,
+            task_id       TEXT,
+            title         TEXT NOT NULL,
+            status        TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed', 'deferred')),
+            completed_at  TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_objectives_week   ON objectives(week);
+        CREATE INDEX IF NOT EXISTS idx_objectives_status  ON objectives(status);
+        CREATE INDEX IF NOT EXISTS idx_daily_mits_date    ON daily_mits(date);
+    """)
+
+
 MIGRATIONS: dict[int, callable] = {
     # 1: initial schema (handled by SCHEMA_SQL CREATE IF NOT EXISTS)
+    2: _migrate_v2,
 }
 
 
@@ -480,9 +573,68 @@ def render_waiting_on(conn: sqlite3.Connection) -> None:
     WAITING_ON_PATH.write_text("\n".join(lines) + "\n")
 
 
+def render_objectives(conn: sqlite3.Connection) -> None:
+    """Generate objectives.md with current week objectives and today's MITs."""
+    week = _iso_week()
+    today = _today_str()
+
+    # Gracefully handle pre-migration DB (tables may not exist yet)
+    try:
+        objs = conn.execute(
+            "SELECT * FROM objectives WHERE week=? AND status IN ('active','proposed') ORDER BY rank",
+            (week,)).fetchall()
+    except sqlite3.OperationalError:
+        objs = []
+    try:
+        mits = conn.execute(
+            "SELECT * FROM daily_mits WHERE date=? ORDER BY rank", (today,)).fetchall()
+    except sqlite3.OperationalError:
+        mits = []
+
+    lines = [
+        "# Weekly Objectives & Daily MITs\n",
+        f"Week: {week} | Today: {today}\n",
+    ]
+
+    lines.append("## Weekly Objectives (Top 3)\n")
+    if objs:
+        for r in objs:
+            marker = "x" if r["status"] == "completed" else " "
+            status_tag = f" [{r['status']}]" if r["status"] != "active" else ""
+            lines.append(f"- [{marker}] **#{r['rank']}** {r['title']}{status_tag}")
+            if r["outcome"]:
+                lines.append(f"  Outcome: {r['outcome']}")
+            if r["category"]:
+                lines.append(f"  Category: {r['category']}")
+            # Show linked tasks
+            tasks = conn.execute("""
+                SELECT c.task_id, c.title, c.status FROM objective_tasks ot
+                JOIN commitments c ON ot.task_id = c.task_id
+                WHERE ot.objective_id = ?
+            """, (r["id"],)).fetchall()
+            for t in tasks:
+                t_marker = "x" if t["status"] == "completed" else " "
+                lines.append(f"  - [{t_marker}] {t['title']} ({t['task_id']})")
+    else:
+        lines.append("_No objectives set for this week._")
+
+    lines.append("\n## Today's MITs (Top 3)\n")
+    if mits:
+        for r in mits:
+            marker = "x" if r["status"] == "completed" else " "
+            obj_tag = f" -> {r['objective_id']}" if r["objective_id"] else ""
+            lines.append(f"- [{marker}] **#{r['rank']}** {r['title']}{obj_tag}")
+    else:
+        lines.append("_No MITs set for today._")
+
+    OBJECTIVES_PATH.parent.mkdir(parents=True, exist_ok=True)
+    OBJECTIVES_PATH.write_text("\n".join(lines) + "\n")
+
+
 def do_render(conn: sqlite3.Connection) -> None:
     render_action_items(conn)
     render_waiting_on(conn)
+    render_objectives(conn)
 
 
 # ---- commitment subcommands -------------------------------------------------
@@ -934,6 +1086,235 @@ def cmd_interaction_list(args) -> int:
     return 0
 
 
+# ---- helpers for week/date IDs -----------------------------------------------
+
+def _iso_week(date_str: str | None = None) -> str:
+    """Return ISO week string like '2026W19'. Uses today if no date given."""
+    d = datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else date.today()
+    return f"{d.isocalendar()[0]}W{d.isocalendar()[1]:02d}"
+
+
+def _today_str() -> str:
+    return date.today().isoformat()
+
+
+# ---- objective subcommands ---------------------------------------------------
+
+def cmd_objective_set(args) -> int:
+    """Set a weekly objective (rank 1-3)."""
+    week = args.week or _iso_week()
+    obj_id = f"OBJ-{week}-{args.rank}"
+    status = args.status or "proposed"
+    if status not in OBJECTIVE_STATUSES:
+        sys.stderr.write(f"invalid status: {status} (choose from {OBJECTIVE_STATUSES})\n")
+        return 1
+    with open_db() as conn:
+        ensure_schema(conn)
+        conn.execute("""
+            INSERT INTO objectives (id, week, rank, title, outcome, category, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                title=excluded.title,
+                outcome=excluded.outcome,
+                category=excluded.category,
+                status=excluded.status
+        """, (obj_id, week, args.rank, args.title, args.outcome, args.category, status))
+        conn.commit()
+        if not args.no_render:
+            do_render(conn)
+    print(json.dumps({"id": obj_id, "week": week, "rank": args.rank,
+                       "title": args.title, "status": status}))
+    return 0
+
+
+def cmd_objective_list(args) -> int:
+    """List objectives for a given week (default: current)."""
+    week = args.week or _iso_week()
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+        try:
+            sql = "SELECT * FROM objectives WHERE week=?"
+            params: list = [week]
+            if args.status:
+                sql += " AND status=?"
+                params.append(args.status)
+            sql += " ORDER BY rank"
+            rows = conn.execute(sql, params).fetchall()
+        except sqlite3.OperationalError:
+            rows = []
+        print(json.dumps([dict(r) for r in rows], indent=2))
+    return 0
+
+
+def cmd_objective_link(args) -> int:
+    """Link a task (commitment) to an objective."""
+    with open_db() as conn:
+        ensure_schema(conn)
+        obj = conn.execute("SELECT id FROM objectives WHERE id=?", (args.objective_id,)).fetchone()
+        if not obj:
+            sys.stderr.write(f"objective not found: {args.objective_id}\n")
+            return 1
+        task = conn.execute("SELECT task_id FROM commitments WHERE task_id=?", (args.task_id,)).fetchone()
+        if not task:
+            sys.stderr.write(f"task not found: {args.task_id}\n")
+            return 1
+        conn.execute("""
+            INSERT OR IGNORE INTO objective_tasks (objective_id, task_id) VALUES (?, ?)
+        """, (args.objective_id, args.task_id))
+        conn.commit()
+    print(json.dumps({"linked": args.objective_id, "task": args.task_id}))
+    return 0
+
+
+def cmd_objective_complete(args) -> int:
+    """Mark an objective as completed."""
+    with open_db() as conn:
+        ensure_schema(conn)
+        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+        cur = conn.execute(
+            "UPDATE objectives SET status='completed', completed_at=? WHERE id=? AND status IN ('active','proposed')",
+            (now, args.id))
+        conn.commit()
+        if cur.rowcount == 0:
+            sys.stderr.write(f"objective not found or already completed/dropped: {args.id}\n")
+            return 1
+        if not args.no_render:
+            do_render(conn)
+    print(json.dumps({"completed": args.id}))
+    return 0
+
+
+def cmd_objective_score(args) -> int:
+    """Score a week's objectives. Returns summary with completion count."""
+    week = args.week or _iso_week()
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+        rows = conn.execute(
+            "SELECT * FROM objectives WHERE week=? ORDER BY rank", (week,)).fetchall()
+        if not rows:
+            print(json.dumps({"week": week, "score": "0/0", "objectives": []}))
+            return 0
+        completed = sum(1 for r in rows if r["status"] == "completed")
+        total = len(rows)
+        result = {
+            "week": week,
+            "score": f"{completed}/{total}",
+            "objectives": [dict(r) for r in rows],
+        }
+        print(json.dumps(result, indent=2))
+    return 0
+
+
+def cmd_objective_carry(args) -> int:
+    """Carry incomplete objectives from prior week to current week."""
+    prior_week = args.from_week or _iso_week(
+        (date.today() - timedelta(days=7)).isoformat())
+    new_week = args.to_week or _iso_week()
+    with open_db() as conn:
+        ensure_schema(conn)
+        rows = conn.execute(
+            "SELECT * FROM objectives WHERE week=? AND status='active' ORDER BY rank",
+            (prior_week,)).fetchall()
+        carried = []
+        for i, row in enumerate(rows, 1):
+            if i > 3:
+                break
+            new_id = f"OBJ-{new_week}-{i}"
+            conn.execute(
+                "UPDATE objectives SET status='carried' WHERE id=?", (row["id"],))
+            conn.execute("""
+                INSERT INTO objectives (id, week, rank, title, outcome, category, status)
+                VALUES (?, ?, ?, ?, ?, ?, 'proposed')
+                ON CONFLICT(id) DO UPDATE SET title=excluded.title, outcome=excluded.outcome,
+                    category=excluded.category, status='proposed'
+            """, (new_id, new_week, i, row["title"], row["outcome"], row["category"]))
+            carried.append({"old_id": row["id"], "new_id": new_id, "title": row["title"]})
+        conn.commit()
+        if not args.no_render:
+            do_render(conn)
+    print(json.dumps({"carried": carried}, indent=2))
+    return 0
+
+
+# ---- MIT subcommands ---------------------------------------------------------
+
+def cmd_mit_set(args) -> int:
+    """Set a daily MIT (rank 1-3)."""
+    d = args.date or _today_str()
+    mit_id = f"MIT-{d}-{args.rank}"
+    with open_db() as conn:
+        ensure_schema(conn)
+        conn.execute("""
+            INSERT INTO daily_mits (id, date, rank, objective_id, task_id, title)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                objective_id=excluded.objective_id,
+                task_id=excluded.task_id,
+                title=excluded.title,
+                status='active',
+                completed_at=NULL
+        """, (mit_id, d, args.rank, args.objective_id, args.task_id, args.title))
+        conn.commit()
+        if not args.no_render:
+            do_render(conn)
+    print(json.dumps({"id": mit_id, "date": d, "rank": args.rank,
+                       "title": args.title}))
+    return 0
+
+
+def cmd_mit_list(args) -> int:
+    """List MITs for a given date (default: today)."""
+    d = args.date or _today_str()
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+        try:
+            rows = conn.execute(
+                "SELECT * FROM daily_mits WHERE date=? ORDER BY rank", (d,)).fetchall()
+        except sqlite3.OperationalError:
+            rows = []
+        print(json.dumps([dict(r) for r in rows], indent=2))
+    return 0
+
+
+def cmd_mit_complete(args) -> int:
+    """Mark a MIT as completed."""
+    with open_db() as conn:
+        ensure_schema(conn)
+        now = datetime.now().strftime("%Y-%m-%d %H:%M")
+        cur = conn.execute(
+            "UPDATE daily_mits SET status='completed', completed_at=? WHERE id=? AND status='active'",
+            (now, args.id))
+        conn.commit()
+        if cur.rowcount == 0:
+            sys.stderr.write(f"MIT not found or already completed: {args.id}\n")
+            return 1
+        if not args.no_render:
+            do_render(conn)
+    print(json.dumps({"completed": args.id}))
+    return 0
+
+
+def cmd_mit_score(args) -> int:
+    """Score a day's MITs. Returns summary with completion count."""
+    d = args.date or _today_str()
+    with open_db(readonly=True) as conn:
+        ensure_schema(conn)
+        rows = conn.execute(
+            "SELECT * FROM daily_mits WHERE date=? ORDER BY rank", (d,)).fetchall()
+        if not rows:
+            print(json.dumps({"date": d, "score": "0/0", "mits": []}))
+            return 0
+        completed = sum(1 for r in rows if r["status"] == "completed")
+        total = len(rows)
+        result = {
+            "date": d,
+            "score": f"{completed}/{total}",
+            "mits": [dict(r) for r in rows],
+        }
+        print(json.dumps(result, indent=2))
+    return 0
+
+
 # ---- sync things 3 ----------------------------------------------------------
 
 # Channel-to-tag map: prefer config, fall back to defaults
@@ -1192,10 +1573,10 @@ def cmd_sync_things3(args) -> int:
 # ---- render command ----------------------------------------------------------
 
 def cmd_render(args) -> int:
-    with open_db(readonly=True) as conn:
+    with open_db() as conn:
         ensure_schema(conn)
         do_render(conn)
-        print("rendered: action-items.md, waiting-on-others.md")
+        print("rendered: action-items.md, waiting-on-others.md, objectives.md")
     return 0
 
 
@@ -1434,6 +1815,9 @@ def cmd_dump(args) -> int:
             "commitments": [dict(r) for r in conn.execute("SELECT * FROM commitments ORDER BY created_at").fetchall()],
             "meetings": [dict(r) for r in conn.execute("SELECT * FROM meetings ORDER BY date DESC").fetchall()],
             "interactions": [dict(r) for r in conn.execute("SELECT * FROM interactions ORDER BY timestamp DESC").fetchall()],
+            "objectives": [dict(r) for r in conn.execute("SELECT * FROM objectives ORDER BY week DESC, rank").fetchall()],
+            "objective_tasks": [dict(r) for r in conn.execute("SELECT * FROM objective_tasks").fetchall()],
+            "daily_mits": [dict(r) for r in conn.execute("SELECT * FROM daily_mits ORDER BY date DESC, rank").fetchall()],
         }
         print(json.dumps(data, indent=2))
     return 0
@@ -1676,6 +2060,66 @@ def main() -> int:
     s.add_argument("--days", type=int)
     s.add_argument("--limit", type=int)
 
+    # objective
+    obj_parser = sub.add_parser("objective", help="Manage weekly objectives")
+    osub = obj_parser.add_subparsers(dest="cmd", required=True)
+
+    s = osub.add_parser("set", help="Set a weekly objective (rank 1-3)")
+    s.add_argument("--title", required=True)
+    s.add_argument("--rank", type=int, required=True, choices=[1, 2, 3])
+    s.add_argument("--outcome", help="Measurable success criteria")
+    s.add_argument("--category", choices=list(CATEGORIES))
+    s.add_argument("--week", help="ISO week like 2026W19 (default: current)")
+    s.add_argument("--status", choices=list(OBJECTIVE_STATUSES),
+                   help="Initial status (default: proposed)")
+    add_render_flag(s)
+
+    s = osub.add_parser("list", help="List objectives for a week")
+    s.add_argument("--week", help="ISO week (default: current)")
+    s.add_argument("--status", choices=list(OBJECTIVE_STATUSES))
+
+    s = osub.add_parser("link", help="Link a task to an objective")
+    s.add_argument("--objective-id", dest="objective_id", required=True)
+    s.add_argument("--task-id", dest="task_id", required=True)
+
+    s = osub.add_parser("complete", help="Mark an objective as completed")
+    s.add_argument("--id", required=True)
+    add_render_flag(s)
+
+    s = osub.add_parser("score", help="Score a week's objectives")
+    s.add_argument("--week", help="ISO week (default: current)")
+
+    s = osub.add_parser("carry", help="Carry incomplete objectives to next week")
+    s.add_argument("--from-week", dest="from_week",
+                   help="Source week (default: prior week)")
+    s.add_argument("--to-week", dest="to_week",
+                   help="Target week (default: current week)")
+    add_render_flag(s)
+
+    # mit
+    mit_parser = sub.add_parser("mit", help="Manage daily MITs")
+    mitsub = mit_parser.add_subparsers(dest="cmd", required=True)
+
+    s = mitsub.add_parser("set", help="Set a daily MIT (rank 1-3)")
+    s.add_argument("--title", required=True)
+    s.add_argument("--rank", type=int, required=True, choices=[1, 2, 3])
+    s.add_argument("--objective-id", dest="objective_id",
+                   help="Link to a weekly objective")
+    s.add_argument("--task-id", dest="task_id",
+                   help="Link to a commitment/task")
+    s.add_argument("--date", help="Date YYYY-MM-DD (default: today)")
+    add_render_flag(s)
+
+    s = mitsub.add_parser("list", help="List MITs for a date")
+    s.add_argument("--date", help="Date YYYY-MM-DD (default: today)")
+
+    s = mitsub.add_parser("complete", help="Mark a MIT as completed")
+    s.add_argument("--id", required=True)
+    add_render_flag(s)
+
+    s = mitsub.add_parser("score", help="Score a day's MITs")
+    s.add_argument("--date", help="Date YYYY-MM-DD (default: today)")
+
     # sync-things3
     s = sub.add_parser("sync-things3", help="Two-way sync: pull completions + import new tasks from Things 3")
     s.add_argument("--dry-run", action="store_true", help="Preview what would be synced without making changes")
@@ -1720,6 +2164,16 @@ def main() -> int:
         ("interaction", "log"): lambda: cmd_interaction_log(args),
         ("interaction", "last"): lambda: cmd_interaction_last(args),
         ("interaction", "list"): lambda: cmd_interaction_list(args),
+        ("objective", "set"): lambda: cmd_objective_set(args),
+        ("objective", "list"): lambda: cmd_objective_list(args),
+        ("objective", "link"): lambda: cmd_objective_link(args),
+        ("objective", "complete"): lambda: cmd_objective_complete(args),
+        ("objective", "score"): lambda: cmd_objective_score(args),
+        ("objective", "carry"): lambda: cmd_objective_carry(args),
+        ("mit", "set"): lambda: cmd_mit_set(args),
+        ("mit", "list"): lambda: cmd_mit_list(args),
+        ("mit", "complete"): lambda: cmd_mit_complete(args),
+        ("mit", "score"): lambda: cmd_mit_score(args),
         ("sync-things3", None): lambda: cmd_sync_things3(args),
         ("render", None): lambda: cmd_render(args),
         ("import-markdown", None): lambda: cmd_import_markdown(args),

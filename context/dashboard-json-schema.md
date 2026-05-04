@@ -11,6 +11,8 @@ Schema for `YYYY-MM-DD_daily_brief.json`. Referenced by `/morning-briefing` Step
   "lastUpdated": "ISO-8601 timestamp (same as generatedAt initially)",
   "updateCount": 0,
   "checkpointId": "AI-YYYYMMDD-HHMMSS",
+  "weeklyObjectives": { ... },
+  "dailyMITs": { ... },
   "dayFit": { ... },
   "carryOver": [<items>],
   "inbox": [<items, all priority levels>],
@@ -179,3 +181,97 @@ Populate from Things 3 Today items:
 - `accountability.waitingOn` must only include items from `$ATLAS commit list --direction theirs --status active`. Never include completed items. Preserve the `channel` field from atlas-db output (e.g. "email", "Teams") so the dashboard can deep-link to the correct platform.
 - Include every triaged inbox item regardless of priority. Dashboard collapses low-priority behind a toggle.
 - JSON is source of truth for dashboard. .md is human-readable for Typora.
+
+## Weekly Objectives
+
+Top-level field `weeklyObjectives`. Populated from `$ATLAS objective list`:
+
+```json
+{
+  "weeklyObjectives": {
+    "week": "2026W20",
+    "score": "1/3",
+    "items": [
+      {
+        "id": "OBJ-2026W20-1",
+        "rank": 1,
+        "title": "Ship agent skills eval doc to leadership",
+        "context": "work",
+        "status": "active",
+        "linkedTasks": 3
+      },
+      {
+        "id": "OBJ-2026W20-2",
+        "rank": 2,
+        "title": "Complete deck for team offsite",
+        "context": "work",
+        "status": "completed",
+        "linkedTasks": 2
+      },
+      {
+        "id": "OBJ-2026W20-3",
+        "rank": 3,
+        "title": "Schedule annual vet appointments",
+        "context": "personal",
+        "status": "active",
+        "linkedTasks": 1
+      }
+    ]
+  }
+}
+```
+
+Fields:
+- `week`: ISO week string (from `$ATLAS objective list`)
+- `score`: "X/3" format (from `$ATLAS objective score`)
+- `items[].id`: Objective ID
+- `items[].rank`: 1-3
+- `items[].title`: Objective outcome statement
+- `items[].context`: work/personal/church/hmbl
+- `items[].status`: proposed/active/completed/dropped/carried
+- `items[].linkedTasks`: Count of tasks linked to this objective
+
+## Daily MITs
+
+Top-level field `dailyMITs`. Populated from `$ATLAS mit list`:
+
+```json
+{
+  "dailyMITs": {
+    "date": "2026-05-05",
+    "score": "2/3",
+    "items": [
+      {
+        "id": "MIT-2026-05-05-1",
+        "rank": 1,
+        "title": "Draft eval doc executive summary",
+        "status": "completed",
+        "objectiveId": "OBJ-2026W20-1"
+      },
+      {
+        "id": "MIT-2026-05-05-2",
+        "rank": 2,
+        "title": "Reply to blocked epic thread",
+        "status": "completed",
+        "objectiveId": null
+      },
+      {
+        "id": "MIT-2026-05-05-3",
+        "rank": 3,
+        "title": "Review team offsite agenda",
+        "status": "active",
+        "objectiveId": "OBJ-2026W20-2"
+      }
+    ]
+  }
+}
+```
+
+Fields:
+- `date`: Today's date
+- `score`: "X/3" format (from `$ATLAS mit score`)
+- `items[].id`: MIT ID
+- `items[].rank`: 1-3
+- `items[].title`: MIT text
+- `items[].status`: active/completed/deferred
+- `items[].objectiveId`: Linked objective ID or null
