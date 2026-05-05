@@ -18,28 +18,18 @@ git clone <repo-url> && cd assistant
 ./setup.sh
 ```
 
-Setup creates a `data/` directory for personal data (briefings, action items, identity, database). This is **gitignored** — your personal information never reaches GitHub. You can back it up by pointing it at iCloud or another cloud-synced folder.
+The interactive setup wizard walks you through:
 
-## Personalization
+1. **Data storage** - where to keep personal data (local, iCloud, OneDrive, custom path)
+2. **Life contexts** - define your categories (e.g., Work, Personal, Church, Side Project)
+3. **Journal locations** - per-context journal storage with path templates
+4. **Data isolation** - mark contexts whose data must stay separate (e.g., employer policy)
+5. **GitHub account** - verify git/gh CLI configuration
+6. **Employer domain** - for classifying meeting attendees as internal/external
 
-After setup, edit **`data/config.yaml`** to describe your life contexts:
+Setup generates `data/config.yaml` from your answers. The `data/` directory is **gitignored** so your personal information never reaches GitHub.
 
-```yaml
-# Journal paths — where daily journals are written per context
-journals:
-  work: "~/Documents/journals/work/%Y-%m-%d.md"
-  personal: "~/Library/Mobile Documents/com~apple~CloudDocs/personal/journals/%Y-%m-%d.md"
-
-# Email channels — MCP tool prefixes and deep links
-channels:
-  - id: outlook-work
-    mcp_prefix: mailtools
-
-# Your work email domain (classifies meeting attendees)
-employer_domain: "yourcompany.com"
-```
-
-Then fill in `data/context/identity.md` with your name, role, and team.
+After setup, fine-tune `data/config.yaml` and fill in `data/context/identity.md` with your name, role, and team.
 
 ## Structure
 
@@ -90,17 +80,7 @@ $ATLAS commit search "Task title"
 $ATLAS commit complete --task-id "AI-20260421-101530"
 ```
 
-## Setup
-
-After cloning, run the setup script:
-
-```sh
-./setup.sh
-```
-
-This creates `data/`, populates templates, initializes the database, and optionally symlinks prompts into VS Code. No manual symlink commands needed.
-
-### Wake Schedule (one-time)
+## Wake Schedule (one-time)
 
 To wake the Mac before scheduled jobs fire, run once with sudo:
 
