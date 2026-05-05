@@ -194,6 +194,115 @@ class TestAtlasDB(unittest.TestCase):
         rc, out, err = run_atlas("commit", "complete", "--task-id", "AI-00000000-000000")
         self.assertNotEqual(rc, 0)
 
+    def test_objective_set_and_list(self):
+        run_atlas("init")
+        rc, out, err = run_atlas(
+            "objective", "set",
+            "--rank", "1",
+            "--title", "Ship the feature",
+            "--category", "work",
+            "--no-render"
+        )
+        self.assertEqual(rc, 0, err)
+        data = json.loads(out)
+        self.assertIn("id", data)
+        self.assertTrue(data["id"].startswith("OBJ-"))
+
+        rc, out, err = run_atlas("objective", "list")
+        self.assertEqual(rc, 0, err)
+        items = json.loads(out)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["title"], "Ship the feature")
+        self.assertEqual(items[0]["status"], "proposed")
+
+    def test_objective_set_active_and_score(self):
+        run_atlas("init")
+        run_atlas("objective", "set", "--rank", "1", "--title", "Close the loop", "--category", "work", "--no-render")
+
+        # Promote to active
+        run_atlas("objective", "set", "--rank", "1", "--title", "Close the loop", "--status", "active", "--no-render")
+        rc, out, err = run_atlas("objective", "list")
+        self.assertEqual(json.loads(out)[0]["status"], "active")
+
+        # Score it (objective score just returns current state; close via set --status completed)
+        run_atlas("objective", "set", "--rank", "1", "--title", "Close the loop",
+                  "--status", "completed", "--no-render")
+        rc, out, err = run_atlas("objective", "score")
+        self.assertEqual(rc, 0, err)
+        data = json.loads(out)
+        self.assertIn("score", data)
+        self.assertIn("/", data["score"])
+
+    def test_objective_carry(self):
+        run_atlas("init")
+        # Set an active objective for prior week
+        run_atlas("objective", "set", "--rank", "1", "--title", "Carry me forward",
+                  "--context", "work", "--status", "active", "--no-render")
+        rc, out, err = run_atlas("objective", "carry", "--no-render")
+        self.assertEqual(rc, 0, err)
+        data = json.loads(out)
+        # carry may return empty if prior week has nothing or something if it does
+        self.assertIn("carried", data)
+
+    def test_mit_set_and_list(self):
+        run_atlas("init")
+        rc, out, err = run_atlas(
+            "mit", "set",
+            "--rank", "1",
+            "--title", "Write the design doc",
+            "--no-render"
+        )
+        self.assertEqual(rc, 0, err)
+        data = json.loads(out)
+        self.assertIn("id", data)
+        self.assertTrue(data["id"].startswith("MIT-"))
+
+        rc, out, err = run_atlas("mit", "list")
+        self.assertEqual(rc, 0, err)
+        items = json.loads(out)
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0]["title"], "Write the design doc")
+        self.assertEqual(items[0]["status"], "active")
+
+    def test_mit_complete(self):
+        run_atlas("init")
+        rc, out, _ = run_atlas("mit", "set", "--rank", "1", "--title", "Do the thing", "--no-render")
+        mit_id = json.loads(out)["id"]
+
+        rc, out, err = run_atlas("mit", "complete", "--id", mit_id, "--no-render")
+        self.assertEqual(rc, 0, err)
+        self.assertIn("completed", out)
+
+        rc, out, _ = run_atlas("mit", "list")
+        items = json.loads(out)
+        self.assertEqual(items[0]["status"], "completed")
+
+    def test_mit_score(self):
+        run_atlas("init")
+        run_atlas("mit", "set", "--rank", "1", "--title", "MIT one", "--no-render")
+        run_atlas("mit", "set", "--rank", "2", "--title", "MIT two", "--no-render")
+        rc, out, _ = run_atlas("mit", "set", "--rank", "3", "--title", "MIT three", "--no-render")
+        mit_id = json.loads(out)["id"]
+        run_atlas("mit", "complete", "--id", mit_id.replace("-3", "-1"), "--no-render")
+
+        rc, out, err = run_atlas("mit", "score")
+        self.assertEqual(rc, 0, err)
+        data = json.loads(out)
+        self.assertIn("score", data)
+        self.assertIn("/", data["score"])
+
+    def test_objectives_render_generates_markdown(self):
+        run_atlas("init")
+        run_atlas("objective", "set", "--rank", "1", "--title", "Render objective test",
+                  "--category", "work", "--status", "active")
+        run_atlas("mit", "set", "--rank", "1", "--title", "Render MIT test")
+
+        obj_path = os.path.join(self.context_dir, "objectives.md")
+        self.assertTrue(os.path.exists(obj_path), "objectives.md should be generated")
+        content = Path(obj_path).read_text()
+        self.assertIn("Render objective test", content)
+        self.assertIn("Render MIT test", content)
+
 
 if __name__ == "__main__":
     unittest.main()

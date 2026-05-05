@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "description": "Atlas automation manifest. Central config for all scheduled tasks.",
+  "description": "Atlas automation manifest. Copy to manifest.json and adjust schedules. Central config for all scheduled tasks.",
   "tasks": [
     {
       "id": "morning-briefing",
@@ -12,8 +12,8 @@
       "script": "scripts/morning-briefing.sh",
       "plist": "com.atlas.morning-briefing",
       "enabled": true,
-      "last_run": "2026-05-03T15:16:12Z",
-      "last_status": "success"
+      "last_run": null,
+      "last_status": null
     },
     {
       "id": "end-of-day-reminder",
@@ -57,7 +57,7 @@
     {
       "id": "meeting-sweep",
       "name": "Rolling Meeting Brief Sweep",
-      "description": "Every 15 min during work hours: pre-brief upcoming high-stakes meetings (next 60 min) that haven't been briefed yet. Per-event ledger at assistant/data/state/meeting-briefs.json.",
+      "description": "Every 15 min during work hours: pre-brief upcoming high-stakes meetings (next 60 min) that haven't been briefed yet.",
       "type": "automated",
       "schedule": "M-F every 15 min, 7 AM - 6 PM",
       "agent": "meeting-brief",
@@ -71,7 +71,7 @@
     {
       "id": "meeting-recap-sweep",
       "name": "Rolling Meeting Recap Sweep",
-      "description": "Every 15 min during work hours: recap meetings that ended today but haven't been recapped yet. Pulls Copilot meeting summary + meeting chat. 60-min window after meeting end. Per-event ledger at assistant/data/state/meeting-briefs.json.",
+      "description": "Every 15 min during work hours: recap meetings that ended today but haven't been recapped yet.",
       "type": "automated",
       "schedule": "M-F every 15 min, 7 AM - 7 PM",
       "agent": "meeting-recap-auto",
@@ -85,14 +85,14 @@
     {
       "id": "auto-draft-inbox",
       "name": "Auto Draft Inbox",
-      "description": "Every 30 min during work hours: scan work inbox for new messages where the user can reply, score with /draft-message confidence rubric, save Tier-A drafts (>=0.80) to Outlook on the original thread. Never sends. Log: assistant/data/state/auto-drafts.log.",
+      "description": "Every 30 min during work hours: scan work inbox, score confidence, save high-confidence drafts. Never sends.",
       "type": "automated",
       "schedule": "M-F every 30 min, 8 AM - 6 PM",
       "agent": "draft-inbox",
       "script": "scripts/auto-draft-inbox.sh",
       "plist": "com.atlas.auto-draft-inbox",
       "enabled": false,
-      "enable_instructions": "1) Run `/draft-inbox --since 2h --dry-run` interactively first to confirm scoring and draft-save behavior look right. 2) Run live once: `/draft-inbox --since 2h` and verify drafts appear in Outlook on the correct threads. 3) Create launchd plist ~/Library/LaunchAgents/com.atlas.auto-draft-inbox.plist with StartInterval=1800 and KeepAlive=false. 4) launchctl load -w ~/Library/LaunchAgents/com.atlas.auto-draft-inbox.plist. 5) Set `enabled: true` here. Always conservative: threshold 0.80, never auto-sends.",
+      "enable_instructions": "1) Run `/draft-inbox --since 2h --dry-run` interactively first. 2) Run live once and verify drafts appear in the correct threads. 3) Create launchd plist with StartInterval=1800. 4) Set `enabled: true` here.",
       "last_run": null,
       "last_status": null
     }

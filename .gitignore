@@ -11,4 +11,6 @@ briefings/
 context/action-items.md
 context/priorities.md
 context/waiting-on-others.md
+context/objectives.md
+automation/manifest.json
 __pycache__/
