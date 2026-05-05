@@ -15,6 +15,23 @@ LOG_DIR="$AUTOMATION_DIR/logs"
 LOG_FILE="$LOG_DIR/end-of-day-auto-${DATE}.log"
 EOD_SENTINEL="$LOG_DIR/eod-complete-${DATE}.sentinel"
 
+# Resolve work journal directory from data/config.yaml (fallback: ~/Documents/journals/work)
+WORK_JOURNAL_DIR=$(ATLAS_DIR="$ASSISTANT_DIR" python3 -c "
+import yaml, os, sys
+from pathlib import Path
+cfg = {}
+try:
+    cfg = yaml.safe_load(open(Path(os.environ['ATLAS_DIR']) / 'data/config.yaml')) or {}
+except Exception:
+    pass
+p = cfg.get('journals', {}).get('work', '')
+if p:
+    expanded = os.path.expanduser(p)
+    print(str(Path(expanded).parent))
+else:
+    print(os.path.expanduser('~/Documents/journals/work'))
+" 2>/dev/null || echo "$HOME/Documents/journals/work")
+
 mkdir -p "$LOG_DIR"
 
 exec > >(tee -a "$LOG_FILE") 2>&1
@@ -30,7 +47,7 @@ if [[ $CURRENT_HOUR -ge 5 && $CURRENT_HOUR -lt 12 ]]; then
   YESTERDAY=$(date -v-1d +%Y-%m-%d)
   YESTERDAY_DOW=$(date -v-1d +%u)  # 1=Mon ... 7=Sun
   YESTERDAY_SENTINEL="$LOG_DIR/eod-complete-${YESTERDAY}.sentinel"
-  YESTERDAY_JOURNAL="$HOME/Library/CloudStorage/OneDrive-Microsoft/journals/work/${YESTERDAY}.md"
+  YESTERDAY_JOURNAL="$WORK_JOURNAL_DIR/${YESTERDAY}.md"
 
   # Only catch up weekdays (Mon-Fri = 1-5) that don't already have a sentinel or journal
   if [[ $YESTERDAY_DOW -le 5 && ! -f "$YESTERDAY_SENTINEL" && ! -f "$YESTERDAY_JOURNAL" ]]; then
@@ -47,7 +64,6 @@ if [[ $CURRENT_HOUR -ge 5 && $CURRENT_HOUR -lt 12 ]]; then
         --allow-tool='workiq' \
         --allow-tool='gmail' \
         --allow-tool='outlook' \
-        --allow-tool='hmbl-mail' \
         --allow-tool='memory' \
         --deny-tool='shell(rm)' \
         --deny-tool='shell(git push)'; then
@@ -90,7 +106,7 @@ if [[ -f "$EOD_SENTINEL" ]]; then
 fi
 
 # Also check if a journal was written today (covers manual runs)
-WORK_JOURNAL="$HOME/Library/CloudStorage/OneDrive-Microsoft/journals/work/${DATE}.md"
+WORK_JOURNAL="$WORK_JOURNAL_DIR/${DATE}.md"
 if [[ -f "$WORK_JOURNAL" ]]; then
   echo "Skipping: work journal already exists for today ($WORK_JOURNAL)"
   echo "Manual end-of-day was likely already run."
@@ -117,7 +133,6 @@ if perl -e 'alarm 600; exec @ARGV' -- copilot \
   --allow-tool='workiq' \
   --allow-tool='gmail' \
   --allow-tool='outlook' \
-  --allow-tool='hmbl-mail' \
   --allow-tool='memory' \
   --deny-tool='shell(rm)' \
   --deny-tool='shell(git push)'; then

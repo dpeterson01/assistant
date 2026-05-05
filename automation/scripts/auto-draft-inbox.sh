@@ -49,7 +49,6 @@ if perl -e 'alarm 600; exec @ARGV' -- copilot \
   --allow-tool='mailtools' \
   --allow-tool='outlook' \
   --allow-tool='gmail' \
-  --allow-tool='hmbl-mail' \
   --allow-tool='workiq' \
   --allow-tool='memory' \
   --deny-tool='shell(rm)' \

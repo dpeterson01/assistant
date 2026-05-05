@@ -2,7 +2,7 @@
 name: draft-inbox
 description: "Batch-draft replies for inbox messages above a confidence threshold and save them to Outlook Drafts. Use when: draft my inbox, draft replies, batch draft, draft all my emails, auto-draft inbox, draft what you can."
 agent: "agent"
-argument-hint: "Optional: --since '2h' (default 4h), --threshold 0.7 (default 0.8), --inbox work|personal|hmbl|gmail|all (default work), --dry-run"
+argument-hint: "Optional: --since '2h' (default 4h), --threshold 0.7 (default 0.8), --inbox work|personal|gmail|all (default work), --dry-run"
 ---
 
 # Draft Inbox
@@ -26,9 +26,8 @@ For each requested inbox, fetch unread messages where the user is on the To: lin
 
 - **work**: `mcp_mailtools_SearchMessagesQueryParameters` with filter `isRead eq false and receivedDateTime ge <iso>` and recipient match.
 - **personal**: same pattern via `outlook` MCP ([personal-email]).
-- **hmbl**: same via `hmbl-mail` MCP.
 - **gmail**: same via `gmail` MCP.
-- **all**: fan out to all four in parallel.
+- **all**: fan out to all in parallel. Add extra channels from `data/config.yaml → channels`.
 
 Drop any candidate that:
 - Has already been replied to by the user (check sent-items for messages with the same conversation/thread id from the user after this message)
@@ -54,7 +53,7 @@ Cache per-recipient voice corpus across the batch so you don't re-fetch for repe
 For each draftable item, run `/draft-message` Steps 3–4 to produce the draft body. Then save it as a real draft on the original thread:
 
 - **work**: `mcp_mailtools_CreateDraftMessage` with `replyToMessageId` set to the source message id. Do not call `mcp_mailtools_SendDraftMessage`.
-- **personal / gmail / hmbl**: corresponding MCP draft-create tool. Do not send.
+- **work / personal / gmail**: corresponding MCP draft-create tool. Do not send. For additional configured channels, use the `mcp_prefix` from `data/config.yaml → channels`.
 
 If `--dry-run` is true, skip the save and just report what would have been created.
 

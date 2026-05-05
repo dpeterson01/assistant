@@ -34,10 +34,7 @@ Extract from briefings:
 
 ### Read all journal entries from this week
 List and read all `.md` files from the last 7 days in each workspace journal path:
-- Work: `~/Library/CloudStorage/OneDrive-Microsoft/journals/work/`
-- Personal: `~/Library/Mobile Documents/com~apple~CloudDocs/personal/journals/`
-- Church: `~/Library/Mobile Documents/com~apple~CloudDocs/initiatives/catholic_church/journals/`
-- HMBL: `~/Library/Mobile Documents/com~apple~CloudDocs/initiatives/hmbl/journals/`
+- All contexts: read paths from `data/config.yaml` → `journals.*` map. Each value is a strftime pattern; the directory is its parent. Read all `.md` files from the last 7 days in each directory.
 Skip things3-snapshot files and placeholders.
 
 ### Team accomplishments (from weekly briefing emails)
@@ -180,17 +177,14 @@ Update `/memories/priorities.md` with revised priorities for the coming week. Th
 
 Write separate weekly summary files per workspace.
 
-### Work weekly (`~/Library/CloudStorage/OneDrive-Microsoft/journals/weekly/`)
+### Work weekly (directory: sibling `weekly/` of the `journals.work` directory in `data/config.yaml`)
 Include only work-related wins, team accomplishments table, patterns, unfinished items, and next week work priorities.
 
-### Personal weekly (`~/Library/Mobile Documents/com~apple~CloudDocs/personal/weekly/`)
+### Personal weekly (directory: sibling `weekly/` of the `journals.personal` directory in `data/config.yaml`)
 Include personal wins, patterns, unfinished items, balance check, and next week personal priorities.
 
-### Church weekly (`~/Library/Mobile Documents/com~apple~CloudDocs/initiatives/catholic_church/weekly/`, only if church activity this week)
-Include church-related wins, activity, and next week church priorities.
-
-### HMBL weekly (`~/Library/Mobile Documents/com~apple~CloudDocs/initiatives/hmbl/weekly/`, only if HMBL activity this week)
-Include HMBL business activity and next week priorities.
+### Additional context weeklies (for each extra context in `data/config.yaml` → `journals`, only if activity this week)
+Write a weekly summary at `<context-journal-dir>/../weekly/YYYY-MM-DD_weekly.md`. Include context-specific wins, activity, and next week priorities.
 
 Create the folder if it doesn't exist. Name files `YYYY-MM-DD_weekly.md` using the Monday date of the week.
 
@@ -245,12 +239,12 @@ Personal/Church/HMBL weekly format:
 
 After writing all summaries, open the work weekly in Typora:
 ```sh
-open -a Typora ~/Library/CloudStorage/OneDrive-Microsoft/journals/weekly/YYYY-MM-DD_weekly.md
+open -a Typora "<work-weekly-dir>/YYYY-MM-DD_weekly.md"  # work-weekly-dir = sibling weekly/ of journals.work dir
 ```
 
 ## Step 6: Update Connects draft
 
-Maintain a running Connects draft at `~/Library/CloudStorage/OneDrive-Microsoft/connects/current-half.md`. This file accumulates across weeks so that by Connects time, the evidence is already assembled.
+Maintain a running Connects draft at `<work-journal-parent>/connects/current-half.md` (sibling of the work journals directory, from `data/config.yaml` → `journals.work`). This file accumulates across weeks so that by Connects time, the evidence is already assembled.
 
 The draft has three major sections matching Connects evaluation dimensions:
 1. **Core Priorities** (individual delivery against agreed priorities)

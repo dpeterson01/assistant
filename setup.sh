@@ -60,30 +60,67 @@ esac
 # Create subdirectories
 mkdir -p "$DATA_DIR/briefings" "$DATA_DIR/briefings/archive" "$DATA_DIR/state" "$DATA_DIR/context"
 
-# Copy templates
+# Copy context templates
 echo ""
 echo "Populating with template files..."
 for f in "$ASSISTANT_DIR/data-templates/context/"*.md; do
   dest="$DATA_DIR/context/$(basename "$f")"
   if [[ ! -f "$dest" ]]; then
     cp "$f" "$dest"
-    echo "  Created $(basename "$f")"
+    echo "  Created context/$(basename "$f")"
   else
-    echo "  Skipped $(basename "$f") (already exists)"
+    echo "  Skipped context/$(basename "$f") (already exists)"
   fi
 done
+
+# Copy config template
+if [[ ! -f "$DATA_DIR/config.yaml" ]]; then
+  cp "$ASSISTANT_DIR/data-templates/config.yaml" "$DATA_DIR/config.yaml"
+  echo "  Created config.yaml"
+else
+  echo "  Skipped config.yaml (already exists)"
+fi
+
+# Copy manifest template
+MANIFEST_DEST="$ASSISTANT_DIR/automation/manifest.json"
+if [[ ! -f "$MANIFEST_DEST" ]] && [[ -f "$ASSISTANT_DIR/automation/manifest.example.json" ]]; then
+  cp "$ASSISTANT_DIR/automation/manifest.example.json" "$MANIFEST_DEST"
+  echo "  Created automation/manifest.json"
+fi
 
 # Initialize the database
 echo ""
 echo "Initializing database..."
-python3 "$ASSISTANT_DIR/scripts/atlas-db.py" commit list > /dev/null 2>&1 && \
-  echo "  Database ready at data/state/assistant.db" || \
-  echo "  Warning: Could not initialize database. Run atlas-db.py manually."
+if python3 "$ASSISTANT_DIR/scripts/atlas-db.py" commit list > /dev/null 2>&1; then
+  echo "  Database ready at data/state/assistant.db"
+else
+  echo "  Warning: Could not initialize database. Run 'python3 scripts/atlas-db.py commit list' to retry."
+fi
 
-# Create symlinks for VS Code prompts and Things 3 (optional)
+# Optional: VS Code prompts symlink
 echo ""
-echo "Optional symlinks:"
-echo "  ln -sf \"\$(pwd)/prompts\" ~/Library/Application\\ Support/Code/User/prompts"
-echo "  ln -sf \"\$(pwd)/things3\" ~/.local/bin/things3"
+VSCODE_PROMPTS="$HOME/Library/Application Support/Code/User/prompts"
+read -rp "Symlink prompts/ into VS Code? [y/N] " link_vscode
+if [[ "${link_vscode,,}" == "y" ]]; then
+  ln -sf "$ASSISTANT_DIR/prompts" "$VSCODE_PROMPTS"
+  echo "  Linked prompts/ -> $VSCODE_PROMPTS"
+fi
+
+# Optional: Things 3 scripts symlink
+read -rp "Symlink things3/ scripts to ~/.local/bin/things3? [y/N] " link_things
+if [[ "${link_things,,}" == "y" ]]; then
+  mkdir -p "$HOME/.local/bin"
+  ln -sf "$ASSISTANT_DIR/things3" "$HOME/.local/bin/things3"
+  echo "  Linked things3/ -> ~/.local/bin/things3"
+fi
+
 echo ""
-echo "Setup complete! Edit data/context/identity.md to personalize your assistant."
+echo "Setup complete!"
+echo ""
+echo "Next steps:"
+echo "  1. Edit data/config.yaml — set your journal paths, email channels, and employer domain."
+echo "  2. Edit data/context/identity.md — add your name, role, and team."
+echo "  3. Edit data/context/priorities.md — set your current priorities."
+echo ""
+echo "Dashboard: cd dashboard && npm install && npm start (opens on port 3141)"
+echo "Automation: see automation/README.md for scheduled job setup"

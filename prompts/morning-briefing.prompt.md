@@ -376,7 +376,7 @@ To add items for the waiting-on-others direction:
 $ATLAS commit add --title "What they owe" --direction theirs --person "Person Name" --source "meeting/2026-04-24" --due "ASAP" --channel email --category work
 ```
 
-The `--category` flag on `commit add` maps to Things 3 areas automatically (work→Work, personal→Personal, church→Church, hmbl→HMBL).
+The `--category` flag on `commit add` maps to Things 3 areas automatically based on the categories defined in `data/config.yaml`.
 
 ### Complete done tasks
 If yesterday's journals or overnight data show something was completed that's still active in the DB:

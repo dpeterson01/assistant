@@ -238,7 +238,7 @@ CREATE INDEX idx_person ON commitments(person);
 ---
 
 ### User Question 3 (Line 2222)
-> We will want to differentiate between categories too (e.g., personal, work, church, etc.).
+> We will want to differentiate between categories too (e.g., personal, work, or user-defined context categories).
 > How does the Claude Artifacts dashboard do it?
 > Now that we are thinking from a DB perspective, is there other data that we're storing which should be stored differently/optimized?
 > After meetings are over, maybe 15 minutes later, if Copilot was enabled, it will commonly have a summary, key decisions, if there was a recording, if there was a transcript, etc. I believe that workIQ would have this information. Do you look at that information?
@@ -250,7 +250,7 @@ CREATE INDEX idx_person ON commitments(person);
 
 #### 1. Categories (Personal, Work, Church, etc.)
 
-Your dashboard already handles categories implicitly through its data, but it's not a first-class dimension. The briefing JSON has `channel` (outlook-work, teams, gmail, hmbl, outlook-personal) and the Tasks have `project` (Agent Skills, Operational, People & Growth, etc.), but there's no top-level `category` field like "work", "personal", "church".
+Your dashboard already handles categories implicitly through its data, but it's not a first-class dimension. The briefing JSON has `channel` (outlook-work, teams, gmail, outlook-personal) and the Tasks have `project`, but there's no top-level `category` field like "work", "personal", or custom user-defined contexts.
 
 Things 3 handles this well with **Areas** (Work, Personal, HMBL, Church) and your `add.sh` already supports `--area`. The gap is that the dashboard and briefing JSON don't carry that dimension forward. In a SQLite table, this would be a simple `category TEXT` column with an index, queryable across everything.
 
@@ -324,7 +324,7 @@ CREATE TABLE commitments (
   task_id TEXT PRIMARY KEY,        -- AI-YYYYMMDD-HHMMSS
   things3_uuid TEXT UNIQUE,        -- from Things 3 DB
   direction TEXT NOT NULL,         -- 'mine' or 'theirs'
-  category TEXT,                   -- 'work', 'personal', 'church', 'hmbl'
+  category TEXT,                   -- 'work', 'personal', or user-defined context from config
   person TEXT,
   source TEXT,                     -- 'email', 'teams', 'meeting', 'imessage'
   channel TEXT,                    -- 'outlook-work', 'teams', etc.
@@ -344,7 +344,7 @@ CREATE TABLE meetings (
   start_time TEXT,
   end_time TEXT,
   attendees TEXT,                  -- JSON array
-  category TEXT,                   -- 'work', 'personal', 'church'
+  category TEXT,                   -- 'work', 'personal', or user-defined context
   copilot_summary TEXT,            -- from WorkIQ post-meeting
   key_decisions TEXT,              -- JSON array
   action_items TEXT,               -- JSON array (extracted by Copilot)
@@ -362,7 +362,7 @@ CREATE TABLE interactions (
   direction TEXT,                  -- 'inbound' or 'outbound'
   summary TEXT,
   source_id TEXT,                  -- email/thread ID
-  category TEXT,                   -- 'work', 'personal', 'church'
+  category TEXT,                   -- 'work', 'personal', or user-defined context
   timestamp TEXT NOT NULL
 );
 
@@ -493,7 +493,7 @@ Based on everything from Parth, Dex Horthy, Brynjolfsson, and Woods:
 | 2 | **Three SQLite tables**: `commitments` (task enrichment), `meetings` (Copilot recaps + history), `interactions` (person engagement log) | Schema designed, not yet built |
 | 3 | **Markdown files become generated views** from the DB, not the source of truth | Proposed as part of hybrid architecture |
 | 4 | **Eliminate duplication** between `context/` and `/memories/` files | Identified as most immediate pain point |
-| 5 | **Category as first-class dimension** across all data (`work`, `personal`, `church`, `hmbl`) | Proposed as column in all three tables |
+| 5 | **Category as first-class dimension** across all data (`work`, `personal`, user-defined contexts) | Proposed as column in all three tables |
 
 ### System Optimization (The "What Should We Improve" Thread)
 

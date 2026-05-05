@@ -40,7 +40,8 @@ Read each. For every briefing, note:
 ### 1b. EOD journals from this week
 Read work journals from the last 7 days:
 ```sh
-ls -t ~/Library/CloudStorage/OneDrive-Microsoft/journals/work/ | head -7
+# List recent work journals (path from data/config.yaml → journals.work)
+ls -t <work-journal-dir>/ | head -7
 ```
 Note:
 - "Wins" that came from briefing items vs. wins the user had to manually add

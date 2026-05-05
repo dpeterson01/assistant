@@ -45,14 +45,14 @@ Required on all items:
 - `detail`: 1-2 sentence context (optional, can be empty string)
 - `priority`: `"high"` | `"medium"` | `"low"`
 - `status`: `"open"` (always for newly generated items)
-- `category`: `"work"` | `"personal"` | `"church"` | `"hmbl"` — required on every item. Determines which filter pill the item appears under. Use `"work"` for anything Microsoft/job-related, `"personal"` for personal life, `"church"` for parish/faith, `"hmbl"` for HMBL business.
+- `category`: `"work"` | `"personal"` | additional context categories you define in `data/config.yaml` — required on every item. Determines which filter pill the item appears under.
 - `addedAt`: ISO-8601 timestamp
 
 ## Deep Link Fields (carryOver AND inbox)
 
 Include on items originating from email or Teams:
 - `source`: `"email"` | `"teams"` | `"imessage"` | `"priorities"` | `"journal"`
-- `channel`: `"outlook-work"` | `"outlook-personal"` | `"gmail"` | `"hmbl"` | `"teams"` | `null`
+- `channel`: `"outlook-work"` | `"outlook-personal"` | `"gmail"` | `"teams"` | channel ids from `data/config.yaml` | `null`
 - `sender`: Display name
 - `emailId`: Exchange/Gmail message ID from MCP response. `null` only if truly unavailable.
 - `threadId`: Teams chat/channel thread ID. `null` for non-Teams.
@@ -167,7 +167,7 @@ Populate from Things 3 Today items:
   "overdue": ["string items"],
   "approaching": ["string items"],
   "waitingOn": [
-    { "person": "name", "item": "short summary", "detail": "context", "channel": "email|Teams|gmail|hmbl", "stale": true, "daysOpen": 5 }
+    { "person": "name", "item": "short summary", "detail": "context", "channel": "email|Teams|gmail|outlook-work", "stale": true, "daysOpen": 5 }
   ],
   "waitingOnOthers": 12,
   "stale": 3
@@ -227,7 +227,7 @@ Fields:
 - `items[].id`: Objective ID
 - `items[].rank`: 1-3
 - `items[].title`: Objective outcome statement
-- `items[].context`: work/personal/church/hmbl
+- `items[].context`: category id (e.g. work/personal, or additional contexts from config)
 - `items[].status`: proposed/active/completed/dropped/carried
 - `items[].linkedTasks`: Count of tasks linked to this objective
 

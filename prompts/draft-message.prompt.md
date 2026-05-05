@@ -37,7 +37,7 @@ Pull 3–5 most recent items between the user and the recipient on the chosen ch
 
 **Email (Gmail)** — same pattern via the `gmail` MCP tools.
 
-**Email (HMBL)** — same pattern via the `hmbl-mail` MCP tools.
+**Email (additional accounts)** — check `data/config.yaml → channels` for any additional configured email accounts and use the corresponding `mcp_prefix` tools.
 
 **iMessage** — Use the `mac-messages` MCP server:
 - `find_contact` with the recipient's name to disambiguate handles. If multiple matches, prefer the handle most recently used.

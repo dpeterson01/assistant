@@ -2,6 +2,15 @@
 
 Personal AI assistant framework: VS Code prompts, Things 3 scripts, dashboard, automation, and commitment tracking.
 
+## Prerequisites
+
+- **macOS** (tested on Sonoma/Sequoia)
+- **Python 3.10+** — `python3 --version`
+- **Node.js 18+** — for the dashboard (`node --version`)
+- **Things 3** — task manager (Mac App Store)
+- **VS Code** with GitHub Copilot Chat extension
+- **PyYAML** — `pip3 install pyyaml --break-system-packages`
+
 ## Quick Start
 
 ```sh
@@ -9,7 +18,28 @@ git clone <repo-url> && cd assistant
 ./setup.sh
 ```
 
-The setup script creates a `data/` directory for your personal data (briefings, action items, identity, database). This directory is **gitignored** so your personal information never reaches GitHub. You can back it up by pointing it at iCloud or another cloud-synced folder.
+Setup creates a `data/` directory for personal data (briefings, action items, identity, database). This is **gitignored** — your personal information never reaches GitHub. You can back it up by pointing it at iCloud or another cloud-synced folder.
+
+## Personalization
+
+After setup, edit **`data/config.yaml`** to describe your life contexts:
+
+```yaml
+# Journal paths — where daily journals are written per context
+journals:
+  work: "~/Documents/journals/work/%Y-%m-%d.md"
+  personal: "~/Library/Mobile Documents/com~apple~CloudDocs/personal/journals/%Y-%m-%d.md"
+
+# Email channels — MCP tool prefixes and deep links
+channels:
+  - id: outlook-work
+    mcp_prefix: mailtools
+
+# Your work email domain (classifies meeting attendees)
+employer_domain: "yourcompany.com"
+```
+
+Then fill in `data/context/identity.md` with your name, role, and team.
 
 ## Structure
 
@@ -68,13 +98,7 @@ After cloning, run the setup script:
 ./setup.sh
 ```
 
-This creates the `data/` directory and populates it with template files. Then optionally create symlinks:
-
-```sh
-ln -sf "$(pwd)/prompts" ~/Library/Application\ Support/Code/User/prompts
-ln -sf "$(pwd)/things3" ~/.local/bin/things3
-ln -sf "$(pwd)/filter-scripts/filter-spam-emails.py" ~/.local/bin/filter-spam-emails.py
-```
+This creates `data/`, populates templates, initializes the database, and optionally symlinks prompts into VS Code. No manual symlink commands needed.
 
 ### Wake Schedule (one-time)
 

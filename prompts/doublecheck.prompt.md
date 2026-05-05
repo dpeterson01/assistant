@@ -58,7 +58,7 @@ For each claim that's specific enough to verify:
 
 1. **Formulate a search query** that would surface the primary source. For citations, search the exact title or identifier. For stats, search the specific number and topic. For internal/Microsoft claims, also search the user's local context: briefings, journals, action-items.md, waiting-on-others.md, repo memory.
 
-2. **Run the search.** For external claims, use `fetch_webpage` or web search. For internal claims, use `grep_search` across `~/projects/personal/`, `~/Library/CloudStorage/OneDrive-Microsoft/`, and `~/Library/Mobile Documents/com~apple~CloudDocs/personal/`. For meeting/email/Teams claims, use `mcp_workiq_ask_work_iq`.
+2. **Run the search.** For external claims, use `fetch_webpage` or web search. For internal claims, use `grep_search` across `~/projects/personal/`, work journal directories (from `data/config.yaml → journals.work`), and `~/Library/Mobile Documents/com~apple~CloudDocs/personal/`. For meeting/email/Teams claims, use `mcp_workiq_ask_work_iq`.
 
 3. **Evaluate**:
    - Found a primary or authoritative source confirming?
@@ -167,7 +167,7 @@ Then produce:
 
 **Target contains personal info about the user.** Verify against `/memories/`, journals, and identity files only. Do not search the web for personal details.
 
-**Target makes claims about specific people the user works with.** Verify against contact files (`~/Library/CloudStorage/OneDrive-Microsoft/01_people/contacts/`), action-items.md, waiting-on-others.md, recent briefings, and journal entries before going external.
+**Target makes claims about specific people the user works with.** Verify against contact files (path from `data/config.yaml → contacts.work`), action-items.md, waiting-on-others.md, recent briefings, and journal entries before going external.
 
 **Target makes claims about agent-skills-strategy or other domain context the user has notes on.** Cross-check against `/memories/agent-skills-strategy.md` and similar domain files first.
 

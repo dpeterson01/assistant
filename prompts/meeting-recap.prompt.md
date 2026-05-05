@@ -26,7 +26,7 @@ For each candidate meeting, gather:
   1. User-pasted transcript or notes
   2. Copilot meeting recap / intelligent recap (via WorkIQ: "Give me the Copilot recap and full transcript for [meeting] on [date].")
   3. Raw transcript (via WorkIQ)
-  4. the user's own notes (search `~/Library/Mobile Documents/com~apple~CloudDocs/personal/journals/`, `~/Library/CloudStorage/OneDrive-Microsoft/journals/work/`, and any meeting notes folder)
+  4. the user's own notes (search personal journals and work journals from `data/config.yaml → journals`, and any meeting notes folder)
   5. None — proceed with what's known and flag gaps as "Not captured"
 
 If you cannot resolve a single meeting, list candidates and stop.

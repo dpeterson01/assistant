@@ -50,27 +50,28 @@ These are **read-only derivatives** of the DB. Never edit manually.
 |---|---|---|---|
 | `YYYY/MM/YYYY-MM-DD_meeting-slug.md` | Structured recap: decisions, action items, attendees | `meeting-recap.prompt.md` | `end-of-day.prompt.md`, `weekly-review.prompt.md` |
 
-### Work Journals (OneDrive)
+### Work Journals
 | Path | Writer | Readers |
 |---|---|---|
-| `~/Library/CloudStorage/OneDrive-Microsoft/journals/work/YYYY-MM-DD.md` | `end-of-day.prompt.md` | `morning-briefing.prompt.md`, `weekly-review.prompt.md` |
-| `~/Library/CloudStorage/OneDrive-Microsoft/journals/weekly/` | `weekly-review.prompt.md` | `morning-briefing.prompt.md` |
+| `{config:journals.work}/YYYY-MM-DD.md` | `end-of-day.prompt.md` | `morning-briefing.prompt.md`, `weekly-review.prompt.md` |
+| `{config:journals.work}/../weekly/` | `weekly-review.prompt.md` | `morning-briefing.prompt.md` |
 
-### Personal Journals (iCloud)
-| Path | Writer | Readers |
-|---|---|---|
-| `~/Library/Mobile Documents/com~apple~CloudDocs/personal/journals/YYYY-MM-DD.md` | `end-of-day.prompt.md` | `morning-briefing.prompt.md`, `weekly-review.prompt.md` |
-| `~/Library/Mobile Documents/com~apple~CloudDocs/personal/weekly/` | `weekly-review.prompt.md` | `morning-briefing.prompt.md` |
+Paths are resolved from `data/config.yaml` → `journals.work`. Default pattern: `~/Documents/journals/work/%Y-%m-%d.md`.
 
-### Church Journals (iCloud)
+### Personal Journals
 | Path | Writer | Readers |
 |---|---|---|
-| `~/Library/Mobile Documents/com~apple~CloudDocs/initiatives/catholic_church/journals/YYYY-MM-DD.md` | `end-of-day.prompt.md` | `weekly-review.prompt.md` |
+| `{config:journals.personal}/YYYY-MM-DD.md` | `end-of-day.prompt.md` | `morning-briefing.prompt.md`, `weekly-review.prompt.md` |
+| `{config:journals.personal}/../weekly/` | `weekly-review.prompt.md` | `morning-briefing.prompt.md` |
 
-### HMBL Journals (iCloud)
+Paths resolved from `data/config.yaml` → `journals.personal`.
+
+### Additional Context Journals
 | Path | Writer | Readers |
 |---|---|---|
-| `~/Library/Mobile Documents/com~apple~CloudDocs/initiatives/hmbl/journals/YYYY-MM-DD.md` | `end-of-day.prompt.md` | `weekly-review.prompt.md` |
+| `{config:journals.<ctx>}/YYYY-MM-DD.md` | `end-of-day.prompt.md` | `weekly-review.prompt.md` |
+
+Any extra contexts (e.g., community, side-project) defined in `data/config.yaml` → `journals` follow the same pattern.
 
 ## Reference Context Files (`assistant/context/`)
 
@@ -113,8 +114,8 @@ All write-only. Naming pattern: `{script}-YYYY-MM-DD.log`
 - Things 3 SQLite (read-only): `~/Library/Group Containers/JLMPQHK86H.com.culturedcode.ThingsMac/.../main.sqlite`
 
 ### Contacts
-- Work: `~/Library/CloudStorage/OneDrive-Microsoft/01_people/contacts/index.json` + `*.md`
-- Church: `~/Library/Mobile Documents/com~apple~CloudDocs/personal/contacts/` (planned)
+- Work: `{config:contacts.work}` from `data/config.yaml` (path to `index.json` or contacts directory)
+- Additional contexts: `{config:contacts.<ctx>}` — see `data/config.yaml` → `contacts`
 
 ## In-Memory State (server.js, lost on restart)
 

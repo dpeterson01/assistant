@@ -67,7 +67,6 @@ COPILOT_CMD=(perl -e 'alarm 600; exec @ARGV' -- copilot
     --allow-tool='workiq'
     --allow-tool='gmail'
     --allow-tool='outlook'
-    --allow-tool='hmbl-mail'
     --allow-tool='memory'
     --allow-tool='mac-messages'
     --deny-tool='shell(rm)'

@@ -28,8 +28,8 @@ categories:
 # MCP tool prefixes (common options):
 #   mailtools   — Microsoft Graph (Exchange/Outlook work accounts)
 #   outlook     — Outlook.com personal accounts (outlook MCP)
-#   hmbl-mail   — additional Outlook-type account (hmbl-mail MCP)
 #   gmail       — Gmail accounts (gmail MCP)
+#   <custom>    — any additional MCP-connected email account
 channels:
   - id: outlook-work
     label: Work Email
@@ -59,7 +59,7 @@ channels:
   # - id: side-biz
   #   label: Side Business Email
   #   category: side-project
-  #   mcp_prefix: hmbl-mail
+  #   mcp_prefix: <custom-mcp>
   #   deep_link: "https://outlook.office365.com/mail/deeplink/read/{emailId}"
   #   search_link: "https://outlook.office365.com/mail/0/search?q={query}"
   #   placeholder: "[side-biz-email]"
@@ -91,9 +91,11 @@ channel_tags:
 # Where daily journals are stored for each context.
 # Use ~ for home directory. Supports strftime format codes.
 journals:
-  work: "~/Library/CloudStorage/OneDrive-Microsoft/journals/work/%Y-%m-%d.md"
+  work: "~/Documents/journals/work/%Y-%m-%d.md"
+  # Example for OneDrive: "~/Library/CloudStorage/OneDrive-{AccountName}/journals/work/%Y-%m-%d.md"
+  # Example for iCloud:   "~/Library/Mobile Documents/com~apple~CloudDocs/journals/work/%Y-%m-%d.md"
   personal: "~/Library/Mobile Documents/com~apple~CloudDocs/personal/journals/%Y-%m-%d.md"
-  # side-project: "~/journals/side-project/%Y-%m-%d.md"
+  # side-project: "~/Documents/journals/side-project/%Y-%m-%d.md"
 
 # --- Employer Domain ---
 # Used to classify meeting attendees as internal vs external.
@@ -103,8 +105,9 @@ employer_domain: ""    # e.g., "microsoft.com", "google.com", "example.com"
 # --- Contacts ---
 # Paths to contact index files. Each has a name-to-file JSON mapping.
 contacts:
-  work: "~/Library/CloudStorage/OneDrive-Microsoft/01_people/contacts/index.json"
-  # personal: "~/Library/Mobile Documents/com~apple~CloudDocs/personal/contacts/index.json"
+  work: "~/Documents/contacts/work/index.json"
+  # Example for OneDrive: "~/Library/CloudStorage/OneDrive-{AccountName}/contacts/index.json"
+  # community: "~/Library/Mobile Documents/com~apple~CloudDocs/personal/contacts/index.json"
 
 # --- Employer-Specific Workflows ---
 # These are optional workflow integrations specific to your employer.

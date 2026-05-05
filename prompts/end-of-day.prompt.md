@@ -97,7 +97,7 @@ If any signals exist, note them briefly. Not every day will have them. Don't for
 
 Determine today's date. Write or update journals by context.
 
-### Work journal (`~/Library/CloudStorage/OneDrive-Microsoft/journals/work/YYYY-MM-DD.md`)
+### Work journal (path from `data/config.yaml` → `journals.work`)
 
 **DATA BOUNDARY**: Never include iMessage content, personal email, or non-Microsoft data in the work journal. iMessage and personal communications belong exclusively in the personal journal. If an iMessage relates to work (e.g., a colleague texting about a deadline), capture only the work-relevant fact without attributing it to iMessage.
 
@@ -165,11 +165,8 @@ If the file already exists (with iMessage/email data), merge new content into it
 
 Run the spam filter on the file after writing: `python3 ~/.local/bin/filter-spam-emails.py --personal --apply`
 
-### Church journal (only if church activity today)
-Path: `~/Library/Mobile Documents/com~apple~CloudDocs/initiatives/catholic_church/journals/YYYY-MM-DD.md`
-
-### HMBL journal (only if HMBL activity today)
-Path: `~/Library/Mobile Documents/com~apple~CloudDocs/initiatives/hmbl/journals/YYYY-MM-DD.md`
+### Additional context journals (only if activity today)
+For any contexts beyond `work` and `personal` defined in `data/config.yaml` → `journals`, write an entry at the path defined by that journal pattern. Skip contexts with no activity today. Don't create empty files.
 
 Skip any context with no activity. Don't create empty files.
 
@@ -214,7 +211,7 @@ Skip this step if no personal details were surfaced today. Don't force it.
 
 ## Step 3c: Update work contacts directory
 
-Read `~/Library/CloudStorage/OneDrive-Microsoft/01_people/contacts/index.json` once to get the name-to-file mapping.
+Read the contacts index at the path defined by `data/config.yaml` → `contacts.work` once to get the name-to-file mapping.
 
 For each person the user had a meaningful interaction with today (meetings, email threads, 1:1s), look them up in the index (match on name, aliases, or email).
 

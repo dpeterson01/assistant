@@ -48,7 +48,7 @@ test('priorityTint and priorityGlyph cover all levels', () => {
 
 test('categoryLabel handles known and unknown', () => {
   assert.equal(categoryLabel('work'), 'Work');
-  assert.equal(categoryLabel('hmbl'), 'HMBL');
+  assert.equal(categoryLabel('side-biz'), 'Side-biz');
   assert.equal(categoryLabel('finance'), 'Finance');
   assert.equal(categoryLabel(''), '');
 });

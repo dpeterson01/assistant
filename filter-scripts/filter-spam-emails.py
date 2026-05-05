@@ -11,12 +11,31 @@ import glob
 
 # --- CONFIGURATION ---
 
-PERSONAL_JOURNALS = os.path.expanduser(
-    "~/Library/Mobile Documents/com~apple~CloudDocs/personal/journals"
-)
-WORK_JOURNALS = os.path.expanduser(
-    "~/Library/CloudStorage/OneDrive-Microsoft/journals/work"
-)
+def _load_config() -> dict:
+    config_path = os.path.join(os.path.dirname(__file__), "..", "data", "config.yaml")
+    try:
+        import yaml  # pylint: disable=import-outside-toplevel
+        with open(config_path) as fh:
+            return yaml.safe_load(fh) or {}
+    except Exception:
+        return {}
+
+
+def _journal_dir(config: dict, key: str, fallback: str) -> str:
+    pattern = config.get("journals", {}).get(key, "")
+    if not pattern:
+        return os.path.expanduser(fallback)
+    from pathlib import Path  # pylint: disable=import-outside-toplevel
+    expanded = os.path.expanduser(pattern)
+    d = Path(expanded).parent
+    while "%" in d.name:
+        d = d.parent
+    return str(d)
+
+
+_CFG = _load_config()
+PERSONAL_JOURNALS = _journal_dir(_CFG, "personal", "~/Documents/journals/personal")
+WORK_JOURNALS = _journal_dir(_CFG, "work", "~/Documents/journals/work")
 
 # Known marketing/spam senders (case-insensitive substring match on the "from" portion)
 SPAM_SENDERS = [

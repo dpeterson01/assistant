@@ -25,14 +25,46 @@ from pathlib import Path
 HOME = Path.home()
 REPO = Path(__file__).resolve().parents[1]  # assistant/
 
-WORK_CONTACTS = HOME / "Library/CloudStorage/OneDrive-Microsoft/01_people/contacts"
-CHURCH_CONTACTS = HOME / "Library/Mobile Documents/com~apple~CloudDocs/personal/contacts"
+def _load_config() -> dict:
+    """Load data/config.yaml; return empty dict if missing or unparseable."""
+    config_path = REPO / "data/config.yaml"
+    if not config_path.exists():
+        return {}
+    try:
+        import yaml  # pylint: disable=import-outside-toplevel
+        with open(config_path) as fh:
+            return yaml.safe_load(fh) or {}
+    except Exception:
+        return {}
 
-JOURNAL_DIRS = [
-    HOME / "Library/CloudStorage/OneDrive-Microsoft/journals/work",
-    HOME / "Library/Mobile Documents/com~apple~CloudDocs/personal/journals",
-    HOME / "Library/Mobile Documents/com~apple~CloudDocs/initiatives/hmbl/journals",
-    HOME / "Library/Mobile Documents/com~apple~CloudDocs/initiatives/catholic_church/journals",
+
+def _journal_dirs_from_config(config: dict) -> list[Path]:
+    """Derive directory paths from config journals section."""
+    result = []
+    for pattern in config.get("journals", {}).values():
+        expanded = os.path.expanduser(pattern)
+        dir_path = Path(expanded).parent
+        while "%" in dir_path.name:
+            dir_path = dir_path.parent
+        result.append(dir_path)
+    return result
+
+
+def _contact_dir(config: dict, key: str, fallback: Path) -> Path:
+    """Resolve a contacts path from config; return directory."""
+    raw = config.get("contacts", {}).get(key, "")
+    if not raw:
+        return fallback
+    p = Path(os.path.expanduser(raw))
+    return p.parent if p.suffix == ".json" else p
+
+
+_CFG = _load_config()
+WORK_CONTACTS = _contact_dir(_CFG, "work", HOME / "Documents/contacts/work")
+CHURCH_CONTACTS = _contact_dir(_CFG, "community", HOME / "Documents/contacts/personal")
+JOURNAL_DIRS = _journal_dirs_from_config(_CFG) or [
+    HOME / "Documents/journals/work",
+    HOME / "Documents/journals/personal",
 ]
 
 BRIEFING_DIR = REPO / "data/briefings"

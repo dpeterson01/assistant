@@ -139,7 +139,6 @@ If no new items found, just report that. Do not duplicate items already in the d
       --allow-tool='workiq' \
       --allow-tool='gmail' \
       --allow-tool='outlook' \
-      --allow-tool='hmbl-mail' \
       --deny-tool='shell(rm)' \
       --deny-tool='shell(git push)' 2>&1; then
       echo "Pull completed successfully"
