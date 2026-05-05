@@ -1146,6 +1146,17 @@ def cmd_objective_list(args) -> int:
     return 0
 
 
+def _tag_things3_task(things3_uuid: str, tag: str) -> None:
+    """Add a tag to a Things 3 task by UUID. Silent on failure."""
+    if not THINGS3_UPDATE.exists():
+        return
+    try:
+        subprocess.run([str(THINGS3_UPDATE), things3_uuid, "--tags", tag],
+                       capture_output=True, text=True, timeout=10)
+    except Exception:
+        pass
+
+
 def cmd_objective_link(args) -> int:
     """Link a task (commitment) to an objective."""
     with open_db() as conn:
@@ -1154,14 +1165,17 @@ def cmd_objective_link(args) -> int:
         if not obj:
             sys.stderr.write(f"objective not found: {args.objective_id}\n")
             return 1
-        task = conn.execute("SELECT task_id FROM commitments WHERE task_id=?", (args.task_id,)).fetchone()
-        if not task:
+        row = conn.execute(
+            "SELECT task_id, things3_uuid FROM commitments WHERE task_id=?", (args.task_id,)).fetchone()
+        if not row:
             sys.stderr.write(f"task not found: {args.task_id}\n")
             return 1
         conn.execute("""
             INSERT OR IGNORE INTO objective_tasks (objective_id, task_id) VALUES (?, ?)
         """, (args.objective_id, args.task_id))
         conn.commit()
+        if row["things3_uuid"]:
+            _tag_things3_task(row["things3_uuid"], "objective")
     print(json.dumps({"linked": args.objective_id, "task": args.task_id}))
     return 0
 
@@ -1255,6 +1269,11 @@ def cmd_mit_set(args) -> int:
                 completed_at=NULL
         """, (mit_id, d, args.rank, args.objective_id, args.task_id, args.title))
         conn.commit()
+        if args.task_id:
+            row = conn.execute(
+                "SELECT things3_uuid FROM commitments WHERE task_id=?", (args.task_id,)).fetchone()
+            if row and row["things3_uuid"]:
+                _tag_things3_task(row["things3_uuid"], "mit")
         if not args.no_render:
             do_render(conn)
     print(json.dumps({"id": mit_id, "date": d, "rank": args.rank,
