@@ -170,7 +170,7 @@ After collecting emails and Teams, classify every item using the rules in [triag
 - Hard exclusions (access requests, etc.)
 - Priority tiers (🔴 HIGH, 🟡 MEDIUM, 🟢 LOW) with sender-based rules and aging boosts
 - Thread escalation rules
-- Action item extraction tests (5-point filter before creating any task)
+- Action item extraction tests (7-point filter before creating any task)
 - Inline draft reply confidence thresholds
 
 Apply triage to every inbound item before proceeding to Step 2.
@@ -352,6 +352,8 @@ Every action item identified during triage becomes a Things 3 task. No exception
 3. Carry-forward items from yesterday's journal not yet in the DB
 4. Meeting prep tasks (from Step 2 meeting briefs)
 
+**Critical: already-responded check.** Before creating any task from an email or Teams thread, check whether the user already replied to or addressed the ask in that thread. If the user's outbound response substantively handles the request, skip the task. Apply triage rule 7 from [triage-rules.md](../context/triage-rules.md).
+
 **Never create tasks for**: GitHub pull requests or code reviews (PRs). Surface PR review requests in the briefing as informational items only — do not add them to Things 3 or action-items.md.
 
 ### Batch deduplication
@@ -364,8 +366,19 @@ Skip any candidate that already has a matching commitment.
 ### Add missing tasks (batch when possible)
 For each task to add, use atlas-db which auto-generates a Task ID, pushes to Things 3, and re-renders markdown:
 ```sh
-$ATLAS commit add --title "Task title" --direction mine --person "Person" --source "email/Teams from [person]" --due "YYYY-MM-DD" --category work
+$ATLAS commit add --title "Task title" --direction mine --person "Person" --source "Teams (Sender Name): Chat or channel name" --due "YYYY-MM-DD" --category work
 ```
+
+**`--source` format**: Always use `Channel (Sender): Subject/Chat`. Examples:
+- `"Teams (Collin Schedler): Agent Skills sync"` — Teams chat or channel
+- `"Exchange (Heather): FY27 strategy review"` — Work email
+- `"Outlook (Father Francisco): Tech inventory"` — Personal email
+- `"Meeting (Sprint Planning): 2026-05-12"` — Meeting action item
+- `"iMessage (Lacie): Parish photos"` — iMessage
+- `"Things (self): Inbox"` — Things 3 inbox item
+
+The source string is used as a tag in Things 3 (Teams, MS-Email, Meeting, etc.) and shown in the task notes.
+
 The output JSON includes the `task_id` and `things3_uuid`. Use the `task_id` in the briefing so completions can be tracked deterministically:
 ```markdown
 - Review ADO report from Tanvi (Task ID: AI-20260421-082145)
@@ -373,7 +386,7 @@ The output JSON includes the `task_id` and `things3_uuid`. Use the `task_id` in 
 
 To add items for the waiting-on-others direction:
 ```sh
-$ATLAS commit add --title "What they owe" --direction theirs --person "Person Name" --source "meeting/2026-04-24" --due "ASAP" --channel email --category work
+$ATLAS commit add --title "What they owe" --direction theirs --person "Person Name" --source "Teams (Person Name): Channel or chat" --due "ASAP" --channel email --category work
 ```
 
 The `--category` flag on `commit add` maps to Things 3 areas automatically based on the categories defined in `data/config.yaml`.
@@ -399,15 +412,9 @@ Remove stale tags from completed or resolved items. Tags should reflect the curr
 ### Report
 Present: "Added X tasks, completed Y tasks, updated tags on Z tasks" with the list.
 
-## Step 4b: Pod assignments MCP fallback
+## Step 4b: Pod assignments refresh
 
-Check if the pod assignments script left a marker requesting MCP fallback:
-
-```sh
-cat ~/.local/share/pod-assignments/needs-mcp-refresh 2>/dev/null
-```
-
-**If the marker file exists**, the ADO PAT is expired or missing and the launchd script couldn't refresh pod data. Use ADO MCP tools to do it instead:
+Refresh pod assignment data using ADO MCP tools. This runs every morning during the briefing.
 
 1. **Query work items** via `mcp_microsoft_azu_wit_query_by_wiql`:
    - Organization: `ceapex`
@@ -434,12 +441,23 @@ cat ~/.local/share/pod-assignments/needs-mcp-refresh 2>/dev/null
    cd "$HOME/projects/work/ecosystems-product" && "$VENV_DIR/bin/python" "$REPORTS_DIR/generate.py"
    ```
 
-4. **Remove the marker** after successful refresh:
+4. **Copy to OneDrive**:
+   ```sh
+   ONEDRIVE_DIR="$HOME/Library/CloudStorage/OneDrive-Microsoft/03_planning/pod-reports"
+   mkdir -p "$ONEDRIVE_DIR"
+   [[ -f "$REPORTS_DIR/pod-dashboard.html" ]] && cp "$REPORTS_DIR/pod-dashboard.html" "$ONEDRIVE_DIR/"
+   [[ -f "$REPORTS_DIR/pod-insights.md" ]] && cp "$REPORTS_DIR/pod-insights.md" "$ONEDRIVE_DIR/"
+   [[ -f "$REPORTS_DIR/pod-assignments.xlsx" ]] && cp "$REPORTS_DIR/pod-assignments.xlsx" "$ONEDRIVE_DIR/"
+   ```
+
+5. **Clear any stale PAT marker** (from the legacy launchd script):
    ```sh
    rm -f ~/.local/share/pod-assignments/needs-mcp-refresh
    ```
 
-5. **Note in briefing**: Add "✅ Pod assignments refreshed via MCP (PAT expired)" in the Phase B report.
+6. **Note in briefing**: Add "✅ Pod assignments refreshed" in the Phase B report.
+
+**If the MCP tools fail** (auth error, timeout), skip and note "⚠️ Pod assignments skipped (MCP unavailable)" in the report. Do not block the briefing.
 
 **If no marker file exists**, skip this step entirely. The launchd script handled it.
 

@@ -55,6 +55,7 @@ For every HIGH or MEDIUM item, apply these tests before creating a task:
 4. **Group meeting ask filter**: Only create a task if: (a) request explicitly @mentions the user, AND (b) no visible response already addressing it.
 5. **Unaccepted offer filter**: If the user offered to help but no explicit acceptance or follow-up, do not create a task.
 6. **Access request filter**: Never include in briefing or create a task.
+7. **Already-responded filter**: If the user already replied to or addressed the ask in the same thread (email reply, Teams reply, or follow-up message), do not create a task. Check the full thread for the user's outbound messages after the ask. A visible response from the user that substantively addresses the request means the item is resolved, not open.
 
 If a task passes: extract what to do, who it's owed to, source, and deadline.
 

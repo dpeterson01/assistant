@@ -131,8 +131,10 @@ This is the loop-closing step. Move every action item into the right tracking sy
 Add each to the DB. The command auto-generates a Task ID, pushes to Things 3, and re-renders markdown:
 
 ```sh
-$ATLAS commit add --title "<action title>" --direction mine --person "<recipient>" --source "meeting/YYYY-MM-DD/<meeting-slug>" --due "YYYY-MM-DD" --category work --notes "From <meeting title>. Acceptance: <criteria>."
+$ATLAS commit add --title "<action title>" --direction mine --person "<recipient>" --source "Meeting (<meeting title>): YYYY-MM-DD" --due "YYYY-MM-DD" --category work --notes "From <meeting title>. Acceptance: <criteria>."
 ```
+
+**`--source` format**: Always use `Channel (Sender/Context): Subject`. The source string is used as a tag in Things 3 and shown in the task notes.
 
 Before adding, search for an existing item to avoid duplicates:
 ```sh
@@ -142,7 +144,7 @@ $ATLAS commit search --query "<key keywords>"
 ### For action items owned by others (commitments to the user)
 Add each to the DB:
 ```sh
-$ATLAS commit add --title "<what they owe>" --direction theirs --person "<owner>" --source "meeting/YYYY-MM-DD/<meeting-slug>" --due "YYYY-MM-DD" --channel email --category work --notes "Status: pending. Committed in meeting."
+$ATLAS commit add --title "<what they owe>" --direction theirs --person "<owner>" --source "Meeting (<meeting title>): YYYY-MM-DD" --due "YYYY-MM-DD" --channel email --category work --notes "Status: pending. Committed in meeting."
 ```
 
 ### For decisions

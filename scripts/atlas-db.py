@@ -644,12 +644,26 @@ def cmd_commit_add(args) -> int:
         ensure_schema(conn)
         task_id = args.task_id or generate_task_id()
 
-        # Check for duplicate
+        # Check for duplicate by task_id
         existing = conn.execute("SELECT task_id FROM commitments WHERE task_id=?",
                                 (task_id,)).fetchone()
         if existing:
             sys.stderr.write(f"task_id already exists: {task_id}\n")
             return 1
+
+        # Check for duplicate by title among active commitments (case-insensitive)
+        title_match = conn.execute(
+            "SELECT task_id, title FROM commitments "
+            "WHERE status='active' AND direction=? AND LOWER(title)=LOWER(?)",
+            (args.direction, args.title)
+        ).fetchone()
+        if title_match:
+            sys.stderr.write(
+                f"duplicate: active commitment already exists with title "
+                f"'{title_match['title']}' (task_id: {title_match['task_id']})\n"
+            )
+            print(json.dumps({"task_id": title_match["task_id"], "duplicate": True}))
+            return 0
 
         conn.execute(
             "INSERT INTO commitments (task_id, title, direction, category, person, "
@@ -666,7 +680,7 @@ def cmd_commit_add(args) -> int:
             things3_ok = push_to_things3(
                 title=args.title, task_id=task_id, direction=args.direction,
                 person=args.person, due=args.due, category=args.category,
-                channel=args.channel, notes=args.notes
+                channel=args.channel, source=args.source, notes=args.notes
             )
 
         if not args.no_render:
@@ -1385,10 +1399,44 @@ def stamp_things3_task(uuid: str, task_id: str, existing_notes: str | None) -> b
         return False
 
 
+# Map source strings to normalized tags for Things 3
+SOURCE_TAG_MAP = {
+    "teams": "Teams",
+    "email": "MS-Email",
+    "exchange": "MS-Email",
+    "outlook": "MS-Email",
+    "outlook-work": "MS-Email",
+    "outlook-personal": "Personal-Email",
+    "personal outlook": "Personal-Email",
+    "gmail": "Gmail",
+    "imessage": "iMessage",
+    "meeting": "Meeting",
+    "things": "Things",
+    "things3": "Things",
+}
+
+
+def _derive_source_tag(source: str | None) -> str | None:
+    """Extract a normalized source tag from a freeform source string."""
+    if not source:
+        return None
+    src_lower = source.lower()
+    # Check for known prefixes (e.g., "Teams/Collin DM" -> "teams")
+    for key, tag in SOURCE_TAG_MAP.items():
+        if src_lower.startswith(key):
+            return tag
+    # Check for keywords anywhere in the string
+    for key, tag in SOURCE_TAG_MAP.items():
+        if key in src_lower:
+            return tag
+    return None
+
+
 def push_to_things3(title: str, task_id: str, direction: str,
                     person: str | None, due: str | None,
                     category: str | None, channel: str | None,
-                    notes: str | None) -> bool:
+                    source: str | None = None,
+                    notes: str | None = None) -> bool:
     """Push a task to Things 3 via add.sh. Returns True on success."""
     if not THINGS3_ADD.exists():
         sys.stderr.write("things3/add.sh not found, skipping push\n")
@@ -1403,16 +1451,21 @@ def push_to_things3(title: str, task_id: str, direction: str,
     if due and due != "ASAP":
         cmd.extend(["--deadline", due])
 
-    # Build tags: 'waiting' for direction=theirs, source channel tag
+    # Build tags: 'waiting' for direction=theirs, channel tag, source tag
     tags = []
     if direction == "theirs":
         tags.append("waiting")
     if channel and channel.lower() in CHANNEL_TAG_MAP:
         tags.append(CHANNEL_TAG_MAP[channel.lower()])
+    source_tag = _derive_source_tag(source)
+    if source_tag and source_tag not in tags:
+        tags.append(source_tag)
     if tags:
         cmd.extend(["--tags", ",".join(tags)])
 
     note_parts = []
+    if source:
+        note_parts.append(f"Source: {source}")
     if notes:
         note_parts.append(notes)
     if person and direction == "mine":
@@ -1452,19 +1505,22 @@ def cmd_sync_things3(args) -> int:
 
         synced = 0
         imported = 0
+        deadline_updates = 0
 
-        # --- Phase 1: Pull completions from Things 3 ---
+        # --- Phase 1: Pull completions and deadline changes from Things 3 ---
 
-        # 1a. For commitments with things3_uuid: check completion status
+        # 1a. For commitments with things3_uuid: check completion status and deadlines
         rows = conn.execute(
-            "SELECT task_id, things3_uuid FROM commitments "
+            "SELECT task_id, things3_uuid, due_date FROM commitments "
             "WHERE things3_uuid IS NOT NULL AND status='active'"
         ).fetchall()
         for r in rows:
             t3row = t3.execute(
-                "SELECT status FROM TMTask WHERE uuid=?", (r["things3_uuid"],)
+                "SELECT status, deadline FROM TMTask WHERE uuid=?", (r["things3_uuid"],)
             ).fetchone()
-            if t3row and t3row["status"] == 3:  # 3 = completed in Things 3
+            if not t3row:
+                continue
+            if t3row["status"] == 3:  # 3 = completed in Things 3
                 if dry_run:
                     sys.stderr.write(f"  [dry-run] would complete: {r['task_id']}\n")
                 else:
@@ -1474,16 +1530,32 @@ def cmd_sync_things3(args) -> int:
                         (r["task_id"],)
                     )
                 synced += 1
+            else:
+                # Check for deadline changes
+                t3_deadline = decode_things3_date(t3row["deadline"])
+                atlas_deadline = r["due_date"]
+                if t3_deadline != atlas_deadline and t3_deadline is not None:
+                    if dry_run:
+                        sys.stderr.write(
+                            f"  [dry-run] would update deadline: {r['task_id']} "
+                            f"{atlas_deadline} -> {t3_deadline}\n"
+                        )
+                    else:
+                        conn.execute(
+                            "UPDATE commitments SET due_date=? WHERE task_id=?",
+                            (t3_deadline, r["task_id"])
+                        )
+                    deadline_updates += 1
 
         # 1b. For commitments without things3_uuid: try to match by Task ID in notes
         rows = conn.execute(
-            "SELECT task_id FROM commitments "
+            "SELECT task_id, due_date FROM commitments "
             "WHERE things3_uuid IS NULL AND status='active'"
         ).fetchall()
         for r in rows:
             pattern = f"%Task ID: {r['task_id']}%"
             t3row = t3.execute(
-                "SELECT uuid, status FROM TMTask WHERE notes LIKE ? AND trashed=0 AND type=0",
+                "SELECT uuid, status, deadline FROM TMTask WHERE notes LIKE ? AND trashed=0 AND type=0",
                 (pattern,)
             ).fetchone()
             if t3row:
@@ -1492,6 +1564,14 @@ def cmd_sync_things3(args) -> int:
                     sys.stderr.write(f"  [dry-run] would {label}: {r['task_id']}\n")
                     if t3row["status"] == 3:
                         synced += 1
+                    else:
+                        t3_deadline = decode_things3_date(t3row["deadline"])
+                        if t3_deadline and t3_deadline != r["due_date"]:
+                            sys.stderr.write(
+                                f"  [dry-run] would update deadline: {r['task_id']} "
+                                f"{r['due_date']} -> {t3_deadline}\n"
+                            )
+                            deadline_updates += 1
                 else:
                     updates = ["things3_uuid=?"]
                     params: list = [t3row["uuid"]]
@@ -1499,6 +1579,13 @@ def cmd_sync_things3(args) -> int:
                         updates.append("status='completed'")
                         updates.append("completed_at=date('now','localtime')")
                         synced += 1
+                    else:
+                        # Also sync deadline changes
+                        t3_deadline = decode_things3_date(t3row["deadline"])
+                        if t3_deadline and t3_deadline != r["due_date"]:
+                            updates.append("due_date=?")
+                            params.append(t3_deadline)
+                            deadline_updates += 1
                     params.append(r["task_id"])
                     conn.execute(
                         f"UPDATE commitments SET {', '.join(updates)} WHERE task_id=?",
@@ -1583,6 +1670,7 @@ def cmd_sync_things3(args) -> int:
 
         print(json.dumps({
             "synced_completions": synced,
+            "synced_deadlines": deadline_updates,
             "imported_from_things3": imported,
             "dry_run": dry_run,
         }))

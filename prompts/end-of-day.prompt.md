@@ -179,6 +179,7 @@ Review all meetings, emails, and Teams conversations from today. For each, ident
 - Who is it owed to?
 - What's the deadline (explicit or implied)?
 - Source (which meeting/email/conversation)
+- **Did the user already respond?** Check the full thread (email replies, Teams replies, follow-up messages) for the user's outbound response that substantively addresses the ask. If the user already handled it, do NOT create a task. Only create tasks for requests still awaiting the user's action.
 
 **Others' commitments** (things someone else committed to that the user needs to track):
 - What exactly did they commit to?
@@ -237,13 +238,24 @@ This updates the DB, pushes completion to Things 3, and re-renders the markdown 
 
 **Add new tasks**: For each of my action items from Step 3 that doesn't already exist:
 ```sh
-$ATLAS commit add --title "Task title" --direction mine --person "Person" --source "meeting/email name" --due "YYYY-MM-DD" --category work --notes "Context: brief."
+$ATLAS commit add --title "Task title" --direction mine --person "Person" --source "Teams (Sender): Chat name" --due "YYYY-MM-DD" --category work --notes "Context: brief."
 ```
+
+**`--source` format**: Always use `Channel (Sender): Subject/Chat`. Examples:
+- `"Teams (Collin Schedler): Agent Skills sync"` — Teams chat or channel
+- `"Exchange (Heather): FY27 strategy review"` — Work email
+- `"Outlook (Father Francisco): Tech inventory"` — Personal email
+- `"Meeting (Sprint Planning): 2026-05-12"` — Meeting action item
+- `"iMessage (Lacie): Parish photos"` — iMessage
+- `"Things (self): Inbox"` — Things 3 inbox item
+
+The source string is used as a tag in Things 3 and shown in the task notes.
+
 This auto-generates a Task ID, pushes to Things 3, and re-renders markdown. Use `--due "ASAP"` for items with no hard deadline.
 
 For items others committed to (waiting-on-others):
 ```sh
-$ATLAS commit add --title "What they owe" --direction theirs --person "Person" --source "meeting/YYYY-MM-DD" --due "ASAP" --channel email --category work --notes "Status: pending"
+$ATLAS commit add --title "What they owe" --direction theirs --person "Person" --source "Meeting (Sprint Planning): 2026-05-12" --due "ASAP" --channel email --category work --notes "Status: pending"
 ```
 
 **Reschedule stale tasks**: If Things 3 Today still has items that didn't get done and aren't urgent, reschedule:
@@ -303,6 +315,16 @@ This primes the weekly review on Sunday with cleaner data.
 - Tomorrow's meetings (update the meeting list)
 
 For tomorrow's meetings, query WorkIQ: "What meetings do I have scheduled for tomorrow (YYYY-MM-DD)? List each with time, title, and attendees."
+
+### Church workstreams sync
+
+After running `$ATLAS sync-things3`, check the output for `synced_deadlines > 0`. If any church-category tasks had deadline or status changes, update the parish workstreams document:
+
+```
+~/Library/Mobile Documents/com~apple~CloudDocs/initiatives/catholic_church/projects/workstreams-and-priorities.md
+```
+
+For each changed church task: find the matching action row (by action number like "1.1" or title), update the **Target Date** and/or **Status** columns, and update the `*Last Updated:*` line at the top. Skip if no church deadlines changed.
 
 ## Step 7: Session marker
 

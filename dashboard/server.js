@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, writeFileSync, renameSync, existsSync, mkdir
 import { join, dirname, resolve as resolvePath } from 'path';
 import { fileURLToPath } from 'url';
 import { execFile, execFileSync, spawn } from 'child_process';
+import { startScheduler, stopScheduler, getStatus as getSchedulerStatus, enableTask, disableTask, triggerTask } from './scheduler.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -1467,13 +1468,57 @@ app.get('/api/obligations', (req, res) => {
   res.json({ person: req.query.person, userOwes, theyOwe });
 });
 
+// --- Scheduler API ---
+
+// GET /api/scheduler — full status of all scheduled jobs
+app.get('/api/scheduler', (_req, res) => {
+  res.json({ jobs: getSchedulerStatus() });
+});
+
+// POST /api/scheduler/:id/enable
+app.post('/api/scheduler/:id/enable', (req, res) => {
+  const result = enableTask(req.params.id);
+  if (result.error) return res.status(404).json(result);
+  broadcast('scheduler', { action: 'enabled', task: req.params.id });
+  res.json(result);
+});
+
+// POST /api/scheduler/:id/disable
+app.post('/api/scheduler/:id/disable', (req, res) => {
+  const result = disableTask(req.params.id);
+  if (result.error) return res.status(404).json(result);
+  broadcast('scheduler', { action: 'disabled', task: req.params.id });
+  res.json(result);
+});
+
+// POST /api/scheduler/:id/trigger — manually fire a job now
+app.post('/api/scheduler/:id/trigger', (req, res) => {
+  const result = triggerTask(req.params.id, {
+    onStart: (task, info) => broadcast('job-started', { task: task.id, ...info }),
+    onEnd: (task, info) => broadcast('job-done', { task: task.id, ...info }),
+  });
+  if (result.error) {
+    const status = result.pid ? 409 : 404;
+    return res.status(status).json(result);
+  }
+  res.json(result);
+});
+
 // --- Start ---
 app.listen(PORT, HOST, () => {
   console.log(`Briefing dashboard → http://${HOST}:${PORT}`);
+
+  // Start the scheduler after the server is listening
+  const { started, skipped } = startScheduler({
+    onStart: (task, info) => broadcast('job-started', { task: task.id, ...info }),
+    onEnd: (task, info) => broadcast('job-done', { task: task.id, ...info }),
+  });
+  console.log(`[scheduler] ${started} jobs active, ${skipped} skipped`);
 });
 
 // Reap any in-flight regenerate child on shutdown so we don't orphan it.
 function shutdown(sig) {
+  stopScheduler();
   if (regenProc) {
     try { regenProc.kill('SIGTERM'); } catch { /* already gone */ }
   }

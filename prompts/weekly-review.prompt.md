@@ -242,6 +242,24 @@ After writing all summaries, open the work weekly in Typora:
 open -a Typora "<work-weekly-dir>/YYYY-MM-DD_weekly.md"  # work-weekly-dir = sibling weekly/ of journals.work dir
 ```
 
+## Step 5b: Sync church workstreams doc
+
+If any church-category tasks in the atlas DB had deadline changes this week (check `synced_deadlines` from the last `$ATLAS sync-things3` output, or compare DB due dates against the workstreams doc), update the parish workstreams document:
+
+```
+~/Library/Mobile Documents/com~apple~CloudDocs/initiatives/catholic_church/projects/workstreams-and-priorities.md
+```
+
+For each church task whose deadline changed:
+1. Find the matching action row in the workstreams doc (match by action number like "1.1", "5a.2", or by title)
+2. Update the **Target Date** column to reflect the new date
+3. Update the **Status** column if the task was completed
+4. Update the **Active Focus** summary table at the top if any workstream status changed
+
+Also update the `*Last Updated:*` line at the top of the file to today's date.
+
+Skip this step if no church task deadlines changed this week.
+
 ## Step 6: Update Connects draft
 
 Maintain a running Connects draft at `<work-journal-parent>/connects/current-half.md` (sibling of the work journals directory, from `data/config.yaml` → `journals.work`). This file accumulates across weeks so that by Connects time, the evidence is already assembled.
